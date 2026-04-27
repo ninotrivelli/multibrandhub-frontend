@@ -1,0 +1,80 @@
+<div class="min-h-screen bg-surface-50 dark:bg-surface-900">
+  <app-navigation-drawer
+    [links]="navItems()"
+    [collapsed]="collapsed()"
+    [mobileOpen]="mobileOpen()"
+    (toggleCollapse)="toggleCollapse()"
+    (closeMobile)="closeMobile()"
+  />
+
+  @if (mobileOpen()) {
+    <button
+      type="button"
+      class="md:hidden fixed inset-0 z-20 bg-black/40"
+      aria-label="Cerrar menú"
+      (click)="closeMobile()"
+    ></button>
+  }
+
+  <div
+    class="content-area flex flex-col min-h-screen min-w-0"
+    [class.content-area-collapsed]="collapsed()"
+  >
+    <header
+      class="h-16 shrink-0 bg-surface-0 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 flex items-center gap-3 px-4 md:px-6"
+    >
+      <div class="md:hidden">
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          [text]="true"
+          [rounded]="true"
+          ariaLabel="Abrir menú"
+          (click)="openMobile()"
+        >
+          <i-lucide [img]="icons.Menu" class="size-5" />
+        </button>
+      </div>
+
+      <div class="ml-auto flex items-center gap-3">
+        <p-avatar
+          [label]="initials()"
+          shape="circle"
+          styleClass="bg-primary text-primary-contrast"
+        />
+        <div class="text-right leading-tight">
+          <div class="text-sm font-medium text-surface-900 dark:text-surface-0">
+            {{ user()?.fullName ?? '—' }}
+          </div>
+          @if (config(); as cfg) {
+            @if (cfg.label) {
+              @if (cfg.showRoleBadge) {
+                <div class="text-xs font-semibold text-primary uppercase tracking-wide">
+                  {{ cfg.label }}
+                </div>
+              } @else {
+                <div class="text-xs text-surface-500 dark:text-surface-400">{{ cfg.label }}</div>
+              }
+            }
+          }
+        </div>
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          [text]="true"
+          [rounded]="true"
+          ariaLabel="Cerrar sesión"
+          (click)="logout()"
+        >
+          <i-lucide [img]="icons.LogOut" class="size-5" />
+        </button>
+      </div>
+    </header>
+
+    <main class="flex-1 overflow-auto">
+      <router-outlet />
+    </main>
+  </div>
+</div>

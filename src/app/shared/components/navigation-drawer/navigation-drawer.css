@@ -1,0 +1,99 @@
+:host {
+  display: contents;
+}
+
+:host ::ng-deep .app-nav-drawer {
+  width: 18rem !important;
+  top: 0;
+  height: 100dvh;
+  border-right: 1px solid var(--p-content-border-color);
+  box-shadow: none;
+  transition:
+    width 160ms ease,
+    transform 200ms ease;
+}
+
+:host ::ng-deep .app-nav-drawer.app-nav-drawer-collapsed {
+  width: 4.5rem !important;
+}
+
+.drawer-header-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.drawer-header-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--p-primary-color);
+}
+
+.drawer-nav {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.drawer-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.65rem;
+  text-decoration: none;
+  color: var(--p-text-color);
+  border: 1px solid transparent;
+  font-size: 0.92rem;
+  font-weight: 500;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.drawer-link-collapsed {
+  justify-content: center;
+  padding: 0.65rem 0;
+}
+
+.drawer-link-icon {
+  display: inline-flex;
+  width: 1.25rem;
+  height: 1.25rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.drawer-link-icon ::ng-deep svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.drawer-link:hover {
+  background: var(--p-surface-100);
+  border-color: var(--p-content-border-color);
+}
+
+.drawer-link-active {
+  background: color-mix(in srgb, var(--p-primary-color) 12%, var(--p-surface-0));
+  border-color: color-mix(in srgb, var(--p-primary-color) 35%, var(--p-content-border-color));
+  color: var(--p-primary-color);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  :host ::ng-deep .app-nav-drawer,
+  :host ::ng-deep .app-nav-drawer.app-nav-drawer-collapsed {
+    width: min(18rem, 92vw) !important;
+    z-index: 30;
+    transform: translateX(-110%);
+  }
+
+  :host ::ng-deep .app-nav-drawer.app-nav-drawer-mobile-open {
+    transform: translateX(0) !important;
+  }
+}
