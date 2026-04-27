@@ -1,0 +1,7 @@
+<p-toast position="top-right" />
+
+@if (loading.isLoading()) {
+  <p-progressBar mode="indeterminate" styleClass="fixed top-0 left-0 right-0 z-50 !h-1" />
+}
+
+<router-outlet />
