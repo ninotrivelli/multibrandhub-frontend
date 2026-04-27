@@ -18,6 +18,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { ConfirmationService } from 'primeng/api';
 import { Pencil, Plus, KeyRound, UserMinus, UserCheck } from 'lucide-angular';
 import { LucideAngularModule } from 'lucide-angular';
@@ -60,6 +61,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
     SkeletonModule,
     TooltipModule,
     ConfirmDialogModule,
+    ToggleSwitchModule,
     LucideAngularModule,
     UserFormDialogComponent
   ],
@@ -108,6 +110,13 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
             styleClass="w-full"
           />
         </div>
+        <label class="flex items-center gap-2 cursor-pointer select-none text-sm text-surface-600 dark:text-surface-300 whitespace-nowrap">
+          <p-toggleswitch
+            [ngModel]="showInactive()"
+            (ngModelChange)="showInactive.set($event)"
+          />
+          Mostrar inactivos
+        </label>
       </div>
 
       @if (loading() && !hasItems()) {
@@ -144,7 +153,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
                 <th>Rol</th>
                 <th class="hidden lg:table-cell">Marca</th>
                 <th>Estado</th>
-                <th class="text-right">Acciones</th>
+                <th class="w-28 text-right">Acciones</th>
               </tr>
             </ng-template>
             <ng-template pTemplate="body" let-user>
@@ -186,7 +195,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
                     [severity]="user.isActive ? 'success' : 'danger'"
                   />
                 </td>
-                <td>
+                <td class="w-28 text-right">
                   <div class="flex items-center justify-end gap-1">
                     <button
                       pButton
@@ -254,6 +263,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
       [editing]="dialogEditing()"
       (visibleChange)="onDialogVisibleChange($event)"
       (saved)="onSaved()"
+      (deleted)="onDeleted()"
     />
 
     <p-confirmdialog />
@@ -274,6 +284,7 @@ export class AdminEquipoComponent implements OnInit {
 
   protected readonly searchTerm = signal('');
   protected readonly roleFilter = signal<UserRole[]>([]);
+  protected readonly showInactive = signal(false);
 
   protected readonly allUsers = this.users.items;
   protected readonly loading = this.users.loading;
@@ -282,7 +293,9 @@ export class AdminEquipoComponent implements OnInit {
   protected readonly filteredUsers = computed(() => {
     const term = this.searchTerm().trim().toLowerCase();
     const roles = this.roleFilter();
+    const showInactive = this.showInactive();
     return this.allUsers().filter((u) => {
+      if (!showInactive && !u.isActive) return false;
       if (roles.length > 0 && !roles.includes(u.role)) return false;
       if (term && !`${u.fullName} ${u.email}`.toLowerCase().includes(term)) return false;
       return true;
@@ -342,6 +355,10 @@ export class AdminEquipoComponent implements OnInit {
 
   protected onSaved(): void {
     // The service already updates the local list optimistically
+  }
+
+  protected onDeleted(): void {
+    this.dialogVisible.set(false);
   }
 
   protected confirmDeactivate(user: UserResponse): void {

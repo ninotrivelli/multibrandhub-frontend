@@ -59,12 +59,18 @@ export class UsersService {
   }
 
   deactivate(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/${id}`).pipe(
+    return this.http.patch<void>(`${this.baseUrl}/${id}/deactivate`, {}).pipe(
       tap(() =>
         this._items.update((curr) =>
           curr.map((u) => (u.id === id ? { ...u, isActive: false } : u))
         )
       )
+    );
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`).pipe(
+      tap(() => this._items.update((curr) => curr.filter((u) => u.id !== id)))
     );
   }
 }

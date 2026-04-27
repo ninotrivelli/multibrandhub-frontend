@@ -186,6 +186,62 @@ interface RoleOption {
             [disabled]="submitting()"
           ></button>
         </div>
+
+        @if (mode() === 'edit') {
+          <div class="border-t border-surface-200 dark:border-surface-700 pt-4 mt-1">
+            @if (!showDeleteConfirm()) {
+              <button
+                pButton
+                type="button"
+                severity="danger"
+                [text]="true"
+                size="small"
+                label="Eliminar usuario"
+                [disabled]="submitting()"
+                (click)="requestDelete()"
+              ></button>
+            } @else {
+              <div class="flex flex-col gap-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 p-4">
+                <p class="text-sm font-medium text-red-700 dark:text-red-300">
+                  Esta acción es permanente y no se puede deshacer.
+                </p>
+                <p class="text-sm text-red-600 dark:text-red-400">
+                  Escribí el email <strong>{{ editing()?.email }}</strong> para confirmar.
+                </p>
+                <input
+                  pInputText
+                  type="email"
+                  [value]="deleteEmailInput()"
+                  (input)="deleteEmailInput.set($any($event.target).value)"
+                  placeholder="Email del usuario"
+                  fluid
+                />
+                <div class="flex justify-end gap-2">
+                  <button
+                    pButton
+                    type="button"
+                    severity="secondary"
+                    [text]="true"
+                    size="small"
+                    label="Cancelar"
+                    [disabled]="deleting()"
+                    (click)="cancelDelete()"
+                  ></button>
+                  <button
+                    pButton
+                    type="button"
+                    severity="danger"
+                    size="small"
+                    label="Eliminar definitivamente"
+                    [loading]="deleting()"
+                    [disabled]="!canConfirmDelete() || deleting()"
+                    (click)="confirmDelete()"
+                  ></button>
+                </div>
+              </div>
+            }
+          </div>
+        }
       </form>
     </p-dialog>
   `
@@ -201,6 +257,7 @@ export class UserFormDialogComponent {
 
   readonly visibleChange = output<boolean>();
   readonly saved = output<UserResponse>();
+  readonly deleted = output<void>();
 
   // BrandManager creation requires a brand selector that depends on the
   // Brands module (Phase 2). For now, only Admin and Seller are creatable
@@ -212,6 +269,13 @@ export class UserFormDialogComponent {
 
   protected readonly submitting = signal(false);
   protected readonly submitError = signal<string | null>(null);
+
+  protected readonly showDeleteConfirm = signal(false);
+  protected readonly deleteEmailInput = signal('');
+  protected readonly deleting = signal(false);
+  protected readonly canConfirmDelete = computed(
+    () => this.deleteEmailInput().trim().toLowerCase() === (this.editing()?.email ?? '').toLowerCase()
+  );
 
   protected readonly form = this.fb.nonNullable.group({
     fullName: ['', [Validators.required]],
@@ -302,6 +366,34 @@ export class UserFormDialogComponent {
     }
   }
 
+  protected requestDelete(): void {
+    this.showDeleteConfirm.set(true);
+    this.deleteEmailInput.set('');
+  }
+
+  protected cancelDelete(): void {
+    this.showDeleteConfirm.set(false);
+    this.deleteEmailInput.set('');
+  }
+
+  protected confirmDelete(): void {
+    const user = this.editing();
+    if (!user || !this.canConfirmDelete() || this.deleting()) return;
+
+    this.deleting.set(true);
+    this.users.delete(user.id).subscribe({
+      next: () => {
+        this.deleting.set(false);
+        this.notifications.success(`Se eliminó a ${user.fullName}.`);
+        this.deleted.emit();
+        this.visibleChange.emit(false);
+      },
+      error: () => {
+        this.deleting.set(false);
+      }
+    });
+  }
+
   private handleError(err: HttpErrorResponse): void {
     this.submitting.set(false);
     const body = err.error as { message?: string; errors?: { message: string }[] } | undefined;
@@ -316,6 +408,8 @@ export class UserFormDialogComponent {
 
   private resetFormFromInputs(): void {
     this.submitError.set(null);
+    this.showDeleteConfirm.set(false);
+    this.deleteEmailInput.set('');
     const passwordCtrl = this.form.controls.password;
     const editingUser = this.editing();
 
