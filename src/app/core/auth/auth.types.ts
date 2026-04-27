@@ -33,3 +33,17 @@ export interface AuthSession {
   token: string;
   expiresAtUtc: string;
 }
+
+// JWT claims as emitted by the backend's JwtTokenGenerator. Field names follow
+// JwtSecurityTokenHandler's DefaultOutboundClaimTypeMap (ClaimTypes.Role → "role",
+// ClaimTypes.NameIdentifier → "nameid", ClaimTypes.Email → "email"). Email and
+// role can come as arrays when the backend writes them under more than one
+// alias, so accept both shapes.
+export interface JwtClaims {
+  sub?: string;
+  nameid?: string | string[];
+  email?: string | string[];
+  role?: string | string[];
+  brandId?: string;
+  exp?: number;
+}

@@ -2,9 +2,18 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, map, tap } from 'rxjs';
+import { jwtDecode } from 'jwt-decode';
 
 import { environment } from '../../../environments/environment';
-import { AuthResponse, AuthSession, LoginRequest, RoleWire, UserRole } from './auth.types';
+import {
+  AuthResponse,
+  AuthSession,
+  AuthUser,
+  JwtClaims,
+  LoginRequest,
+  RoleWire,
+  UserRole
+} from './auth.types';
 
 const STORAGE_KEY = 'mbh.token';
 
@@ -24,6 +33,33 @@ function normalizeRole(r: RoleWire): UserRole {
   return r;
 }
 
+function firstString(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+function claimsMatchUser(claims: JwtClaims, user: AuthUser): boolean {
+  const claimSub = claims.sub ?? firstString(claims.nameid);
+  if (claimSub !== user.userId) return false;
+
+  const claimEmail = firstString(claims.email);
+  if (claimEmail !== user.email) return false;
+
+  const rawRole = firstString(claims.role);
+  if (!rawRole) return false;
+  try {
+    const claimRole = normalizeRole(rawRole as RoleWire);
+    if (claimRole !== user.role) return false;
+  } catch {
+    return false;
+  }
+
+  const claimBrand = claims.brandId ?? null;
+  if (claimBrand !== user.brandId) return false;
+
+  return true;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
@@ -41,16 +77,36 @@ export class AuthService {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
 
+    let parsed: AuthSession;
     try {
-      const parsed = JSON.parse(raw) as AuthSession;
-      if (new Date(parsed.expiresAtUtc).getTime() <= Date.now()) {
-        localStorage.removeItem(STORAGE_KEY);
-        return;
-      }
-      this._session.set(parsed);
+      parsed = JSON.parse(raw) as AuthSession;
     } catch {
       localStorage.removeItem(STORAGE_KEY);
+      return;
     }
+
+    let claims: JwtClaims;
+    try {
+      claims = jwtDecode<JwtClaims>(parsed.token);
+    } catch {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
+    // Use the JWT's own `exp` claim as the source of truth, not the
+    // separately-stored expiresAtUtc (which a tamperer could rewrite).
+    const expMs = typeof claims.exp === 'number' ? claims.exp * 1000 : 0;
+    if (expMs <= Date.now()) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
+    if (!claimsMatchUser(claims, parsed.user)) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
+    this._session.set(parsed);
   }
 
   login(req: LoginRequest): Observable<AuthSession> {
