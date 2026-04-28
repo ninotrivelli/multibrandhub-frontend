@@ -34,11 +34,20 @@ export interface AuthSession {
   expiresAtUtc: string;
 }
 
-// JWT claims as emitted by the backend's JwtTokenGenerator. Field names follow
-// JwtSecurityTokenHandler's DefaultOutboundClaimTypeMap (ClaimTypes.Role → "role",
-// ClaimTypes.NameIdentifier → "nameid", ClaimTypes.Email → "email"). Email and
-// role can come as arrays when the backend writes them under more than one
-// alias, so accept both shapes.
+// JWT claims as emitted by the backend's JwtTokenGenerator. .NET's
+// JwtSecurityTokenHandler.DefaultOutboundClaimTypeMap shortens some
+// ClaimTypes URIs (Email → "email", NameIdentifier → "nameid") but does
+// NOT have an entry for ClaimTypes.Role, so role keeps its full URI in
+// the JWT payload. Accept both short and URI forms — and arrays, since
+// the backend writes some claim types twice (e.g. JwtRegisteredClaimNames.Email
+// AND ClaimTypes.Email both serialize to "email").
+export const ROLE_CLAIM_URI =
+  'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
+export const NAMEID_CLAIM_URI =
+  'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier';
+export const EMAIL_CLAIM_URI =
+  'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress';
+
 export interface JwtClaims {
   sub?: string;
   nameid?: string | string[];
@@ -46,4 +55,7 @@ export interface JwtClaims {
   role?: string | string[];
   brandId?: string;
   exp?: number;
+  [ROLE_CLAIM_URI]?: string | string[];
+  [NAMEID_CLAIM_URI]?: string | string[];
+  [EMAIL_CLAIM_URI]?: string | string[];
 }

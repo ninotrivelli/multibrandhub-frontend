@@ -9,8 +9,11 @@ import {
   AuthResponse,
   AuthSession,
   AuthUser,
+  EMAIL_CLAIM_URI,
   JwtClaims,
   LoginRequest,
+  NAMEID_CLAIM_URI,
+  ROLE_CLAIM_URI,
   RoleWire,
   UserRole
 } from './auth.types';
@@ -39,13 +42,17 @@ function firstString(value: string | string[] | undefined): string | undefined {
 }
 
 function claimsMatchUser(claims: JwtClaims, user: AuthUser): boolean {
-  const claimSub = claims.sub ?? firstString(claims.nameid);
+  const claimSub =
+    claims.sub ?? firstString(claims.nameid) ?? firstString(claims[NAMEID_CLAIM_URI]);
   if (claimSub !== user.userId) return false;
 
-  const claimEmail = firstString(claims.email);
+  const claimEmail = firstString(claims.email) ?? firstString(claims[EMAIL_CLAIM_URI]);
   if (claimEmail !== user.email) return false;
 
-  const rawRole = firstString(claims.role);
+  // ClaimTypes.Role is NOT in the OutboundClaimTypeMap, so the JWT carries
+  // it under the full URI (ROLE_CLAIM_URI). Older tokens or other backends
+  // may still use the short "role" form.
+  const rawRole = firstString(claims.role) ?? firstString(claims[ROLE_CLAIM_URI]);
   if (!rawRole) return false;
   try {
     const claimRole = normalizeRole(rawRole as RoleWire);
