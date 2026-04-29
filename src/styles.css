@@ -14,3 +14,10 @@ html,
 body {
   font-family: var(--font-sans);
 }
+
+/* Reserve space for the vertical scrollbar so that opening modals (which
+ * lock body scroll via `overflow: hidden`) doesn't shift the layout
+ * horizontally. */
+html {
+  scrollbar-gutter: stable;
+}

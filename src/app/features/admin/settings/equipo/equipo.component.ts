@@ -101,7 +101,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
           <p-multiselect
             [options]="roleOptions"
             [ngModel]="roleFilter()"
-            (ngModelChange)="roleFilter.set($event)"
+            (ngModelChange)="roleFilter.set($event ?? [])"
             optionLabel="label"
             optionValue="value"
             placeholder="Todos los roles"
@@ -139,9 +139,9 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
         <div class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden">
           <p-table
             [value]="filteredUsers()"
-            [paginator]="filteredUsers().length > 10"
-            [rows]="10"
-            [rowsPerPageOptions]="[10, 20, 30]"
+            [paginator]="filteredUsers().length > 15"
+            [rows]="15"
+            [rowsPerPageOptions]="[15, 30, 45]"
             dataKey="id"
             styleClass="p-datatable-sm"
             responsiveLayout="scroll"

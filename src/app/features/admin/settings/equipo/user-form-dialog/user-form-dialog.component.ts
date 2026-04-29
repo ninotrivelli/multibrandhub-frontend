@@ -58,7 +58,7 @@ interface RoleOption {
       [closeOnEscape]="!submitting()"
       [dismissableMask]="!submitting()"
       [draggable]="false"
-      [style]="{ width: '32rem', maxWidth: '95vw' }"
+      [style]="{ width: '36rem', maxWidth: '95vw' }"
       [header]="mode() === 'create' ? 'Nuevo Usuario' : 'Editar Usuario'"
     >
       <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4">
@@ -141,6 +141,7 @@ interface RoleOption {
             optionValue="value"
             placeholder="Seleccioná un rol"
             [invalid]="isInvalid('role')"
+            appendTo="body"
             fluid
           />
           @if (isInvalid('role')) {
