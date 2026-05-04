@@ -42,6 +42,12 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         return throwError(() => err);
       }
 
+      if (err.status === 403) {
+        const detail = body.message ?? 'No tenés permisos para realizar esta acción.';
+        notifications.error(detail, 'Acción no permitida');
+        return throwError(() => err);
+      }
+
       const detail = body.message ?? 'Ocurrió un error inesperado';
       notifications.error(detail);
       return throwError(() => err);

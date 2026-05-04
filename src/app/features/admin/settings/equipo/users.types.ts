@@ -28,6 +28,10 @@ export interface UpdateUserRequest {
   brandId: string | null;
 }
 
+export interface ResetPasswordRequest {
+  newPassword: string;
+}
+
 export interface PagedResult<T> {
   items: T[];
   totalCount: number;

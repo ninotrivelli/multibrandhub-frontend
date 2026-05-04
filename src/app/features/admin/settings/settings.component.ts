@@ -16,8 +16,7 @@ const DEFAULT_TAB: SettingsTab = 'equipo';
   imports: [TabsModule, AdminEquipoComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="p-6 md:p-8">
-      <header class="mb-6">
+    <header class="mb-6">
         <h1 class="text-2xl font-semibold text-surface-900 dark:text-surface-0">Configuración</h1>
         <p class="text-surface-500 dark:text-surface-400 mt-1">
           Marcas, Equipo y Ajustes Generales
@@ -50,7 +49,6 @@ const DEFAULT_TAB: SettingsTab = 'equipo';
           </p-tabpanel>
         </p-tabpanels>
       </p-tabs>
-    </div>
   `
 })
 export class AdminSettingsComponent {

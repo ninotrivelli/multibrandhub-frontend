@@ -24,10 +24,15 @@ import { Pencil, Plus, KeyRound, UserMinus, UserCheck } from 'lucide-angular';
 import { LucideAngularModule } from 'lucide-angular';
 
 import { UserRole } from '../../../../core/auth/auth.types';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { UsersService } from './users.service';
 import { UserResponse } from './users.types';
 import { UserFormDialogComponent } from './user-form-dialog/user-form-dialog.component';
+import {
+  ResetPasswordDialogComponent,
+  ResetPasswordTarget
+} from '../../../../shared/components/reset-password-dialog/reset-password-dialog.component';
 
 interface RoleFilterOption {
   label: string;
@@ -63,7 +68,8 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
     ConfirmDialogModule,
     ToggleSwitchModule,
     LucideAngularModule,
-    UserFormDialogComponent
+    UserFormDialogComponent,
+    ResetPasswordDialogComponent
   ],
   providers: [ConfirmationService],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -166,9 +172,18 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
                       styleClass="bg-primary text-primary-contrast"
                     />
                     <div class="flex flex-col">
-                      <span class="font-medium text-surface-900 dark:text-surface-0">
-                        {{ user.fullName }}
-                      </span>
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="font-medium text-surface-900 dark:text-surface-0">
+                          {{ user.fullName }}
+                        </span>
+                        @if (isSelf(user)) {
+                          <p-tag
+                            value="(Tu Usuario)"
+                            severity="info"
+                            styleClass="!text-xs !font-semibold !px-2 !py-1"
+                          />
+                        }
+                      </div>
                       <span class="text-xs text-surface-500 dark:text-surface-400 md:hidden">
                         {{ user.email }}
                       </span>
@@ -203,9 +218,10 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
                       severity="secondary"
                       [text]="true"
                       [rounded]="true"
-                      pTooltip="Editar"
+                      [disabled]="!canEdit(user)"
+                      [pTooltip]="canEdit(user) ? 'Editar' : 'No podés editar a otro Administrador'"
                       tooltipPosition="top"
-                      (click)="openEdit(user)"
+                      (click)="canEdit(user) && openEdit(user)"
                     >
                       <i-lucide [img]="icons.Pencil" class="size-4" />
                     </button>
@@ -215,9 +231,10 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
                       severity="secondary"
                       [text]="true"
                       [rounded]="true"
-                      [disabled]="true"
-                      pTooltip="Disponible cuando el backend agregue el endpoint"
+                      [disabled]="!canResetPassword(user)"
+                      [pTooltip]="canResetPassword(user) ? (isSelf(user) ? 'Resetear mi contraseña' : 'Resetear contraseña') : 'No podés cambiar la contraseña de otro Administrador'"
                       tooltipPosition="top"
+                      (click)="canResetPassword(user) && openResetPassword(user)"
                     >
                       <i-lucide [img]="icons.KeyRound" class="size-4" />
                     </button>
@@ -228,9 +245,10 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
                         severity="danger"
                         [text]="true"
                         [rounded]="true"
-                        pTooltip="Desactivar"
+                        [disabled]="!canDeactivate(user)"
+                        [pTooltip]="isSelf(user) ? 'No podés desactivarte a vos mismo' : (canDeactivate(user) ? 'Desactivar' : 'No podés desactivar a otro Administrador')"
                         tooltipPosition="top"
-                        (click)="confirmDeactivate(user)"
+                        (click)="canDeactivate(user) && confirmDeactivate(user)"
                       >
                         <i-lucide [img]="icons.UserMinus" class="size-4" />
                       </button>
@@ -241,9 +259,10 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
                         severity="success"
                         [text]="true"
                         [rounded]="true"
-                        pTooltip="Reactivar"
+                        [disabled]="!canDeactivate(user)"
+                        [pTooltip]="isSelf(user) ? 'No podés reactivarte a vos mismo' : (canDeactivate(user) ? 'Reactivar' : 'No podés reactivar a otro Administrador')"
                         tooltipPosition="top"
-                        (click)="reactivate(user)"
+                        (click)="canDeactivate(user) && reactivate(user)"
                       >
                         <i-lucide [img]="icons.UserCheck" class="size-4" />
                       </button>
@@ -266,6 +285,12 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
       (deleted)="onDeleted()"
     />
 
+    <app-reset-password-dialog
+      [visible]="resetDialogVisible()"
+      [target]="resetTarget()"
+      (visibleChange)="onResetVisibleChange($event)"
+    />
+
     <p-confirmdialog />
   `
 })
@@ -273,9 +298,13 @@ export class AdminEquipoComponent implements OnInit {
   private readonly users = inject(UsersService);
   private readonly notifications = inject(NotificationService);
   private readonly confirmation = inject(ConfirmationService);
+  private readonly auth = inject(AuthService);
+
+  protected readonly currentUser = this.auth.user;
 
   protected readonly icons = { Pencil, Plus, KeyRound, UserMinus, UserCheck };
 
+  // SuperAdmin is hidden from the list, so it's not a filterable role.
   protected readonly roleOptions: RoleFilterOption[] = [
     { label: 'Administrador', value: 'Admin' },
     { label: 'Marca', value: 'BrandManager' },
@@ -295,6 +324,7 @@ export class AdminEquipoComponent implements OnInit {
     const roles = this.roleFilter();
     const showInactive = this.showInactive();
     return this.allUsers().filter((u) => {
+      if (u.role === 'SuperAdmin') return false; // private service role: never list
       if (!showInactive && !u.isActive) return false;
       if (roles.length > 0 && !roles.includes(u.role)) return false;
       if (term && !`${u.fullName} ${u.email}`.toLowerCase().includes(term)) return false;
@@ -305,6 +335,9 @@ export class AdminEquipoComponent implements OnInit {
   protected readonly dialogVisible = signal(false);
   protected readonly dialogMode = signal<'create' | 'edit'>('create');
   protected readonly dialogEditing = signal<UserResponse | null>(null);
+
+  protected readonly resetDialogVisible = signal(false);
+  protected readonly resetTarget = signal<ResetPasswordTarget | null>(null);
 
   ngOnInit(): void {
     this.refresh();
@@ -351,6 +384,46 @@ export class AdminEquipoComponent implements OnInit {
 
   protected onDialogVisibleChange(value: boolean): void {
     this.dialogVisible.set(value);
+  }
+
+  protected isSelf(target: UserResponse): boolean {
+    return this.currentUser()?.userId === target.id;
+  }
+
+  protected canResetPassword(target: UserResponse): boolean {
+    const me = this.currentUser();
+    if (!me) return false;
+    if (target.id === me.userId) return true;
+    return this.canEdit(target);
+  }
+
+  protected canEdit(target: UserResponse): boolean {
+    const me = this.currentUser();
+    if (!me) return false;
+    if (target.id === me.userId) return true;
+    if (me.role === 'SuperAdmin') return true;
+    if (me.role === 'Admin') {
+      return target.role !== 'Admin' && target.role !== 'SuperAdmin';
+    }
+    return false;
+  }
+
+  protected canDeactivate(target: UserResponse): boolean {
+    if (this.isSelf(target)) return false;
+    return this.canEdit(target);
+  }
+
+  protected openResetPassword(user: UserResponse): void {
+    this.resetTarget.set({
+      id: user.id,
+      fullName: user.fullName,
+      isSelf: this.isSelf(user)
+    });
+    this.resetDialogVisible.set(true);
+  }
+
+  protected onResetVisibleChange(value: boolean): void {
+    this.resetDialogVisible.set(value);
   }
 
   protected onSaved(): void {

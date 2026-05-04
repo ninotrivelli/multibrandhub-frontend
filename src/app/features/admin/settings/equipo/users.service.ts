@@ -7,6 +7,7 @@ import {
   CreateUserRequest,
   ListUsersParams,
   PagedResult,
+  ResetPasswordRequest,
   UpdateUserRequest,
   UserResponse
 } from './users.types';
@@ -66,6 +67,11 @@ export class UsersService {
         )
       )
     );
+  }
+
+  resetPassword(id: string, newPassword: string): Observable<void> {
+    const body: ResetPasswordRequest = { newPassword };
+    return this.http.patch<void>(`${this.baseUrl}/${id}/password`, body);
   }
 
   delete(id: string): Observable<void> {

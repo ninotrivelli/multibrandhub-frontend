@@ -21,6 +21,7 @@ import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { MessageModule } from 'primeng/message';
 
 import { UserRole } from '../../../../../core/auth/auth.types';
+import { AuthService } from '../../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../../core/notifications/notification.service';
 import { UsersService } from '../users.service';
 import {
@@ -136,7 +137,7 @@ interface RoleOption {
           <p-select
             inputId="role"
             formControlName="role"
-            [options]="roleOptions"
+            [options]="roleOptions()"
             optionLabel="label"
             optionValue="value"
             placeholder="Seleccioná un rol"
@@ -146,11 +147,6 @@ interface RoleOption {
           />
           @if (isInvalid('role')) {
             <p-message severity="error" size="small" variant="simple">Elegí un rol.</p-message>
-          }
-          @if (form.controls.role.value === 'BrandManager') {
-            <p-message severity="info" size="small" variant="simple">
-              La gestión de marcas estará disponible en una próxima fase. Por ahora, creá BrandManagers desde el módulo de Marcas.
-            </p-message>
           }
         </div>
 
@@ -189,7 +185,7 @@ interface RoleOption {
           ></button>
         </div>
 
-        @if (mode() === 'edit') {
+        @if (mode() === 'edit' && !isEditingSelf()) {
           <div class="border-t border-surface-200 dark:border-surface-700 pt-4 mt-1">
             @if (!showDeleteConfirm()) {
               <button
@@ -252,6 +248,7 @@ export class UserFormDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly users = inject(UsersService);
   private readonly notifications = inject(NotificationService);
+  private readonly auth = inject(AuthService);
 
   readonly visible = input.required<boolean>();
   readonly mode = input.required<DialogMode>();
@@ -261,13 +258,24 @@ export class UserFormDialogComponent {
   readonly saved = output<UserResponse>();
   readonly deleted = output<void>();
 
-  // BrandManager creation requires a brand selector that depends on the
-  // Brands module (Phase 2). For now, only Admin and Seller are creatable
-  // from this dialog; BrandManagers will be created from the Marcas screen.
-  protected readonly roleOptions: RoleOption[] = [
-    { label: 'Administrador', value: 'Admin' },
-    { label: 'Vendedor/a', value: 'Seller' }
-  ];
+  // Caller-scoped role options.
+  //   - SuperAdmin can create/promote Admins; SuperAdmin itself is not
+  //     promotable from the UI (private service role, seeded only).
+  //   - Admin can only create Sellers. BrandManager creation is deferred
+  //     to the Marcas module (needs a brand selector).
+  protected readonly roleOptions = computed<RoleOption[]>(() => {
+    const callerRole = this.auth.user()?.role;
+    if (callerRole === 'SuperAdmin') {
+      return [
+        { label: 'Administrador', value: 'Admin' },
+        { label: 'Vendedor/a', value: 'Seller' }
+      ];
+    }
+    if (callerRole === 'Admin') {
+      return [{ label: 'Vendedor/a', value: 'Seller' }];
+    }
+    return [];
+  });
 
   protected readonly submitting = signal(false);
   protected readonly submitError = signal<string | null>(null);
@@ -288,6 +296,9 @@ export class UserFormDialogComponent {
   });
 
   protected readonly isCreateMode = computed(() => this.mode() === 'create');
+  protected readonly isEditingSelf = computed(
+    () => this.auth.user()?.userId === this.editing()?.id
+  );
 
   constructor() {
     effect(() => {
@@ -413,10 +424,14 @@ export class UserFormDialogComponent {
     this.showDeleteConfirm.set(false);
     this.deleteEmailInput.set('');
     const passwordCtrl = this.form.controls.password;
+    const roleCtrl = this.form.controls.role;
+    const isActiveCtrl = this.form.controls.isActive;
     const editingUser = this.editing();
 
     if (this.mode() === 'create') {
       passwordCtrl.enable({ emitEvent: false });
+      roleCtrl.enable({ emitEvent: false });
+      isActiveCtrl.enable({ emitEvent: false });
       this.form.reset({
         fullName: '',
         email: '',
@@ -426,6 +441,14 @@ export class UserFormDialogComponent {
       });
     } else if (editingUser) {
       passwordCtrl.disable({ emitEvent: false });
+      const isSelf = this.auth.user()?.userId === editingUser.id;
+      if (isSelf) {
+        roleCtrl.disable({ emitEvent: false });
+        isActiveCtrl.disable({ emitEvent: false });
+      } else {
+        roleCtrl.enable({ emitEvent: false });
+        isActiveCtrl.enable({ emitEvent: false });
+      }
       this.form.reset({
         fullName: editingUser.fullName,
         email: editingUser.email,

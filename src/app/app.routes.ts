@@ -93,6 +93,13 @@ export const routes: Routes = [
           import('./features/brand-manager/settlements/settlements.component').then(
             (m) => m.BrandManagerSettlementsComponent
           )
+      },
+      {
+        path: 'configuracion',
+        loadComponent: () =>
+          import('./features/shared/configuracion/configuracion.component').then(
+            (m) => m.ConfiguracionComponent
+          )
       }
     ]
   },
@@ -127,6 +134,13 @@ export const routes: Routes = [
         path: 'tasks',
         loadComponent: () =>
           import('./features/seller/tasks/tasks.component').then((m) => m.SellerTasksComponent)
+      },
+      {
+        path: 'configuracion',
+        loadComponent: () =>
+          import('./features/shared/configuracion/configuracion.component').then(
+            (m) => m.ConfiguracionComponent
+          )
       }
     ]
   },

@@ -35,14 +35,16 @@ const BRAND_MANAGER_NAV: ReadonlyArray<NavItem> = [
   { path: '/brand-manager/dashboard', label: 'Mi Resumen', icon: lucide(LayoutDashboard) },
   { path: '/brand-manager/sales', label: 'Ventas', icon: lucide(BarChart3) },
   { path: '/brand-manager/inventory', label: 'Mi Stock', icon: lucide(Package) },
-  { path: '/brand-manager/settlements', label: 'Liquidaciones', icon: fa(faHandHoldingDollar) }
+  { path: '/brand-manager/settlements', label: 'Liquidaciones', icon: fa(faHandHoldingDollar) },
+  { path: '/brand-manager/configuracion', label: 'Configuración', icon: lucide(Settings) }
 ];
 
 const SELLER_NAV: ReadonlyArray<NavItem> = [
   { path: '/seller/pos', label: 'Ingresar Venta', icon: lucide(CirclePlus) },
   { path: '/seller/inventory', label: 'Inventario', icon: lucide(Package) },
   { path: '/seller/cash-register', label: 'Cierre de Caja', icon: lucide(Receipt) },
-  { path: '/seller/tasks', label: 'Tareas Diarias', icon: lucide(ListChecks) }
+  { path: '/seller/tasks', label: 'Tareas Diarias', icon: lucide(ListChecks) },
+  { path: '/seller/configuracion', label: 'Configuración', icon: lucide(Settings) }
 ];
 
 export const NAV_CONFIG: Record<UserRole, RoleNavConfig> = {
