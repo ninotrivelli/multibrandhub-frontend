@@ -2,13 +2,15 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   input,
   output,
   signal,
-  untracked
+  untracked,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 
@@ -24,18 +26,39 @@ import { UserRole } from '../../../../../core/auth/auth.types';
 import { AuthService } from '../../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../../core/notifications/notification.service';
 import { UsersService } from '../users.service';
+import { CreateUserRequest, UpdateUserRequest, UserResponse } from '../users.types';
+import { BrandsService } from '../../marcas/brands.service';
+import { sortBrandsForUser } from '../../marcas/brand-settings.utils';
 import {
-  CreateUserRequest,
-  UpdateUserRequest,
-  UserResponse
-} from '../users.types';
+  isBrandRequiredForRole,
+  resolveBrandIdForUserRole,
+  shouldShowBrandSelector,
+} from './user-form-dialog.utils';
 
 type DialogMode = 'create' | 'edit';
+type UserControlName = 'fullName' | 'email' | 'password' | 'role' | 'brandId';
 
 interface RoleOption {
   label: string;
   value: UserRole;
 }
+
+interface BrandOption {
+  label: string;
+  value: string;
+}
+
+export interface UserFormDialogDefaults {
+  role: UserRole;
+  brandId: string | null;
+}
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  SuperAdmin: 'Super Admin',
+  Admin: 'Administrador',
+  BrandManager: 'Marca',
+  Seller: 'Vendedor/a',
+};
 
 @Component({
   selector: 'app-user-form-dialog',
@@ -47,7 +70,7 @@ interface RoleOption {
     PasswordModule,
     SelectModule,
     ToggleSwitchModule,
-    MessageModule
+    MessageModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -99,16 +122,23 @@ interface RoleOption {
           />
           @if (isInvalid('email')) {
             @if (form.controls.email.hasError('required')) {
-              <p-message severity="error" size="small" variant="simple">El email es obligatorio.</p-message>
+              <p-message severity="error" size="small" variant="simple"
+                >El email es obligatorio.</p-message
+              >
             } @else if (form.controls.email.hasError('email')) {
-              <p-message severity="error" size="small" variant="simple">Ingresá un email válido.</p-message>
+              <p-message severity="error" size="small" variant="simple"
+                >Ingresá un email válido.</p-message
+              >
             }
           }
         </div>
 
         @if (mode() === 'create') {
           <div class="flex flex-col gap-1">
-            <label for="password" class="text-sm font-medium text-surface-700 dark:text-surface-200">
+            <label
+              for="password"
+              class="text-sm font-medium text-surface-700 dark:text-surface-200"
+            >
               Contraseña
             </label>
             <p-password
@@ -122,9 +152,13 @@ interface RoleOption {
             />
             @if (isInvalid('password')) {
               @if (form.controls.password.hasError('required')) {
-                <p-message severity="error" size="small" variant="simple">La contraseña es obligatoria.</p-message>
+                <p-message severity="error" size="small" variant="simple"
+                  >La contraseña es obligatoria.</p-message
+                >
               } @else if (form.controls.password.hasError('minlength')) {
-                <p-message severity="error" size="small" variant="simple">Debe tener al menos 8 caracteres.</p-message>
+                <p-message severity="error" size="small" variant="simple"
+                  >Debe tener al menos 8 caracteres.</p-message
+                >
               }
             }
           </div>
@@ -150,10 +184,40 @@ interface RoleOption {
           }
         </div>
 
+        @if (showBrandSelector()) {
+          <div class="flex flex-col gap-1">
+            <label for="brandId" class="text-sm font-medium text-surface-700 dark:text-surface-200">
+              Marca asociada
+            </label>
+            <p-select
+              inputId="brandId"
+              formControlName="brandId"
+              [options]="brandOptions()"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Seleccioná una marca"
+              [invalid]="isInvalid('brandId')"
+              appendTo="body"
+              fluid
+            />
+            @if (brandSelectorLocked()) {
+              <p-message severity="info" size="small" variant="simple">
+                Para cambiar tu marca hace falta un endpoint que emita una sesión actualizada.
+              </p-message>
+            } @else if (isInvalid('brandId')) {
+              <p-message severity="error" size="small" variant="simple">Elegí una marca.</p-message>
+            }
+          </div>
+        }
+
         @if (mode() === 'edit') {
-          <div class="flex items-center justify-between border border-surface-200 dark:border-surface-700 rounded-lg p-3">
+          <div
+            class="flex items-center justify-between border border-surface-200 dark:border-surface-700 rounded-lg p-3"
+          >
             <div>
-              <div class="text-sm font-medium text-surface-700 dark:text-surface-200">Cuenta activa</div>
+              <div class="text-sm font-medium text-surface-700 dark:text-surface-200">
+                Cuenta activa
+              </div>
               <div class="text-xs text-surface-500 dark:text-surface-400">
                 Si está inactiva, no podrá iniciar sesión.
               </div>
@@ -163,7 +227,9 @@ interface RoleOption {
         }
 
         @if (submitError()) {
-          <p-message severity="error" variant="outlined" closable="false">{{ submitError() }}</p-message>
+          <p-message severity="error" variant="outlined" closable="false">{{
+            submitError()
+          }}</p-message>
         }
 
         <div class="flex justify-end gap-2 pt-2">
@@ -199,7 +265,9 @@ interface RoleOption {
                 (click)="requestDelete()"
               ></button>
             } @else {
-              <div class="flex flex-col gap-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 p-4">
+              <div
+                class="flex flex-col gap-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 p-4"
+              >
                 <p class="text-sm font-medium text-red-700 dark:text-red-300">
                   Esta acción es permanente y no se puede deshacer.
                 </p>
@@ -242,17 +310,20 @@ interface RoleOption {
         }
       </form>
     </p-dialog>
-  `
+  `,
 })
 export class UserFormDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly users = inject(UsersService);
+  private readonly brands = inject(BrandsService);
   private readonly notifications = inject(NotificationService);
   private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly visible = input.required<boolean>();
   readonly mode = input.required<DialogMode>();
   readonly editing = input<UserResponse | null>(null);
+  readonly defaults = input<UserFormDialogDefaults | null>(null);
 
   readonly visibleChange = output<boolean>();
   readonly saved = output<UserResponse>();
@@ -261,21 +332,37 @@ export class UserFormDialogComponent {
   // Caller-scoped role options.
   //   - SuperAdmin can create/promote Admins; SuperAdmin itself is not
   //     promotable from the UI (private service role, seeded only).
-  //   - Admin can only create Sellers. BrandManager creation is deferred
-  //     to the Marcas module (needs a brand selector).
+  //   - Admin can create Sellers and BrandManagers, but not Admins.
   protected readonly roleOptions = computed<RoleOption[]>(() => {
     const callerRole = this.auth.user()?.role;
+    let options: RoleOption[] = [];
     if (callerRole === 'SuperAdmin') {
-      return [
+      options = [
         { label: 'Administrador', value: 'Admin' },
-        { label: 'Vendedor/a', value: 'Seller' }
+        { label: 'Marca', value: 'BrandManager' },
+        { label: 'Vendedor/a', value: 'Seller' },
+      ];
+    } else if (callerRole === 'Admin') {
+      options = [
+        { label: 'Marca', value: 'BrandManager' },
+        { label: 'Vendedor/a', value: 'Seller' },
       ];
     }
-    if (callerRole === 'Admin') {
-      return [{ label: 'Vendedor/a', value: 'Seller' }];
+
+    const editingRole = this.editing()?.role;
+    if (editingRole && !options.some((option) => option.value === editingRole)) {
+      options = [...options, { label: ROLE_LABELS[editingRole], value: editingRole }];
     }
-    return [];
+
+    return options;
   });
+
+  protected readonly brandOptions = computed<BrandOption[]>(() =>
+    sortBrandsForUser(this.brands.items(), this.auth.user()?.brandId ?? null).map((brand) => ({
+      label: `${brand.name} (${brand.code})`,
+      value: brand.id,
+    })),
+  );
 
   protected readonly submitting = signal(false);
   protected readonly submitError = signal<string | null>(null);
@@ -284,7 +371,8 @@ export class UserFormDialogComponent {
   protected readonly deleteEmailInput = signal('');
   protected readonly deleting = signal(false);
   protected readonly canConfirmDelete = computed(
-    () => this.deleteEmailInput().trim().toLowerCase() === (this.editing()?.email ?? '').toLowerCase()
+    () =>
+      this.deleteEmailInput().trim().toLowerCase() === (this.editing()?.email ?? '').toLowerCase(),
   );
 
   protected readonly form = this.fb.nonNullable.group({
@@ -292,22 +380,42 @@ export class UserFormDialogComponent {
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
     role: ['Seller' as UserRole, [Validators.required]],
-    isActive: [true]
+    brandId: this.fb.control<string | null>(null),
+    isActive: [true],
   });
 
+  protected readonly selectedRole = signal<UserRole>('Seller');
+  protected readonly showBrandSelector = computed(() =>
+    shouldShowBrandSelector(this.selectedRole()),
+  );
+  protected readonly brandSelectorLocked = computed(
+    () => this.mode() === 'edit' && this.isEditingSelf() && this.showBrandSelector(),
+  );
   protected readonly isCreateMode = computed(() => this.mode() === 'create');
   protected readonly isEditingSelf = computed(
-    () => this.auth.user()?.userId === this.editing()?.id
+    () => this.auth.user()?.userId === this.editing()?.id,
   );
 
   constructor() {
+    this.form.controls.role.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((role) => {
+        this.selectedRole.set(role);
+        this.syncBrandControlState();
+      });
+
     effect(() => {
       const open = this.visible();
-      if (open) untracked(() => this.resetFormFromInputs());
+      if (open) {
+        untracked(() => {
+          this.ensureBrandsLoaded();
+          this.resetFormFromInputs();
+        });
+      }
     });
   }
 
-  protected isInvalid(controlName: 'fullName' | 'email' | 'password' | 'role'): boolean {
+  protected isInvalid(controlName: UserControlName): boolean {
     const c = this.form.controls[controlName];
     return c.invalid && (c.touched || c.dirty);
   }
@@ -330,6 +438,7 @@ export class UserFormDialogComponent {
     } else {
       passwordCtrl.disable({ emitEvent: false });
     }
+    this.syncBrandControlState();
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -348,7 +457,7 @@ export class UserFormDialogComponent {
         email: raw.email.trim(),
         password: raw.password,
         role: raw.role,
-        brandId: null
+        brandId: resolveBrandIdForUserRole(raw.role, raw.brandId),
       };
       this.users.create(payload).subscribe({
         next: (created) => {
@@ -357,7 +466,7 @@ export class UserFormDialogComponent {
           this.saved.emit(created);
           this.visibleChange.emit(false);
         },
-        error: (err: HttpErrorResponse) => this.handleError(err)
+        error: (err: HttpErrorResponse) => this.handleError(err),
       });
     } else if (editingUser) {
       const payload: UpdateUserRequest = {
@@ -365,7 +474,7 @@ export class UserFormDialogComponent {
         email: raw.email.trim(),
         role: raw.role,
         isActive: raw.isActive,
-        brandId: editingUser.brandId
+        brandId: resolveBrandIdForUserRole(raw.role, raw.brandId),
       };
       this.users.update(editingUser.id, payload).subscribe({
         next: (updated) => {
@@ -374,7 +483,7 @@ export class UserFormDialogComponent {
           this.saved.emit(updated);
           this.visibleChange.emit(false);
         },
-        error: (err: HttpErrorResponse) => this.handleError(err)
+        error: (err: HttpErrorResponse) => this.handleError(err),
       });
     }
   }
@@ -403,7 +512,7 @@ export class UserFormDialogComponent {
       },
       error: () => {
         this.deleting.set(false);
-      }
+      },
     });
   }
 
@@ -425,28 +534,36 @@ export class UserFormDialogComponent {
     this.deleteEmailInput.set('');
     const passwordCtrl = this.form.controls.password;
     const roleCtrl = this.form.controls.role;
+    const brandCtrl = this.form.controls.brandId;
     const isActiveCtrl = this.form.controls.isActive;
     const editingUser = this.editing();
 
     if (this.mode() === 'create') {
       passwordCtrl.enable({ emitEvent: false });
       roleCtrl.enable({ emitEvent: false });
+      brandCtrl.enable({ emitEvent: false });
       isActiveCtrl.enable({ emitEvent: false });
+      const defaults = this.defaults();
+      const role = defaults?.role ?? 'Seller';
       this.form.reset({
         fullName: '',
         email: '',
         password: '',
-        role: 'Seller',
-        isActive: true
+        role,
+        brandId: defaults?.brandId ?? null,
+        isActive: true,
       });
+      this.selectedRole.set(role);
     } else if (editingUser) {
       passwordCtrl.disable({ emitEvent: false });
       const isSelf = this.auth.user()?.userId === editingUser.id;
       if (isSelf) {
         roleCtrl.disable({ emitEvent: false });
+        brandCtrl.disable({ emitEvent: false });
         isActiveCtrl.disable({ emitEvent: false });
       } else {
         roleCtrl.enable({ emitEvent: false });
+        brandCtrl.enable({ emitEvent: false });
         isActiveCtrl.enable({ emitEvent: false });
       }
       this.form.reset({
@@ -454,8 +571,43 @@ export class UserFormDialogComponent {
         email: editingUser.email,
         password: '',
         role: editingUser.role,
-        isActive: editingUser.isActive
+        brandId: editingUser.brandId,
+        isActive: editingUser.isActive,
       });
+      this.selectedRole.set(editingUser.role);
     }
+
+    this.syncBrandControlState();
+  }
+
+  private syncBrandControlState(): void {
+    const role = this.form.controls.role.getRawValue();
+    const brandCtrl = this.form.controls.brandId;
+
+    if (isBrandRequiredForRole(role)) {
+      brandCtrl.setValidators([Validators.required]);
+    } else {
+      brandCtrl.clearValidators();
+    }
+
+    if (!shouldShowBrandSelector(role)) {
+      brandCtrl.setValue(null, { emitEvent: false });
+      brandCtrl.disable({ emitEvent: false });
+    } else if (this.mode() === 'edit' && this.isEditingSelf()) {
+      brandCtrl.disable({ emitEvent: false });
+    } else {
+      brandCtrl.enable({ emitEvent: false });
+    }
+
+    brandCtrl.updateValueAndValidity({ emitEvent: false });
+  }
+
+  private ensureBrandsLoaded(): void {
+    if (this.brands.hasItems() || this.brands.loading()) return;
+    this.brands.list({ page: 1, pageSize: 100 }).subscribe({
+      error: () => {
+        // error.interceptor already shows a toast
+      },
+    });
   }
 }

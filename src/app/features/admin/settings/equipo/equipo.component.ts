@@ -323,12 +323,18 @@ export class AdminEquipoComponent implements OnInit {
     const term = this.searchTerm().trim().toLowerCase();
     const roles = this.roleFilter();
     const showInactive = this.showInactive();
-    return this.allUsers().filter((u) => {
+    const selfId = this.currentUser()?.userId;
+    const filtered = this.allUsers().filter((u) => {
       if (u.role === 'SuperAdmin') return false; // private service role: never list
       if (!showInactive && !u.isActive) return false;
       if (roles.length > 0 && !roles.includes(u.role)) return false;
       if (term && !`${u.fullName} ${u.email}`.toLowerCase().includes(term)) return false;
       return true;
+    });
+    return [...filtered].sort((a, b) => {
+      if (a.id === selfId) return -1;
+      if (b.id === selfId) return 1;
+      return 0;
     });
   });
 
