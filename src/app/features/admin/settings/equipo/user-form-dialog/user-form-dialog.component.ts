@@ -11,7 +11,14 @@ import {
   untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 
 import { ButtonModule } from 'primeng/button';
@@ -36,7 +43,7 @@ import {
 } from './user-form-dialog.utils';
 
 type DialogMode = 'create' | 'edit';
-type UserControlName = 'fullName' | 'email' | 'password' | 'role' | 'brandId';
+type UserControlName = 'fullName' | 'email' | 'password' | 'confirmPassword' | 'role' | 'brandId';
 
 interface RoleOption {
   label: string;
@@ -45,7 +52,7 @@ interface RoleOption {
 
 interface BrandOption {
   label: string;
-  value: string;
+  value: string | null;
 }
 
 export interface UserFormDialogDefaults {
@@ -59,6 +66,39 @@ const ROLE_LABELS: Record<UserRole, string> = {
   BrandManager: 'Marca',
   Seller: 'Vendedor/a',
 };
+
+const passwordsMatchValidator: ValidatorFn = (group: AbstractControl): ValidationErrors | null => {
+  const passwordCtrl = group.get('password');
+  const confirmCtrl = group.get('confirmPassword');
+  if (!passwordCtrl || !confirmCtrl) return null;
+
+  if (passwordCtrl.disabled || confirmCtrl.disabled) {
+    clearControlError(confirmCtrl, 'mismatch');
+    return null;
+  }
+
+  const password = passwordCtrl.value as string | undefined;
+  const confirmPassword = confirmCtrl.value as string | undefined;
+
+  if (!password || !confirmPassword) {
+    clearControlError(confirmCtrl, 'mismatch');
+    return null;
+  }
+
+  if (password !== confirmPassword) {
+    confirmCtrl.setErrors({ ...(confirmCtrl.errors ?? {}), mismatch: true });
+    return { mismatch: true };
+  }
+
+  clearControlError(confirmCtrl, 'mismatch');
+  return null;
+};
+
+function clearControlError(control: AbstractControl, errorKey: string): void {
+  if (!control.hasError(errorKey)) return;
+  const { [errorKey]: _omitted, ...rest } = control.errors ?? {};
+  control.setErrors(Object.keys(rest).length ? rest : null);
+}
 
 @Component({
   selector: 'app-user-form-dialog',
@@ -162,6 +202,35 @@ const ROLE_LABELS: Record<UserRole, string> = {
               }
             }
           </div>
+
+          <div class="flex flex-col gap-1">
+            <label
+              for="confirmPassword"
+              class="text-sm font-medium text-surface-700 dark:text-surface-200"
+            >
+              Confirmar contraseña
+            </label>
+            <p-password
+              inputId="confirmPassword"
+              formControlName="confirmPassword"
+              [feedback]="false"
+              [toggleMask]="true"
+              autocomplete="new-password"
+              [invalid]="isInvalid('confirmPassword')"
+              fluid
+            />
+            @if (isInvalid('confirmPassword')) {
+              @if (form.controls.confirmPassword.hasError('required')) {
+                <p-message severity="error" size="small" variant="simple"
+                  >Repetí la contraseña.</p-message
+                >
+              } @else if (form.controls.confirmPassword.hasError('mismatch')) {
+                <p-message severity="error" size="small" variant="simple"
+                  >Las contraseñas no coinciden.</p-message
+                >
+              }
+            }
+          </div>
         }
 
         <div class="flex flex-col gap-1">
@@ -187,7 +256,9 @@ const ROLE_LABELS: Record<UserRole, string> = {
         @if (showBrandSelector()) {
           <div class="flex flex-col gap-1">
             <label for="brandId" class="text-sm font-medium text-surface-700 dark:text-surface-200">
-              Marca asociada
+              {{
+                selectedRole() === 'Admin' ? 'Marca asociada (si corresponde)' : 'Marca asociada'
+              }}
             </label>
             <p-select
               inputId="brandId"
@@ -195,7 +266,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
               [options]="brandOptions()"
               optionLabel="label"
               optionValue="value"
-              placeholder="Seleccioná una marca"
+              [placeholder]="selectedRole() === 'Admin' ? 'Ninguna' : 'Seleccioná una marca'"
               [invalid]="isInvalid('brandId')"
               appendTo="body"
               fluid
@@ -357,12 +428,18 @@ export class UserFormDialogComponent {
     return options;
   });
 
-  protected readonly brandOptions = computed<BrandOption[]>(() =>
-    sortBrandsForUser(this.brands.items(), this.auth.user()?.brandId ?? null).map((brand) => ({
-      label: `${brand.name} (${brand.code})`,
-      value: brand.id,
-    })),
-  );
+  protected readonly brandOptions = computed<BrandOption[]>(() => {
+    const options = sortBrandsForUser(this.brands.items(), this.auth.user()?.brandId ?? null).map(
+      (brand) => ({
+        label: `${brand.name} (${brand.code})`,
+        value: brand.id,
+      }),
+    );
+
+    return this.selectedRole() === 'Admin'
+      ? [{ label: 'Ninguna', value: null }, ...options]
+      : options;
+  });
 
   protected readonly submitting = signal(false);
   protected readonly submitError = signal<string | null>(null);
@@ -375,14 +452,18 @@ export class UserFormDialogComponent {
       this.deleteEmailInput().trim().toLowerCase() === (this.editing()?.email ?? '').toLowerCase(),
   );
 
-  protected readonly form = this.fb.nonNullable.group({
-    fullName: ['', [Validators.required]],
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
-    role: ['Seller' as UserRole, [Validators.required]],
-    brandId: this.fb.control<string | null>(null),
-    isActive: [true],
-  });
+  protected readonly form = this.fb.nonNullable.group(
+    {
+      fullName: ['', [Validators.required]],
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(8)]],
+      confirmPassword: ['', [Validators.required]],
+      role: ['Seller' as UserRole, [Validators.required]],
+      brandId: this.fb.control<string | null>(null),
+      isActive: [true],
+    },
+    { validators: passwordsMatchValidator },
+  );
 
   protected readonly selectedRole = signal<UserRole>('Seller');
   protected readonly showBrandSelector = computed(() =>
@@ -433,12 +514,16 @@ export class UserFormDialogComponent {
     if (this.submitting()) return;
 
     const passwordCtrl = this.form.controls.password;
+    const confirmPasswordCtrl = this.form.controls.confirmPassword;
     if (this.mode() === 'create') {
       passwordCtrl.enable({ emitEvent: false });
+      confirmPasswordCtrl.enable({ emitEvent: false });
     } else {
       passwordCtrl.disable({ emitEvent: false });
+      confirmPasswordCtrl.disable({ emitEvent: false });
     }
     this.syncBrandControlState();
+    this.form.updateValueAndValidity({ emitEvent: false });
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -533,6 +618,7 @@ export class UserFormDialogComponent {
     this.showDeleteConfirm.set(false);
     this.deleteEmailInput.set('');
     const passwordCtrl = this.form.controls.password;
+    const confirmPasswordCtrl = this.form.controls.confirmPassword;
     const roleCtrl = this.form.controls.role;
     const brandCtrl = this.form.controls.brandId;
     const isActiveCtrl = this.form.controls.isActive;
@@ -540,6 +626,7 @@ export class UserFormDialogComponent {
 
     if (this.mode() === 'create') {
       passwordCtrl.enable({ emitEvent: false });
+      confirmPasswordCtrl.enable({ emitEvent: false });
       roleCtrl.enable({ emitEvent: false });
       brandCtrl.enable({ emitEvent: false });
       isActiveCtrl.enable({ emitEvent: false });
@@ -549,6 +636,7 @@ export class UserFormDialogComponent {
         fullName: '',
         email: '',
         password: '',
+        confirmPassword: '',
         role,
         brandId: defaults?.brandId ?? null,
         isActive: true,
@@ -556,6 +644,7 @@ export class UserFormDialogComponent {
       this.selectedRole.set(role);
     } else if (editingUser) {
       passwordCtrl.disable({ emitEvent: false });
+      confirmPasswordCtrl.disable({ emitEvent: false });
       const isSelf = this.auth.user()?.userId === editingUser.id;
       if (isSelf) {
         roleCtrl.disable({ emitEvent: false });
@@ -570,6 +659,7 @@ export class UserFormDialogComponent {
         fullName: editingUser.fullName,
         email: editingUser.email,
         password: '',
+        confirmPassword: '',
         role: editingUser.role,
         brandId: editingUser.brandId,
         isActive: editingUser.isActive,

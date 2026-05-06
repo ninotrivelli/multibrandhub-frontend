@@ -2,7 +2,7 @@ import {
   ApplicationConfig,
   inject,
   provideAppInitializer,
-  provideBrowserGlobalErrorListeners
+  provideBrowserGlobalErrorListeners,
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -30,9 +30,9 @@ const MultiBrandHubPreset = definePreset(Aura, {
       700: '{indigo.700}',
       800: '{indigo.800}',
       900: '{indigo.900}',
-      950: '{indigo.950}'
-    }
-  }
+      950: '{indigo.950}',
+    },
+  },
 });
 
 export const appConfig: ApplicationConfig = {
@@ -45,8 +45,14 @@ export const appConfig: ApplicationConfig = {
     MessageService,
     providePrimeNG({
       theme: {
-        preset: MultiBrandHubPreset
-      }
-    })
-  ]
+        preset: MultiBrandHubPreset,
+      },
+      translation: {
+        passwordPrompt: 'Ingresá una contraseña',
+        weak: 'Débil',
+        medium: 'Media',
+        strong: 'Fuerte',
+      },
+    }),
+  ],
 };

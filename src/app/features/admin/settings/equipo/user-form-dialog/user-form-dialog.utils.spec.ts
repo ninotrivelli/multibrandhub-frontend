@@ -24,4 +24,13 @@ describe('user form dialog utils', () => {
     expect(resolveBrandIdForUserRole('Seller', 'brand-a')).toBeNull();
     expect(resolveBrandIdForUserRole('SuperAdmin', 'brand-a')).toBeNull();
   });
+
+  it('allows optional brand association for Admin users', () => {
+    expect(resolveBrandIdForUserRole('Admin', null)).toBeNull();
+  });
+
+  it('keeps BrandManager brand validation separate from payload resolution', () => {
+    expect(isBrandRequiredForRole('BrandManager')).toBe(true);
+    expect(resolveBrandIdForUserRole('BrandManager', null)).toBeNull();
+  });
 });

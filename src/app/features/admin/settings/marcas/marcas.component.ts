@@ -11,12 +11,12 @@ import { forkJoin } from 'rxjs';
 
 import { AvatarModule } from 'primeng/avatar';
 import { ButtonModule } from 'primeng/button';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { DialogModule } from 'primeng/dialog';
+import { InputTextModule } from 'primeng/inputtext';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
-import { ConfirmationService } from 'primeng/api';
 import { LucideAngularModule, Pencil, Plus, Trash2, UserPlus } from 'lucide-angular';
 
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -49,7 +49,8 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
   imports: [
     AvatarModule,
     ButtonModule,
-    ConfirmDialogModule,
+    DialogModule,
+    InputTextModule,
     SkeletonModule,
     TableModule,
     TagModule,
@@ -58,7 +59,6 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
     BrandFormDialogComponent,
     UserFormDialogComponent,
   ],
-  providers: [ConfirmationService],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-4">
@@ -216,7 +216,7 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
                       [rounded]="true"
                       pTooltip="Eliminar marca"
                       tooltipPosition="top"
-                      (click)="confirmDeleteBrand(brand)"
+                      (click)="openDeleteBrandDialog(brand)"
                     >
                       <i-lucide [img]="icons.Trash2" class="size-4" />
                     </button>
@@ -247,7 +247,63 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
       (deleted)="onUserDeleted()"
     />
 
-    <p-confirmdialog />
+    <p-dialog
+      [visible]="deleteBrandDialogVisible()"
+      (visibleChange)="onDeleteBrandDialogVisibleChange($event)"
+      [modal]="true"
+      [closable]="!deletingBrand()"
+      [closeOnEscape]="!deletingBrand()"
+      [dismissableMask]="!deletingBrand()"
+      [draggable]="false"
+      [style]="{ width: '32rem', maxWidth: '95vw' }"
+      header="Eliminar marca"
+    >
+      @if (deleteBrandTarget(); as brand) {
+        <div class="flex flex-col gap-4">
+          <div
+            class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+          >
+            Esta acción es definitiva. Si la marca tiene productos o usuarios asociados, el backend
+            puede impedir la operación.
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <p class="text-sm text-surface-600 dark:text-surface-300">
+              Escribí <strong>{{ brand.name }}</strong> para confirmar.
+            </p>
+            <input
+              pInputText
+              type="text"
+              [value]="deleteBrandNameInput()"
+              (input)="deleteBrandNameInput.set($any($event.target).value)"
+              placeholder="Nombre de la marca"
+              fluid
+            />
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button
+              pButton
+              type="button"
+              severity="secondary"
+              [text]="true"
+              label="Cancelar"
+              [disabled]="deletingBrand()"
+              (click)="cancelDeleteBrand()"
+            ></button>
+            <button
+              pButton
+              type="button"
+              severity="danger"
+              label="Eliminar definitivamente"
+              [loading]="deletingBrand()"
+              [disabled]="!canConfirmDeleteBrand() || deletingBrand()"
+              (click)="confirmDeleteBrand()"
+            ></button>
+          </div>
+        </div>
+      }
+    </p-dialog>
   `,
 })
 export class AdminMarcasComponent implements OnInit {
@@ -255,7 +311,6 @@ export class AdminMarcasComponent implements OnInit {
   private readonly users = inject(UsersService);
   private readonly auth = inject(AuthService);
   private readonly notifications = inject(NotificationService);
-  private readonly confirmation = inject(ConfirmationService);
 
   protected readonly icons = { Pencil, Plus, Trash2, UserPlus };
 
@@ -287,6 +342,13 @@ export class AdminMarcasComponent implements OnInit {
 
   protected readonly userDialogVisible = signal(false);
   protected readonly userDialogDefaults = signal<UserFormDialogDefaults | null>(null);
+  protected readonly deleteBrandDialogVisible = signal(false);
+  protected readonly deleteBrandTarget = signal<BrandResponse | null>(null);
+  protected readonly deleteBrandNameInput = signal('');
+  protected readonly deletingBrand = signal(false);
+  protected readonly canConfirmDeleteBrand = computed(
+    () => this.deleteBrandNameInput().trim() === (this.deleteBrandTarget()?.name ?? ''),
+  );
 
   private readonly currencyFormatter = new Intl.NumberFormat('es-UY', {
     style: 'currency',
@@ -395,25 +457,49 @@ export class AdminMarcasComponent implements OnInit {
     this.userDialogDefaults.set(null);
   }
 
-  protected confirmDeleteBrand(brand: BrandResponse): void {
-    this.confirmation.confirm({
-      header: 'Eliminar marca',
-      message: `¿Eliminar ${brand.name}? Si tiene productos o usuarios asociados, el backend puede impedir la operación.`,
-      icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Sí, eliminar',
-      rejectLabel: 'Cancelar',
-      acceptButtonStyleClass: 'p-button-danger',
-      accept: () => this.deleteBrand(brand),
-    });
+  protected openDeleteBrandDialog(brand: BrandResponse): void {
+    this.deleteBrandTarget.set(brand);
+    this.deleteBrandNameInput.set('');
+    this.deleteBrandDialogVisible.set(true);
+  }
+
+  protected onDeleteBrandDialogVisibleChange(value: boolean): void {
+    if (!value && this.deletingBrand()) return;
+    this.deleteBrandDialogVisible.set(value);
+    if (!value) this.resetDeleteBrandDialog();
+  }
+
+  protected cancelDeleteBrand(): void {
+    if (this.deletingBrand()) return;
+    this.deleteBrandDialogVisible.set(false);
+    this.resetDeleteBrandDialog();
+  }
+
+  protected confirmDeleteBrand(): void {
+    const brand = this.deleteBrandTarget();
+    if (!brand || !this.canConfirmDeleteBrand() || this.deletingBrand()) return;
+    this.deleteBrand(brand);
   }
 
   private deleteBrand(brand: BrandResponse): void {
+    this.deletingBrand.set(true);
     this.brands.delete(brand.id).subscribe({
-      next: () => this.notifications.success(`Se eliminó ${brand.name}.`),
+      next: () => {
+        this.deletingBrand.set(false);
+        this.notifications.success(`Se eliminó ${brand.name}.`);
+        this.deleteBrandDialogVisible.set(false);
+        this.resetDeleteBrandDialog();
+      },
       error: (_err: HttpErrorResponse) => {
+        this.deletingBrand.set(false);
         // error.interceptor already shows a toast
       },
     });
+  }
+
+  private resetDeleteBrandDialog(): void {
+    this.deleteBrandTarget.set(null);
+    this.deleteBrandNameInput.set('');
   }
 
   private formatPercent(value: number): string {
