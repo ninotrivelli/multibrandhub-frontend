@@ -15,6 +15,8 @@ const baseBrand: BrandResponse = {
   contractType: 'Hybrid',
   commissionPercentage: 10,
   fixedRentCost: 1000,
+  status: 'Active',
+  archivedAtUtc: null,
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
 };

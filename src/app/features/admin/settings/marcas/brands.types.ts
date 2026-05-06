@@ -1,5 +1,7 @@
 export type ContractType = 'CommissionOnly' | 'FixedRent' | 'Hybrid';
 
+export type BrandStatus = 'Active' | 'Archived';
+
 export interface BrandResponse {
   id: string;
   name: string;
@@ -9,6 +11,8 @@ export interface BrandResponse {
   contractType: ContractType;
   commissionPercentage: number;
   fixedRentCost: number;
+  status: BrandStatus;
+  archivedAtUtc: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -42,4 +46,14 @@ export interface PagedResult<T> {
 export interface ListBrandsParams {
   page?: number;
   pageSize?: number;
+  includeArchived?: boolean;
+}
+
+export interface BrandOffboardingResponse {
+  brandId: string;
+  brandName: string;
+  status: BrandStatus;
+  archivedAtUtc: string | null;
+  productsArchived: number;
+  usersDeactivated: number;
 }

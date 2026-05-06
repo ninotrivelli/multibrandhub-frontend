@@ -7,6 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 
 import { AvatarModule } from 'primeng/avatar';
@@ -16,8 +17,9 @@ import { InputTextModule } from 'primeng/inputtext';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { TooltipModule } from 'primeng/tooltip';
-import { LucideAngularModule, Pencil, Plus, Trash2, UserPlus } from 'lucide-angular';
+import { Archive, LucideAngularModule, Pencil, Plus, Trash2, UserPlus } from 'lucide-angular';
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
@@ -47,6 +49,7 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
 @Component({
   selector: 'app-admin-marcas',
   imports: [
+    FormsModule,
     AvatarModule,
     ButtonModule,
     DialogModule,
@@ -54,6 +57,7 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
     SkeletonModule,
     TableModule,
     TagModule,
+    ToggleSwitchModule,
     TooltipModule,
     LucideAngularModule,
     BrandFormDialogComponent,
@@ -71,9 +75,20 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
             Gestioná las marcas, sus acuerdos comerciales y el acceso de cada cuenta Marca.
           </p>
         </div>
-        <button pButton type="button" label="Nueva Marca" (click)="openCreateBrand()">
-          <i-lucide [img]="icons.Plus" class="size-4 mr-2" />
-        </button>
+        <div class="flex flex-col gap-3 md:flex-row md:items-center">
+          <label
+            class="flex items-center gap-2 cursor-pointer select-none text-sm text-surface-600 dark:text-surface-300 whitespace-nowrap"
+          >
+            <p-toggleswitch
+              [ngModel]="showArchived()"
+              (ngModelChange)="onShowArchivedChange($event)"
+            />
+            Mostrar dadas de baja
+          </label>
+          <button pButton type="button" label="Nueva Marca" (click)="openCreateBrand()">
+            <i-lucide [img]="icons.Plus" class="size-4 mr-2" />
+          </button>
+        </div>
       </header>
 
       @if (loading() && !hasBrands()) {
@@ -86,7 +101,14 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
         <div
           class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-8 text-center"
         >
-          <p class="text-surface-500 dark:text-surface-400">Todavía no hay marcas asociadas.</p>
+          <p class="text-surface-500 dark:text-surface-400">
+            @if (showArchived()) {
+              No hay marcas para mostrar.
+            } @else {
+              Todavía no hay marcas activas. Activá "Mostrar dadas de baja" si querés ver el
+              historial.
+            }
+          </p>
         </div>
       } @else {
         <div
@@ -107,11 +129,11 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
                 <th class="hidden md:table-cell">Contacto</th>
                 <th class="min-w-56">Acuerdo</th>
                 <th class="hidden lg:table-cell">Usuario Marca</th>
-                <th class="w-36 text-right">Acciones</th>
+                <th class="w-44 text-right">Acciones</th>
               </tr>
             </ng-template>
             <ng-template pTemplate="body" let-brand>
-              <tr>
+              <tr [class.opacity-60]="isArchived(brand)">
                 <td>
                   <div class="flex items-center gap-3">
                     <p-avatar
@@ -132,7 +154,13 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
                             styleClass="!text-xs !font-semibold !px-2 !py-1"
                           />
                         }
-                        @if (!hasAssociatedUser(brand)) {
+                        @if (isArchived(brand)) {
+                          <p-tag
+                            value="Dada de baja"
+                            severity="secondary"
+                            styleClass="!text-xs !font-semibold !px-2 !py-1"
+                          />
+                        } @else if (!hasAssociatedUser(brand)) {
                           <p-tag
                             value="Marca sin usuario asociado"
                             severity="danger"
@@ -180,46 +208,64 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
                     </span>
                   }
                 </td>
-                <td class="w-36 text-right">
+                <td class="w-44 text-right">
                   <div class="flex items-center justify-end gap-1">
-                    @if (!hasAssociatedUser(brand)) {
+                    @if (!isArchived(brand)) {
+                      @if (!hasAssociatedUser(brand)) {
+                        <button
+                          pButton
+                          type="button"
+                          severity="success"
+                          [text]="true"
+                          [rounded]="true"
+                          pTooltip="Crear usuario Marca"
+                          tooltipPosition="top"
+                          (click)="openCreateBrandManager(brand)"
+                        >
+                          <i-lucide [img]="icons.UserPlus" class="size-4" />
+                        </button>
+                      }
                       <button
                         pButton
                         type="button"
-                        severity="success"
+                        severity="secondary"
                         [text]="true"
                         [rounded]="true"
-                        pTooltip="Crear usuario Marca"
+                        pTooltip="Editar marca"
                         tooltipPosition="top"
-                        (click)="openCreateBrandManager(brand)"
+                        (click)="openEditBrand(brand)"
                       >
-                        <i-lucide [img]="icons.UserPlus" class="size-4" />
+                        <i-lucide [img]="icons.Pencil" class="size-4" />
                       </button>
+                      @if (!isOwnBrand(brand)) {
+                        <button
+                          pButton
+                          type="button"
+                          severity="warn"
+                          [text]="true"
+                          [rounded]="true"
+                          pTooltip="Dar de baja marca"
+                          tooltipPosition="top"
+                          (click)="openOffboardBrandDialog(brand)"
+                        >
+                          <i-lucide [img]="icons.Archive" class="size-4" />
+                        </button>
+                      }
+                      @if (canHardDelete()) {
+                        <button
+                          pButton
+                          type="button"
+                          severity="danger"
+                          [text]="true"
+                          [rounded]="true"
+                          pTooltip="Eliminar (solo marcas vacías)"
+                          tooltipPosition="top"
+                          (click)="openDeleteBrandDialog(brand)"
+                        >
+                          <i-lucide [img]="icons.Trash2" class="size-4" />
+                        </button>
+                      }
                     }
-                    <button
-                      pButton
-                      type="button"
-                      severity="secondary"
-                      [text]="true"
-                      [rounded]="true"
-                      pTooltip="Editar marca"
-                      tooltipPosition="top"
-                      (click)="openEditBrand(brand)"
-                    >
-                      <i-lucide [img]="icons.Pencil" class="size-4" />
-                    </button>
-                    <button
-                      pButton
-                      type="button"
-                      severity="danger"
-                      [text]="true"
-                      [rounded]="true"
-                      pTooltip="Eliminar marca"
-                      tooltipPosition="top"
-                      (click)="openDeleteBrandDialog(brand)"
-                    >
-                      <i-lucide [img]="icons.Trash2" class="size-4" />
-                    </button>
                   </div>
                 </td>
               </tr>
@@ -248,6 +294,83 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
     />
 
     <p-dialog
+      [visible]="offboardBrandDialogVisible()"
+      (visibleChange)="onOffboardBrandDialogVisibleChange($event)"
+      [modal]="true"
+      [closable]="!offboardingBrand()"
+      [closeOnEscape]="!offboardingBrand()"
+      [dismissableMask]="!offboardingBrand()"
+      [draggable]="false"
+      [style]="{ width: '34rem', maxWidth: '95vw' }"
+      header="Dar de baja marca"
+    >
+      @if (offboardBrandTarget(); as brand) {
+        <div class="flex flex-col gap-4">
+          <div
+            class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+          >
+            Esta acción es seria y no se puede revertir desde la app.
+          </div>
+
+          <div class="flex flex-col gap-2 text-sm text-surface-700 dark:text-surface-200">
+            <p class="font-medium text-surface-900 dark:text-surface-0">
+              Qué pasa al dar de baja <strong>{{ brand.name }}</strong>:
+            </p>
+            <ul class="flex flex-col gap-2 pl-5 list-disc marker:text-surface-400">
+              <li>
+                La marca queda archivada. Sus productos dejan de aparecer en búsquedas e
+                inventario, pero siguen existiendo para ventas viejas, devoluciones y reportes.
+              </li>
+              <li>
+                Los usuarios asociados a la marca quedan desactivados y no van a poder iniciar
+                sesión.
+              </li>
+              <li>
+                Las ventas, devoluciones, reportes y liquidaciones históricas se conservan tal
+                cual.
+              </li>
+            </ul>
+          </div>
+
+          <div class="flex flex-col gap-2 pt-2">
+            <p class="text-sm text-surface-600 dark:text-surface-300">
+              Para confirmar, escribí <strong>{{ brand.name }}</strong> abajo.
+            </p>
+            <input
+              pInputText
+              type="text"
+              [value]="offboardBrandNameInput()"
+              (input)="offboardBrandNameInput.set($any($event.target).value)"
+              placeholder="Nombre de la marca"
+              fluid
+            />
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button
+              pButton
+              type="button"
+              severity="secondary"
+              [text]="true"
+              label="Cancelar"
+              [disabled]="offboardingBrand()"
+              (click)="cancelOffboardBrand()"
+            ></button>
+            <button
+              pButton
+              type="button"
+              severity="warn"
+              label="Dar de baja marca"
+              [loading]="offboardingBrand()"
+              [disabled]="!canConfirmOffboardBrand() || offboardingBrand()"
+              (click)="confirmOffboardBrand()"
+            ></button>
+          </div>
+        </div>
+      }
+    </p-dialog>
+
+    <p-dialog
       [visible]="deleteBrandDialogVisible()"
       (visibleChange)="onDeleteBrandDialogVisibleChange($event)"
       [modal]="true"
@@ -256,15 +379,15 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
       [dismissableMask]="!deletingBrand()"
       [draggable]="false"
       [style]="{ width: '32rem', maxWidth: '95vw' }"
-      header="Eliminar marca"
+      header="Eliminar marca (técnico)"
     >
       @if (deleteBrandTarget(); as brand) {
         <div class="flex flex-col gap-4">
           <div
             class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
           >
-            Esta acción es definitiva. Si la marca tiene productos o usuarios asociados, el backend
-            puede impedir la operación.
+            Solo funciona si la marca no tiene productos ni usuarios asociados. Para marcas con
+            historia, usá <strong>Dar de baja</strong>.
           </div>
 
           <div class="flex flex-col gap-2">
@@ -312,7 +435,7 @@ export class AdminMarcasComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly notifications = inject(NotificationService);
 
-  protected readonly icons = { Pencil, Plus, Trash2, UserPlus };
+  protected readonly icons = { Archive, Pencil, Plus, Trash2, UserPlus };
 
   protected readonly currentUser = this.auth.user;
   protected readonly allBrands = this.brands.items;
@@ -320,9 +443,12 @@ export class AdminMarcasComponent implements OnInit {
   protected readonly loading = computed(() => this.brands.loading() || this.users.loading());
   protected readonly hasBrands = this.brands.hasItems;
 
-  protected readonly orderedBrands = computed(() =>
-    sortBrandsForUser(this.allBrands(), this.currentUser()?.brandId ?? null),
-  );
+  protected readonly showArchived = signal(false);
+
+  protected readonly orderedBrands = computed(() => {
+    const sorted = sortBrandsForUser(this.allBrands(), this.currentUser()?.brandId ?? null);
+    return this.showArchived() ? sorted : sorted.filter((b) => b.status === 'Active');
+  });
 
   private readonly associatedUsersByBrand = computed(() => {
     const map = new Map<string, UserResponse[]>();
@@ -336,12 +462,23 @@ export class AdminMarcasComponent implements OnInit {
     return map;
   });
 
+  protected readonly canHardDelete = computed(() => this.currentUser()?.role === 'SuperAdmin');
+
   protected readonly brandDialogVisible = signal(false);
   protected readonly brandDialogMode = signal<'create' | 'edit'>('create');
   protected readonly brandDialogEditing = signal<BrandResponse | null>(null);
 
   protected readonly userDialogVisible = signal(false);
   protected readonly userDialogDefaults = signal<UserFormDialogDefaults | null>(null);
+
+  protected readonly offboardBrandDialogVisible = signal(false);
+  protected readonly offboardBrandTarget = signal<BrandResponse | null>(null);
+  protected readonly offboardBrandNameInput = signal('');
+  protected readonly offboardingBrand = signal(false);
+  protected readonly canConfirmOffboardBrand = computed(
+    () => this.offboardBrandNameInput().trim() === (this.offboardBrandTarget()?.name ?? ''),
+  );
+
   protected readonly deleteBrandDialogVisible = signal(false);
   protected readonly deleteBrandTarget = signal<BrandResponse | null>(null);
   protected readonly deleteBrandNameInput = signal('');
@@ -362,13 +499,22 @@ export class AdminMarcasComponent implements OnInit {
 
   protected refresh(): void {
     forkJoin({
-      brands: this.brands.list({ page: 1, pageSize: 100 }),
+      brands: this.brands.list({
+        page: 1,
+        pageSize: 100,
+        includeArchived: this.showArchived(),
+      }),
       users: this.users.list({ page: 1, pageSize: 100 }),
     }).subscribe({
       error: () => {
         // error.interceptor already shows a toast
       },
     });
+  }
+
+  protected onShowArchivedChange(value: boolean): void {
+    this.showArchived.set(value);
+    this.refresh();
   }
 
   protected avatarImage(brand: BrandResponse): string | undefined {
@@ -393,6 +539,10 @@ export class AdminMarcasComponent implements OnInit {
 
   protected isOwnBrand(brand: BrandResponse): boolean {
     return this.currentUser()?.brandId === brand.id;
+  }
+
+  protected isArchived(brand: BrandResponse): boolean {
+    return brand.status === 'Archived';
   }
 
   protected hasAssociatedUser(brand: BrandResponse): boolean {
@@ -455,6 +605,54 @@ export class AdminMarcasComponent implements OnInit {
   protected onUserDeleted(): void {
     this.userDialogVisible.set(false);
     this.userDialogDefaults.set(null);
+  }
+
+  protected openOffboardBrandDialog(brand: BrandResponse): void {
+    this.offboardBrandTarget.set(brand);
+    this.offboardBrandNameInput.set('');
+    this.offboardBrandDialogVisible.set(true);
+  }
+
+  protected onOffboardBrandDialogVisibleChange(value: boolean): void {
+    if (!value && this.offboardingBrand()) return;
+    this.offboardBrandDialogVisible.set(value);
+    if (!value) this.resetOffboardBrandDialog();
+  }
+
+  protected cancelOffboardBrand(): void {
+    if (this.offboardingBrand()) return;
+    this.offboardBrandDialogVisible.set(false);
+    this.resetOffboardBrandDialog();
+  }
+
+  protected confirmOffboardBrand(): void {
+    const brand = this.offboardBrandTarget();
+    if (!brand || !this.canConfirmOffboardBrand() || this.offboardingBrand()) return;
+    this.offboardBrand(brand);
+  }
+
+  private offboardBrand(brand: BrandResponse): void {
+    this.offboardingBrand.set(true);
+    this.brands.offboard(brand.id).subscribe({
+      next: (res) => {
+        this.offboardingBrand.set(false);
+        this.notifications.success(
+          `Se dio de baja ${res.brandName}. Productos archivados: ${res.productsArchived}. Usuarios desactivados: ${res.usersDeactivated}.`,
+        );
+        this.offboardBrandDialogVisible.set(false);
+        this.resetOffboardBrandDialog();
+        this.refresh();
+      },
+      error: (_err: HttpErrorResponse) => {
+        this.offboardingBrand.set(false);
+        // error.interceptor already shows a toast
+      },
+    });
+  }
+
+  private resetOffboardBrandDialog(): void {
+    this.offboardBrandTarget.set(null);
+    this.offboardBrandNameInput.set('');
   }
 
   protected openDeleteBrandDialog(brand: BrandResponse): void {

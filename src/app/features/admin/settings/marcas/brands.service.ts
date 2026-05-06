@@ -4,6 +4,7 @@ import { Observable, tap } from 'rxjs';
 
 import { environment } from '../../../../../environments/environment';
 import {
+  BrandOffboardingResponse,
   BrandResponse,
   CreateBrandRequest,
   ListBrandsParams,
@@ -25,10 +26,13 @@ export class BrandsService {
   readonly loading = this._loading.asReadonly();
   readonly hasItems = computed(() => this._items().length > 0);
 
-  list({ page = 1, pageSize = 100 }: ListBrandsParams = {}): Observable<
+  list({ page = 1, pageSize = 100, includeArchived = false }: ListBrandsParams = {}): Observable<
     PagedResult<BrandResponse>
   > {
-    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    let params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    if (includeArchived) {
+      params = params.set('includeArchived', true);
+    }
     this._loading.set(true);
     return this.http.get<PagedResult<BrandResponse>>(this.baseUrl, { params }).pipe(
       tap({
@@ -66,5 +70,21 @@ export class BrandsService {
     return this.http
       .delete<void>(`${this.baseUrl}/${id}`)
       .pipe(tap(() => this._items.update((curr) => curr.filter((brand) => brand.id !== id))));
+  }
+
+  offboard(id: string): Observable<BrandOffboardingResponse> {
+    return this.http
+      .post<BrandOffboardingResponse>(`${this.baseUrl}/${id}/offboard`, null)
+      .pipe(
+        tap((res) =>
+          this._items.update((curr) =>
+            curr.map((brand) =>
+              brand.id === id
+                ? { ...brand, status: res.status, archivedAtUtc: res.archivedAtUtc }
+                : brand,
+            ),
+          ),
+        ),
+      );
   }
 }
