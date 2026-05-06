@@ -237,20 +237,21 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
                       >
                         <i-lucide [img]="icons.Pencil" class="size-4" />
                       </button>
-                      @if (!isOwnBrand(brand)) {
-                        <button
-                          pButton
-                          type="button"
-                          severity="warn"
-                          [text]="true"
-                          [rounded]="true"
-                          pTooltip="Dar de baja marca"
-                          tooltipPosition="top"
-                          (click)="openOffboardBrandDialog(brand)"
-                        >
-                          <i-lucide [img]="icons.Archive" class="size-4" />
-                        </button>
-                      }
+                      <button
+                        pButton
+                        type="button"
+                        severity="warn"
+                        [text]="true"
+                        [rounded]="true"
+                        [disabled]="isOwnBrand(brand)"
+                        [pTooltip]="
+                          isOwnBrand(brand) ? 'No podés dar de baja tu marca' : 'Dar de baja marca'
+                        "
+                        tooltipPosition="top"
+                        (click)="!isOwnBrand(brand) && openOffboardBrandDialog(brand)"
+                      >
+                        <i-lucide [img]="icons.Archive" class="size-4" />
+                      </button>
                       @if (canHardDelete()) {
                         <button
                           pButton
@@ -314,20 +315,20 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
 
           <div class="flex flex-col gap-2 text-sm text-surface-700 dark:text-surface-200">
             <p class="font-medium text-surface-900 dark:text-surface-0">
-              Qué pasa al dar de baja <strong>{{ brand.name }}</strong>:
+              Qué pasa al dar de baja <strong>{{ brand.name }}</strong
+              >:
             </p>
             <ul class="flex flex-col gap-2 pl-5 list-disc marker:text-surface-400">
               <li>
-                La marca queda archivada. Sus productos dejan de aparecer en búsquedas e
-                inventario, pero siguen existiendo para ventas viejas, devoluciones y reportes.
+                La marca queda archivada. Sus productos dejan de aparecer en búsquedas e inventario,
+                pero siguen existiendo para ventas viejas, devoluciones y reportes.
               </li>
               <li>
                 Los usuarios asociados a la marca quedan desactivados y no van a poder iniciar
                 sesión.
               </li>
               <li>
-                Las ventas, devoluciones, reportes y liquidaciones históricas se conservan tal
-                cual.
+                Las ventas, devoluciones, reportes y liquidaciones históricas se conservan tal cual.
               </li>
             </ul>
           </div>

@@ -4,6 +4,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 
 import { TabsModule } from 'primeng/tabs';
 
+import { AdminAjustesGeneralesComponent } from './ajustes-generales/ajustes-generales.component';
 import { AdminEquipoComponent } from './equipo/equipo.component';
 import { AdminMarcasComponent } from './marcas/marcas.component';
 
@@ -14,7 +15,7 @@ const DEFAULT_TAB: SettingsTab = 'equipo';
 
 @Component({
   selector: 'app-admin-settings',
-  imports: [TabsModule, AdminEquipoComponent, AdminMarcasComponent],
+  imports: [TabsModule, AdminAjustesGeneralesComponent, AdminEquipoComponent, AdminMarcasComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="mb-6">
@@ -36,13 +37,7 @@ const DEFAULT_TAB: SettingsTab = 'equipo';
           <app-admin-equipo />
         </p-tabpanel>
         <p-tabpanel value="ajustes">
-          <div
-            class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-8 text-center"
-          >
-            <p class="text-surface-500 dark:text-surface-400">
-              Próximamente: nombre del local, teléfono y dirección.
-            </p>
-          </div>
+          <app-ajustes-generales />
         </p-tabpanel>
       </p-tabpanels>
     </p-tabs>

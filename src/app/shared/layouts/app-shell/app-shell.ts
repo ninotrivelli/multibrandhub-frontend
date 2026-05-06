@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterOutlet } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { AvatarModule } from 'primeng/avatar';
-import { LogOut, LucideAngularModule, Menu } from 'lucide-angular';
+import { LogOut, LucideAngularModule, Menu, Store } from 'lucide-angular';
 
 import { AuthService } from '../../../core/auth/auth.service';
+import { StoreProfileService } from '../../../features/admin/settings/ajustes-generales/store-profile.service';
 import { NavigationDrawerComponent } from '../../components/navigation-drawer/navigation-drawer';
 import { NAV_CONFIG } from './nav-config';
 
@@ -23,12 +25,14 @@ import { NAV_CONFIG } from './nav-config';
 })
 export class AppShell {
   private readonly auth = inject(AuthService);
+  private readonly storeProfile = inject(StoreProfileService);
 
   protected readonly collapsed = signal(false);
   protected readonly mobileOpen = signal(false);
 
   protected readonly user = this.auth.user;
   protected readonly role = this.auth.role;
+  protected readonly storeName = this.storeProfile.storeName;
 
   protected readonly config = computed(() => {
     const r = this.role();
@@ -49,7 +53,18 @@ export class AppShell {
     );
   });
 
-  protected readonly icons = { LogOut, Menu };
+  protected readonly icons = { LogOut, Menu, Store };
+
+  constructor() {
+    this.storeProfile
+      .load()
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        error: () => {
+          // error.interceptor already shows a toast
+        },
+      });
+  }
 
   protected toggleCollapse(): void {
     this.collapsed.update((v) => !v);

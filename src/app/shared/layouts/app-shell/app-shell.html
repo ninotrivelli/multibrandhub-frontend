@@ -37,6 +37,15 @@
         </button>
       </div>
 
+      @if (storeName()) {
+        <div
+          class="hidden md:flex items-center gap-2 text-sm text-surface-700 dark:text-surface-200 min-w-0"
+        >
+          <i-lucide [img]="icons.Store" class="size-4 text-primary shrink-0" />
+          <span class="font-medium truncate">{{ storeName() }}</span>
+        </div>
+      }
+
       <div class="ml-auto flex items-center gap-3">
         <p-avatar
           [label]="initials()"
