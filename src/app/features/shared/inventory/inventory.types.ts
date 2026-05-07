@@ -60,11 +60,46 @@ export interface ProductSearchParams {
   color?: string;
   size?: string;
   stockStatus?: ProductStockStatus;
+  // Multi-value alternative. When set, backend ORs the values; takes
+  // precedence over `stockStatus` if both are provided.
+  stockStatuses?: ProductStockStatus[];
   onlyInStock?: boolean;
   includeInactive?: boolean;
   page?: number;
   pageSize?: number;
 }
+
+export interface ImmobilizedStockProductResponse {
+  id: string;
+  name: string;
+  sku: string;
+  imageUrl: string | null;
+  price: number;
+  color: string | null;
+  size: string | null;
+  currentStock: number;
+  minStockAlert: number;
+  stockValue: number;
+  brandId: string;
+  brandName: string | null;
+  categoryId: string;
+  categoryName: string | null;
+  // null if the product was never sold (and is older than the cutoff).
+  lastSaleAtUtc: string | null;
+  daysWithoutSales: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImmobilizedStockSearchParams {
+  // Required by backend, validated to 1..3650.
+  days: number;
+  brandId?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export type KpiFilter = 'all' | 'immobilized' | 'alerts';
 
 export interface PagedResult<T> {
   items: T[];

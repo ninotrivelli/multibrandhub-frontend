@@ -19,8 +19,7 @@ import { NotificationService } from '../../../core/notifications/notification.se
 import { BrandsService } from '../../admin/settings/marcas/brands.service';
 import { ProductCategoriesService } from './product-categories.service';
 import { ProductsService } from './products.service';
-import { StockMovementsService } from './stock-movements.service';
-import { ProductResponse, StockMovementResponse } from './inventory.types';
+import { KpiFilter, ProductResponse, StockMovementResponse } from './inventory.types';
 import { InventoryKpisComponent } from './components/inventory-kpis.component';
 import { MovementsTabComponent } from './components/movements-tab.component';
 import { StockSearchTabComponent } from './components/stock-search-tab.component';
@@ -80,7 +79,11 @@ type TabId = 'stock' | 'movements';
       </header>
 
       <!-- KPIs -->
-      <app-inventory-kpis [variant]="kpiVariant()" />
+      <app-inventory-kpis
+        [variant]="kpiVariant()"
+        [activeKpi]="activeKpi()"
+        (kpiSelected)="onKpiSelected($event)"
+      />
 
       <!-- Tabs + content -->
       <div class="flex flex-col gap-3">
@@ -124,6 +127,7 @@ type TabId = 'stock' | 'movements';
             [showBrandFilter]="kpiVariant() === 'store'"
             [canSeeArchived]="canSeeArchived()"
             [brandScope]="brandScope()"
+            [kpiFilter]="activeKpi()"
             (editProduct)="openEditProduct($event)"
             (deleteProduct)="openDeleteProductDialog($event)"
           />
@@ -219,7 +223,6 @@ export class InventoryShellComponent implements OnInit {
   private readonly products = inject(ProductsService);
   private readonly brands = inject(BrandsService);
   private readonly categories = inject(ProductCategoriesService);
-  private readonly movements = inject(StockMovementsService);
   private readonly notifications = inject(NotificationService);
 
   protected readonly icons = { Plus, ArrowRightLeft, Search, ListOrdered };
@@ -272,6 +275,15 @@ export class InventoryShellComponent implements OnInit {
   // Tabs
   protected readonly activeTab = signal<TabId>('stock');
 
+  // Active KPI — store variant only. Drives which list <app-stock-search-tab>
+  // renders (full search vs. immobilized-stock vs. critical+out-of-stock).
+  protected readonly activeKpi = signal<KpiFilter>('all');
+
+  protected onKpiSelected(kpi: KpiFilter): void {
+    this.activeKpi.set(kpi);
+    if (this.activeTab() !== 'stock') this.activeTab.set('stock');
+  }
+
   // Product dialog state
   protected readonly productDialogVisible = signal(false);
   protected readonly productDialogMode = signal<'create' | 'edit'>('create');
@@ -306,7 +318,9 @@ export class InventoryShellComponent implements OnInit {
     // "units in local" / "Valor Inventario" KPIs. The list view itself uses
     // its own paginated search; this call is purely for aggregates.
     this.products.loadAll(scope).subscribe({ error: () => {} });
-    this.movements.loadTodaySummary(scope).subscribe({ error: () => {} });
+    // Immobilized count for the "Stock Inmovilizado" KPI (store variant only,
+    // but harmless on brand variant — it just won't be rendered).
+    this.products.loadImmobilizedCount(scope, 60).subscribe({ error: () => {} });
   }
 
   // ---- Product CRUD ------------------------------------------------------
@@ -329,7 +343,7 @@ export class InventoryShellComponent implements OnInit {
     const scope = this.brandScope() ?? undefined;
     this.products.loadKpiCounts(scope).subscribe({ error: () => {} });
     this.products.loadAll(scope).subscribe({ error: () => {} });
-    this.movements.loadTodaySummary(scope).subscribe({ error: () => {} });
+    this.products.loadImmobilizedCount(scope, 60).subscribe({ error: () => {} });
   }
 
   protected openDeleteProductDialog(product: ProductResponse): void {
@@ -389,9 +403,10 @@ export class InventoryShellComponent implements OnInit {
   protected onMovementSaved(_movement: StockMovementResponse): void {
     // Service already updated the product's currentStock locally for both the
     // search list and allItems. Refresh KPI counts in case the change crossed
-    // a status boundary (OK → Crítico → Agotado).
+    // a status boundary (OK → Crítico → Agotado) or a sale moved a product
+    // out of immobilized.
     const scope = this.brandScope() ?? undefined;
     this.products.loadKpiCounts(scope).subscribe({ error: () => {} });
-    this.movements.loadTodaySummary(scope).subscribe({ error: () => {} });
+    this.products.loadImmobilizedCount(scope, 60).subscribe({ error: () => {} });
   }
 }

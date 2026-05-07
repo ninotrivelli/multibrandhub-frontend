@@ -5,6 +5,8 @@ import { Observable, finalize, forkJoin, map, of, switchMap, tap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import {
   CreateProductRequest,
+  ImmobilizedStockProductResponse,
+  ImmobilizedStockSearchParams,
   PagedResult,
   ProductResponse,
   ProductSearchParams,
@@ -29,6 +31,10 @@ export class ProductsService {
   private readonly _kpiLoading = signal(false);
   private readonly _allItems = signal<ProductResponse[]>([]);
   private readonly _allItemsLoading = signal(false);
+  private readonly _immobilizedItems = signal<ImmobilizedStockProductResponse[]>([]);
+  private readonly _immobilizedTotal = signal(0);
+  private readonly _immobilizedCount = signal(0);
+  private readonly _immobilizedLoading = signal(false);
 
   readonly items = this._items.asReadonly();
   readonly totalCount = this._totalCount.asReadonly();
@@ -38,6 +44,10 @@ export class ProductsService {
   readonly kpiLoading = this._kpiLoading.asReadonly();
   readonly allItems = this._allItems.asReadonly();
   readonly allItemsLoading = this._allItemsLoading.asReadonly();
+  readonly immobilizedItems = this._immobilizedItems.asReadonly();
+  readonly immobilizedTotal = this._immobilizedTotal.asReadonly();
+  readonly immobilizedCount = this._immobilizedCount.asReadonly();
+  readonly immobilizedLoading = this._immobilizedLoading.asReadonly();
 
   search(params: ProductSearchParams): Observable<PagedResult<ProductResponse>> {
     const httpParams = this.buildSearchParams(params);
@@ -161,6 +171,49 @@ export class ProductsService {
     );
   }
 
+  // KPI count for the "Stock Inmovilizado" card. Cheap call (pageSize=1).
+  loadImmobilizedCount(brandIdScope?: string, days = 60): Observable<number> {
+    this._immobilizedLoading.set(true);
+    let params = new HttpParams().set('days', days).set('page', 1).set('pageSize', 1);
+    if (brandIdScope) params = params.set('brandId', brandIdScope);
+    return this.http
+      .get<PagedResult<ImmobilizedStockProductResponse>>(`${this.baseUrl}/immobilized-stock`, {
+        params,
+      })
+      .pipe(
+        tap((res) => this._immobilizedCount.set(res.totalCount)),
+        map((res) => res.totalCount),
+        finalize(() => this._immobilizedLoading.set(false)),
+      );
+  }
+
+  // Paginated immobilized-stock list. Uses the shared `_loading` signal so the
+  // <p-table> shows the same spinner as the regular search.
+  searchImmobilized(
+    params: ImmobilizedStockSearchParams,
+  ): Observable<PagedResult<ImmobilizedStockProductResponse>> {
+    let httpParams = new HttpParams()
+      .set('days', params.days)
+      .set('page', params.page ?? 1)
+      .set('pageSize', params.pageSize ?? 12);
+    if (params.brandId) httpParams = httpParams.set('brandId', params.brandId);
+    this._loading.set(true);
+    return this.http
+      .get<PagedResult<ImmobilizedStockProductResponse>>(`${this.baseUrl}/immobilized-stock`, {
+        params: httpParams,
+      })
+      .pipe(
+        tap({
+          next: (res) => {
+            this._immobilizedItems.set(res.items);
+            this._immobilizedTotal.set(res.totalCount);
+            this._loading.set(false);
+          },
+          error: () => this._loading.set(false),
+        }),
+      );
+  }
+
   // Bumps the product's currentStock locally after a successful movement,
   // mirroring the backend's recompute. Avoids an extra fetch.
   applyStockDelta(productId: string, delta: number): void {
@@ -181,7 +234,12 @@ export class ProductsService {
     if (params.categoryId) p = p.set('categoryId', params.categoryId);
     if (params.color && params.color.trim().length > 0) p = p.set('color', params.color.trim());
     if (params.size && params.size.trim().length > 0) p = p.set('size', params.size.trim());
-    if (params.stockStatus) p = p.set('stockStatus', params.stockStatus);
+    if (params.stockStatuses && params.stockStatuses.length > 0) {
+      // Backend reads it as a list — repeated query string keys.
+      for (const s of params.stockStatuses) p = p.append('stockStatuses', s);
+    } else if (params.stockStatus) {
+      p = p.set('stockStatus', params.stockStatus);
+    }
     if (params.onlyInStock) p = p.set('onlyInStock', true);
     if (params.includeInactive) p = p.set('includeInactive', true);
     p = p.set('page', params.page ?? 1);

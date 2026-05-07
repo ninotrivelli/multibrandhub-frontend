@@ -10,7 +10,14 @@ import {
   untracked,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  FormsModule,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { debounceTime, distinctUntilChanged, map, of, startWith, switchMap } from 'rxjs';
 
@@ -22,6 +29,7 @@ import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { TextareaModule } from 'primeng/textarea';
 import { TagModule } from 'primeng/tag';
+import { TooltipModule } from 'primeng/tooltip';
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
@@ -53,6 +61,7 @@ interface MovementTypeOption {
     SelectModule,
     TagModule,
     TextareaModule,
+    TooltipModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -97,7 +106,7 @@ interface MovementTypeOption {
 
         @if (selectedProduct(); as p) {
           <div
-            class="rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 p-3 flex items-center justify-between gap-3"
+            class="rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 p-3 flex items-start justify-between gap-3"
           >
             <div class="flex flex-col gap-0.5 min-w-0">
               <span class="font-medium text-surface-900 dark:text-surface-0 truncate">
@@ -105,15 +114,19 @@ interface MovementTypeOption {
               </span>
               <span class="text-xs text-surface-500 dark:text-surface-400">
                 Stock actual: <strong>{{ p.currentStock }}</strong> unids.
+                · Marca: <strong>{{ p.brandName ?? '—' }}</strong>
               </span>
             </div>
             <button
               pButton
               type="button"
-              severity="secondary"
+              severity="danger"
               [text]="true"
+              [rounded]="true"
               icon="pi pi-times"
               size="small"
+              pTooltip="Quitar selección"
+              tooltipPosition="left"
               (click)="clearSelection()"
             ></button>
           </div>
@@ -189,23 +202,26 @@ interface MovementTypeOption {
               buttonLayout="horizontal"
               spinnerMode="horizontal"
               [step]="1"
-              incrementButtonClass="!bg-surface-100 hover:!bg-surface-200 active:!bg-surface-300 !border-surface-300 !text-surface-700 dark:!bg-surface-800 dark:hover:!bg-surface-700 dark:active:!bg-surface-600 dark:!border-surface-600 dark:!text-surface-100"
-              decrementButtonClass="!bg-surface-100 hover:!bg-surface-200 active:!bg-surface-300 !border-surface-300 !text-surface-700 dark:!bg-surface-800 dark:hover:!bg-surface-700 dark:active:!bg-surface-600 dark:!border-surface-600 dark:!text-surface-100"
+              incrementButtonIcon="pi pi-plus"
+              decrementButtonIcon="pi pi-minus"
               [min]="allowsNegative() ? -9999 : 1"
-              [invalid]="isInvalid('quantity')"
+              [invalid]="isQuantityInvalid()"
               fluid
-            >
-              <ng-template #incrementbuttonicon>
-                <span class="pi pi-plus !text-surface-700 dark:!text-surface-100"></span>
-              </ng-template>
-              <ng-template #decrementbuttonicon>
-                <span class="pi pi-minus !text-surface-700 dark:!text-surface-100"></span>
-              </ng-template>
-            </p-inputnumber>
-            @if (isInvalid('quantity')) {
-              <p-message severity="error" size="small" variant="simple">
-                Ingresá una cantidad distinta de cero.
-              </p-message>
+            />
+            @if (isQuantityInvalid()) {
+              @if (form.errors?.['nonZero']) {
+                <p-message severity="error" size="small" variant="simple">
+                  Ingresá una cantidad distinta de cero.
+                </p-message>
+              } @else if (form.errors?.['negativeNotAllowed']) {
+                <p-message severity="error" size="small" variant="simple">
+                  Solo "Ajuste manual" permite valores negativos.
+                </p-message>
+              } @else {
+                <p-message severity="error" size="small" variant="simple">
+                  Ingresá una cantidad válida.
+                </p-message>
+              }
             }
           </div>
         </div>
@@ -299,14 +315,14 @@ export class MovementFormDialogComponent {
   protected readonly submitting = signal(false);
   protected readonly submitError = signal<string | null>(null);
 
-  protected readonly form = this.fb.group({
-    type: this.fb.nonNullable.control<MovementType>(MovementType.StockIn, [Validators.required]),
-    quantity: this.fb.control<number | null>(1, [
-      Validators.required,
-      (c) => (c.value === 0 ? { nonZero: true } : null),
-    ]),
-    observations: this.fb.nonNullable.control(''),
-  });
+  protected readonly form = this.fb.group(
+    {
+      type: this.fb.nonNullable.control<MovementType>(MovementType.StockIn, [Validators.required]),
+      quantity: this.fb.control<number | null>(1, [Validators.required]),
+      observations: this.fb.nonNullable.control(''),
+    },
+    { validators: [movementQuantityValidator] },
+  );
   private readonly formStatus = toSignal(
     this.form.statusChanges.pipe(startWith(this.form.status)),
     {
@@ -314,14 +330,33 @@ export class MovementFormDialogComponent {
     },
   );
 
+  // Re-emits whenever the `type` control changes, so dependent computeds
+  // (`typeHint`, `allowsNegative`) actually re-evaluate. Reading
+  // `form.controls.type.value` directly inside a computed does NOT trigger
+  // recomputation because that read isn't a signal — that's what caused the
+  // hint to stay stuck on the initial value.
+  private readonly typeValue = toSignal(this.form.controls.type.valueChanges, {
+    initialValue: this.form.controls.type.value,
+  });
+
   protected readonly typeHint = computed(() => {
-    const value = this.form.controls.type.value;
+    const value = this.typeValue();
     return this.typeOptions.find((o) => o.value === value)?.hint ?? '';
   });
 
-  protected readonly allowsNegative = computed(() => {
-    const t = this.form.controls.type.value;
-    return t === MovementType.Adjustment;
+  protected readonly allowsNegative = computed(
+    () => this.typeValue() === MovementType.Adjustment,
+  );
+
+  // Visible after the user starts touching the quantity input. We read
+  // `formStatus()` so this re-evaluates whenever validation state changes
+  // (the group-level validator for nonZero / negativeNotAllowed flips
+  // `form.errors`, which in turn flips `form.status`).
+  protected readonly isQuantityInvalid = computed(() => {
+    this.formStatus();
+    const qtyCtrl = this.form.controls.quantity;
+    if (!qtyCtrl.dirty && !qtyCtrl.touched) return false;
+    return qtyCtrl.invalid || this.form.errors !== null;
   });
 
   protected readonly canSubmit = computed(
@@ -452,4 +487,17 @@ export class MovementFormDialogComponent {
 function nullableTrim(value: string | null | undefined): string | null {
   const t = value?.trim() ?? '';
   return t.length > 0 ? t : null;
+}
+
+// Group-level validator: looks at both `type` and `quantity` because what
+// counts as a valid quantity depends on the movement type. Negative values
+// are only meaningful for `Adjustment` (the backend normalizes the sign for
+// every other type, but we want the user to know).
+function movementQuantityValidator(group: AbstractControl): ValidationErrors | null {
+  const type = group.get('type')?.value as MovementType | null;
+  const qty = group.get('quantity')?.value as number | null | undefined;
+  if (qty === null || qty === undefined) return null; // `Validators.required` already covers it
+  if (qty === 0) return { nonZero: true };
+  if (qty < 0 && type !== MovementType.Adjustment) return { negativeNotAllowed: true };
+  return null;
 }

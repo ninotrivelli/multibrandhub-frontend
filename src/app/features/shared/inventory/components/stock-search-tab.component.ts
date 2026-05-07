@@ -36,13 +36,23 @@ import { BrandsService } from '../../../admin/settings/marcas/brands.service';
 import { ProductCategoriesService } from '../product-categories.service';
 import { ProductsService } from '../products.service';
 import {
+  ImmobilizedStockProductResponse,
+  KpiFilter,
   ProductResponse,
   ProductSearchParams,
   ProductStockStatus,
 } from '../inventory.types';
-import { formatCurrencyUYU, formatNumber } from '../inventory.utils';
+import { formatCurrencyUYU, formatNumber, parseBackendUtcDate, URUGUAY_TIME_ZONE } from '../inventory.utils';
 import { ProductImageComponent } from './product-image.component';
 import { StockStatusTagComponent } from './stock-status-tag.component';
+
+// Row in the table can come from either the regular search (ProductResponse)
+// or the immobilized-stock search (ImmobilizedStockProductResponse). Common
+// columns rely on the intersection; immobilized-only columns are guarded by
+// the `kpiFilter` signal.
+type TableRow =
+  | (ProductResponse & { immobilized?: false })
+  | (ImmobilizedStockProductResponse & { immobilized: true });
 
 @Component({
   selector: 'app-stock-search-tab',
@@ -79,6 +89,7 @@ import { StockStatusTagComponent } from './stock-status-tag.component';
             [ngModel]="searchTerm()"
             (ngModelChange)="searchTerm.set($event)"
             placeholder="Buscar por SKU, nombre, talle, color..."
+            [disabled]="kpiFilter() === 'immobilized'"
             fluid
           />
         </p-iconfield>
@@ -92,6 +103,7 @@ import { StockStatusTagComponent } from './stock-status-tag.component';
             (ngModelChange)="brandId.set($event)"
             placeholder="Todas las Marcas"
             [showClear]="true"
+            [disabled]="kpiFilter() === 'immobilized'"
             appendTo="body"
             styleClass="md:w-44"
           />
@@ -107,6 +119,7 @@ import { StockStatusTagComponent } from './stock-status-tag.component';
           [showClear]="true"
           [filter]="true"
           filterBy="label"
+          [disabled]="kpiFilter() === 'immobilized'"
           appendTo="body"
           styleClass="md:w-44"
         />
@@ -116,6 +129,9 @@ import { StockStatusTagComponent } from './stock-status-tag.component';
           type="button"
           [severity]="stockStatus() === 'Critical' ? 'warn' : 'secondary'"
           [outlined]="stockStatus() !== 'Critical'"
+          [disabled]="kpiFilterControlsList()"
+          [pTooltip]="kpiFilterControlsList() ? 'El KPI activo controla este filtro' : ''"
+          tooltipPosition="bottom"
           size="small"
           label="Stock Crítico"
           (click)="setStockStatus('Critical')"
@@ -126,6 +142,9 @@ import { StockStatusTagComponent } from './stock-status-tag.component';
           type="button"
           [severity]="stockStatus() === 'OutOfStock' ? 'danger' : 'secondary'"
           [outlined]="stockStatus() !== 'OutOfStock'"
+          [disabled]="kpiFilterControlsList()"
+          [pTooltip]="kpiFilterControlsList() ? 'El KPI activo controla este filtro' : ''"
+          tooltipPosition="bottom"
           size="small"
           label="Agotados"
           (click)="setStockStatus('OutOfStock')"
@@ -136,6 +155,7 @@ import { StockStatusTagComponent } from './stock-status-tag.component';
           type="button"
           [severity]="hasAdvancedFilters() ? 'info' : 'secondary'"
           [outlined]="!hasAdvancedFilters()"
+          [disabled]="kpiFilter() === 'immobilized'"
           size="small"
           [label]="hasAdvancedFilters() ? 'Más (' + advancedFiltersCount() + ')' : 'Más'"
           (click)="advancedFiltersPopover.toggle($event)"
@@ -234,12 +254,12 @@ import { StockStatusTagComponent } from './stock-status-tag.component';
         class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden"
       >
         <p-table
-          [value]="items()"
+          [value]="tableItems()"
           [lazy]="true"
           [paginator]="true"
           [rows]="pageSize()"
           [first]="(page() - 1) * pageSize()"
-          [totalRecords]="totalCount()"
+          [totalRecords]="tableTotal()"
           [rowsPerPageOptions]="[12, 24, 48]"
           [loading]="loading()"
           (onLazyLoad)="onLazyLoad($event)"
@@ -259,6 +279,10 @@ import { StockStatusTagComponent } from './stock-status-tag.component';
               <th class="hidden lg:table-cell">TALLE/COLOR</th>
               <th class="text-right">PRECIO</th>
               <th class="text-right">STOCK</th>
+              @if (kpiFilter() === 'immobilized') {
+                <th class="hidden md:table-cell text-right">DÍAS S/VENTAS</th>
+                <th class="hidden lg:table-cell">ÚLTIMA VENTA</th>
+              }
               <th>ESTADO</th>
               <th class="text-right w-28">ACCIONES</th>
             </tr>
@@ -321,6 +345,18 @@ import { StockStatusTagComponent } from './stock-status-tag.component';
                   {{ formatNumber(row.currentStock) }}
                 </span>
               </td>
+              @if (kpiFilter() === 'immobilized') {
+                <td class="hidden md:table-cell text-right">
+                  <span class="text-sm font-medium text-amber-600 dark:text-amber-300">
+                    {{ formatNumber(row.daysWithoutSales) }}
+                  </span>
+                </td>
+                <td class="hidden lg:table-cell">
+                  <span class="text-xs text-surface-600 dark:text-surface-300">
+                    {{ formatLastSale(row.lastSaleAtUtc) }}
+                  </span>
+                </td>
+              }
               <td>
                 <app-stock-status-tag
                   [stock]="row.currentStock"
@@ -329,7 +365,7 @@ import { StockStatusTagComponent } from './stock-status-tag.component';
               </td>
               <td class="text-right">
                 <div class="flex items-center justify-end gap-1">
-                  @if (canEdit()) {
+                  @if (canEdit() && !row.immobilized) {
                     <button
                       pButton
                       type="button"
@@ -343,7 +379,7 @@ import { StockStatusTagComponent } from './stock-status-tag.component';
                       <i-lucide [img]="icons.Pencil" class="size-4" />
                     </button>
                   }
-                  @if (canDelete()) {
+                  @if (canDelete() && !row.immobilized) {
                     <button
                       pButton
                       type="button"
@@ -390,6 +426,11 @@ export class StockSearchTabComponent {
   readonly canSeeArchived = input<boolean>(false);
   // When set, scopes the search by brand server-side (BrandManager case).
   readonly brandScope = input<string | null>(null);
+  // Drives which list backend endpoint we hit:
+  //  - 'all'         → /products/search
+  //  - 'immobilized' → /products/immobilized-stock?days=60
+  //  - 'alerts'      → /products/search?stockStatuses=Critical&stockStatuses=OutOfStock
+  readonly kpiFilter = input<KpiFilter>('all');
 
   readonly editProduct = output<ProductResponse>();
   readonly deleteProduct = output<ProductResponse>();
@@ -399,6 +440,24 @@ export class StockSearchTabComponent {
   protected readonly items = this.products.items;
   protected readonly totalCount = this.products.totalCount;
   protected readonly loading = this.products.loading;
+
+  // Immobilized data lives in its own slot in ProductsService — separate
+  // signal so a regular search doesn't clobber it (and vice versa).
+  protected readonly immobilizedItems = this.products.immobilizedItems;
+  protected readonly immobilizedTotal = this.products.immobilizedTotal;
+
+  protected readonly tableItems = computed<TableRow[]>(() => {
+    if (this.kpiFilter() === 'immobilized') {
+      return this.immobilizedItems().map((p) => ({ ...p, immobilized: true as const }));
+    }
+    return this.items().map((p) => ({ ...p, immobilized: false as const }));
+  });
+
+  protected readonly tableTotal = computed(() =>
+    this.kpiFilter() === 'immobilized' ? this.immobilizedTotal() : this.totalCount(),
+  );
+
+  protected readonly kpiFilterControlsList = computed(() => this.kpiFilter() !== 'all');
 
   // Filter state
   protected readonly searchTerm = signal('');
@@ -467,6 +526,7 @@ export class StockSearchTabComponent {
       this.colorFilter();
       this.sizeFilter();
       this.includeArchived();
+      this.kpiFilter();
       untracked(() => {
         this.page.set(1);
         this.fetch();
@@ -514,19 +574,43 @@ export class StockSearchTabComponent {
   }
 
   private fetch(): void {
+    const filter = this.kpiFilter();
+    const scope = this.brandScope();
+
+    if (filter === 'immobilized') {
+      // The immobilized endpoint has its own (smaller) param set: it doesn't
+      // accept search/category/status filters. The other on-screen filters
+      // are visually disabled while this KPI is active.
+      this.products
+        .searchImmobilized({
+          days: 60,
+          page: this.page(),
+          pageSize: this.pageSize(),
+          brandId: scope ?? this.brandId() ?? undefined,
+        })
+        .subscribe({ error: () => {} });
+      return;
+    }
+
     const params: ProductSearchParams = {
       page: this.page(),
       pageSize: this.pageSize(),
       searchTerm: this.searchTerm() || undefined,
       categoryId: this.categoryId() ?? undefined,
-      stockStatus: this.stockStatus() ?? undefined,
       color: this.colorFilter().trim() || undefined,
       size: this.sizeFilter().trim() || undefined,
       // includeInactive is gated server-side to Admin/SuperAdmin; we hide the
       // toggle from other roles, but also belt-and-braces it here.
       includeInactive: this.canSeeArchived() && this.includeArchived() ? true : undefined,
     };
-    const scope = this.brandScope();
+
+    if (filter === 'alerts') {
+      // KPI overrides the per-button stockStatus filter while it's active.
+      params.stockStatuses = ['Critical', 'OutOfStock'];
+    } else if (this.stockStatus()) {
+      params.stockStatus = this.stockStatus()!;
+    }
+
     if (scope) {
       // Server-side will also enforce this for BrandManager via JWT, but we
       // pass it explicitly so non-scoped roles get the same effect.
@@ -539,5 +623,16 @@ export class StockSearchTabComponent {
         // error.interceptor already shows a toast
       },
     });
+  }
+
+  protected formatLastSale(iso: string | null): string {
+    if (!iso) return 'Nunca';
+    const date = parseBackendUtcDate(iso);
+    return new Intl.DateTimeFormat('es-UY', {
+      timeZone: URUGUAY_TIME_ZONE,
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(date);
   }
 }

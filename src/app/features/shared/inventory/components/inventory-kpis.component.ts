@@ -1,7 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  output,
+} from '@angular/core';
 import {
   AlertTriangle,
-  ArrowRightLeft,
+  Hourglass,
   LucideAngularModule,
   Package,
   Tags,
@@ -11,8 +18,8 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { TooltipModule } from 'primeng/tooltip';
 
 import { formatCurrencyUYU, formatNumber } from '../inventory.utils';
+import { KpiFilter } from '../inventory.types';
 import { ProductsService } from '../products.service';
-import { StockMovementsService } from '../stock-movements.service';
 
 type Variant = 'store' | 'brand';
 
@@ -24,8 +31,13 @@ type Variant = 'store' | 'brand';
     @if (variant() === 'store') {
       <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
         <!-- Total en Local -->
-        <div
-          class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-5 flex items-center gap-4"
+        <button
+          type="button"
+          class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4 text-left transition-colors hover:bg-surface-50 dark:hover:bg-surface-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          [class.border-primary]="activeKpi() === 'all'"
+          [class.border-surface-200]="activeKpi() !== 'all'"
+          [class.dark:border-surface-700]="activeKpi() !== 'all'"
+          (click)="kpiSelected.emit('all')"
         >
           <div
             class="size-12 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-primary shrink-0"
@@ -45,49 +57,52 @@ type Variant = 'store' | 'brand';
               </span>
             }
           </div>
-        </div>
+        </button>
 
-        <!-- Movimientos de Hoy -->
-        <div
-          class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-5 flex items-center gap-4"
-          [pTooltip]="todayMovementsTooltip()"
+        <!-- Stock Inmovilizado -->
+        <button
+          type="button"
+          class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4 text-left transition-colors hover:bg-surface-50 dark:hover:bg-surface-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          [class.border-primary]="activeKpi() === 'immobilized'"
+          [class.border-surface-200]="activeKpi() !== 'immobilized'"
+          [class.dark:border-surface-700]="activeKpi() !== 'immobilized'"
+          [pTooltip]="immobilizedTooltip()"
           tooltipPosition="bottom"
+          (click)="kpiSelected.emit('immobilized')"
         >
           <div
-            class="size-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-300 shrink-0"
+            class="size-12 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-300 shrink-0"
           >
-            <i-lucide [img]="icons.ArrowRightLeft" class="size-6" />
+            <i-lucide [img]="icons.Hourglass" class="size-6" />
           </div>
           <div class="flex flex-col gap-1 min-w-0">
-            <span class="text-sm text-surface-500 dark:text-surface-400">Movimientos de Hoy</span>
-            @if (todaySummaryLoading()) {
-              <p-skeleton width="7rem" height="1.75rem" />
+            <span class="text-sm text-surface-500 dark:text-surface-400">Stock Inmovilizado</span>
+            @if (immobilizedLoading()) {
+              <p-skeleton width="6rem" height="1.75rem" />
             } @else {
-              <div class="flex items-baseline gap-2 flex-wrap">
-                <span
-                  class="text-2xl font-bold text-emerald-600 dark:text-emerald-300 leading-tight"
-                >
-                  +{{ todayInboundUnits() }}
+              <span class="text-2xl font-bold text-surface-900 dark:text-surface-0 leading-tight">
+                {{ formatNumberFn(immobilizedCount()) }}
+                <span class="text-sm font-normal text-surface-500 dark:text-surface-400">
+                  artíc.
                 </span>
-                <span class="text-sm text-surface-400 dark:text-surface-500">/</span>
-                <span class="text-2xl font-bold text-red-600 dark:text-red-300 leading-tight">
-                  -{{ todayOutboundUnits() }}
-                </span>
-              </div>
+              </span>
               <span class="text-xs text-surface-500 dark:text-surface-400">
-                {{ todayMovementsCountLabel() }}
+                +60 días sin ventas
               </span>
             }
           </div>
-        </div>
+        </button>
 
         <!-- Alertas Activas -->
-        <div
-          class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4"
-          [class.border-red-200]="alertsCount() > 0"
-          [class.dark:border-red-900]="alertsCount() > 0"
-          [class.border-surface-200]="alertsCount() === 0"
-          [class.dark:border-surface-700]="alertsCount() === 0"
+        <button
+          type="button"
+          class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4 text-left transition-colors hover:bg-surface-50 dark:hover:bg-surface-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          [class.border-primary]="activeKpi() === 'alerts'"
+          [class.border-red-200]="activeKpi() !== 'alerts' && alertsCount() > 0"
+          [class.dark:border-red-900]="activeKpi() !== 'alerts' && alertsCount() > 0"
+          [class.border-surface-200]="activeKpi() !== 'alerts' && alertsCount() === 0"
+          [class.dark:border-surface-700]="activeKpi() !== 'alerts' && alertsCount() === 0"
+          (click)="kpiSelected.emit('alerts')"
         >
           <div
             class="size-12 rounded-xl flex items-center justify-center shrink-0"
@@ -122,7 +137,7 @@ type Variant = 'store' | 'brand';
               </div>
             }
           </div>
-        </div>
+        </button>
       </div>
     } @else {
       <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -236,18 +251,20 @@ type Variant = 'store' | 'brand';
 })
 export class InventoryKpisComponent {
   private readonly products = inject(ProductsService);
-  private readonly movements = inject(StockMovementsService);
 
   readonly variant = input.required<Variant>();
+  readonly activeKpi = input<KpiFilter>('all');
+  readonly kpiSelected = output<KpiFilter>();
 
-  protected readonly icons = { Package, ArrowRightLeft, AlertTriangle, Tags, Wallet };
+  protected readonly icons = { Package, Hourglass, AlertTriangle, Tags, Wallet };
+  protected readonly formatNumberFn = formatNumber;
 
   protected readonly kpiCounts = this.products.kpiCounts;
   protected readonly kpiLoading = this.products.kpiLoading;
   protected readonly allItems = this.products.allItems;
   protected readonly allItemsLoading = this.products.allItemsLoading;
-  protected readonly todaySummary = this.movements.todaySummary;
-  protected readonly todaySummaryLoading = this.movements.todaySummaryLoading;
+  protected readonly immobilizedCount = this.products.immobilizedCount;
+  protected readonly immobilizedLoading = this.products.immobilizedLoading;
 
   protected readonly criticalCount = computed(() => this.kpiCounts().critical);
   protected readonly outOfStockCount = computed(() => this.kpiCounts().outOfStock);
@@ -256,9 +273,6 @@ export class InventoryKpisComponent {
   );
   protected readonly activeSkus = computed(() => this.kpiCounts().total);
 
-  // Total units across all currently-loaded items. For 'store' variant we
-  // sum from kpiCounts when allItems isn't loaded; for 'brand' variant we
-  // always have allItems loaded.
   protected readonly totalUnits = computed(() => {
     const items = this.allItems();
     if (items.length > 0) {
@@ -271,17 +285,9 @@ export class InventoryKpisComponent {
     formatCurrencyUYU(this.allItems().reduce((acc, p) => acc + p.price * p.currentStock, 0)),
   );
 
-  protected readonly todayInboundUnits = computed(() =>
-    formatNumber(this.todaySummary().inboundUnits),
-  );
-  protected readonly todayOutboundUnits = computed(() =>
-    formatNumber(this.todaySummary().outboundUnits),
-  );
-  protected readonly todayMovementsCountLabel = computed(() => {
-    const count = this.todaySummary().totalCount;
-    return count === 1 ? '1 movimiento' : `${formatNumber(count)} movimientos`;
+  protected readonly immobilizedTooltip = computed(() => {
+    const n = this.immobilizedCount();
+    if (n === 0) return 'No hay artículos inmovilizados (+60 días sin ventas).';
+    return `${formatNumber(n)} ${n === 1 ? 'artículo' : 'artículos'} sin ventas hace +60 días. Click para filtrar.`;
   });
-  protected readonly todayMovementsTooltip = computed(
-    () => `${this.todayMovementsCountLabel()} registrados hoy.`,
-  );
 }
