@@ -74,6 +74,8 @@ export interface ProductSearchParams {
   stockStatuses?: ProductStockStatus[];
   onlyInStock?: boolean;
   includeInactive?: boolean;
+  sortBy?: 'name' | 'createdAt';
+  sortDirection?: 'asc' | 'desc';
   page?: number;
   pageSize?: number;
 }

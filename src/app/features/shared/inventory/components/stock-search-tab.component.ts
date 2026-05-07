@@ -2,12 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   effect,
   inject,
   input,
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -25,9 +27,12 @@ import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { TooltipModule } from 'primeng/tooltip';
 import {
   Archive,
+  CalendarArrowDown,
+  CalendarArrowUp,
   Pencil,
   Search,
   SlidersHorizontal,
+  X,
   LucideAngularModule,
 } from 'lucide-angular';
 
@@ -77,7 +82,7 @@ type TableRow =
     <div class="flex flex-col gap-3">
       <!-- Filter bar -->
       <div class="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
-        <p-iconfield class="flex-1 min-w-0">
+        <p-iconfield class="flex-1 min-w-0 relative">
           @if (searchTerm().length === 0) {
             <p-inputicon>
               <i-lucide [img]="icons.Search" class="size-4 text-surface-400" />
@@ -85,13 +90,29 @@ type TableRow =
           }
           <input
             pInputText
+            #stockSearchInput
             type="text"
             [ngModel]="searchTerm()"
             (ngModelChange)="searchTerm.set($event)"
             placeholder="Buscar por SKU, nombre, talle, color..."
             [disabled]="kpiFilter() === 'immobilized'"
+            class="!pr-10"
             fluid
           />
+          @if (searchTerm().trim().length > 0) {
+            <button
+              type="button"
+              class="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-md p-1 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:bg-surface-700 dark:hover:text-surface-100"
+              aria-label="Limpiar búsqueda"
+              pTooltip="Limpiar búsqueda"
+              tooltipPosition="bottom"
+              [disabled]="kpiFilter() === 'immobilized'"
+              (pointerdown)="$event.preventDefault()"
+              (click)="clearSearchTerm()"
+            >
+              <i-lucide [img]="icons.X" class="size-4" />
+            </button>
+          }
         </p-iconfield>
 
         @if (showBrandFilter()) {
@@ -205,6 +226,27 @@ type TableRow =
               />
             </div>
 
+            <div class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-surface-700 dark:text-surface-200">
+                Fecha de ingreso
+              </span>
+              <button
+                pButton
+                type="button"
+                [severity]="createdAtSort() ? 'info' : 'secondary'"
+                [outlined]="createdAtSort() === null"
+                size="small"
+                [label]="createdAtSortLabel()"
+                (click)="toggleCreatedAtSort()"
+              >
+                @if (createdAtSort() === 'asc') {
+                  <i-lucide [img]="icons.CalendarArrowUp" class="size-4 mr-1" />
+                } @else {
+                  <i-lucide [img]="icons.CalendarArrowDown" class="size-4 mr-1" />
+                }
+              </button>
+            </div>
+
             @if (canSeeArchived()) {
               <label
                 class="flex items-center justify-between gap-2 cursor-pointer select-none border-t border-surface-200 dark:border-surface-700 pt-3"
@@ -233,7 +275,7 @@ type TableRow =
                 severity="secondary"
                 [text]="true"
                 size="small"
-                label="Limpiar"
+                label="Limpiar filtros avanzados"
                 [disabled]="!hasAdvancedFilters()"
                 (click)="clearAdvancedFilters()"
               ></button>
@@ -435,7 +477,17 @@ export class StockSearchTabComponent {
   readonly editProduct = output<ProductResponse>();
   readonly archiveProduct = output<ProductResponse>();
 
-  protected readonly icons = { Search, Pencil, Archive, SlidersHorizontal };
+  private readonly stockSearchInput = viewChild<ElementRef<HTMLInputElement>>('stockSearchInput');
+
+  protected readonly icons = {
+    Search,
+    Pencil,
+    Archive,
+    SlidersHorizontal,
+    CalendarArrowDown,
+    CalendarArrowUp,
+    X,
+  };
 
   protected readonly items = this.products.items;
   protected readonly totalCount = this.products.totalCount;
@@ -467,6 +519,7 @@ export class StockSearchTabComponent {
   protected readonly colorFilter = signal('');
   protected readonly sizeFilter = signal('');
   protected readonly includeArchived = signal(false);
+  protected readonly createdAtSort = signal<'asc' | 'desc' | null>(null);
   protected readonly page = signal(1);
   protected readonly pageSize = signal(12);
 
@@ -505,10 +558,19 @@ export class StockSearchTabComponent {
     if (this.colorFilter().trim().length > 0) n++;
     if (this.sizeFilter().trim().length > 0) n++;
     if (this.includeArchived()) n++;
+    if (this.createdAtSort() !== null) n++;
     return n;
   });
 
   protected readonly hasAdvancedFilters = computed(() => this.advancedFiltersCount() > 0);
+
+  protected readonly createdAtSortLabel = computed(() =>
+    this.createdAtSort() === null
+      ? 'Ordenar por ingreso'
+      : this.createdAtSort() === 'asc'
+        ? 'Más viejos primero'
+        : 'Más nuevos primero',
+  );
 
   constructor() {
     // Refetch when debounced search term changes.
@@ -526,6 +588,7 @@ export class StockSearchTabComponent {
       this.colorFilter();
       this.sizeFilter();
       this.includeArchived();
+      this.createdAtSort();
       this.kpiFilter();
       untracked(() => {
         this.page.set(1);
@@ -552,6 +615,16 @@ export class StockSearchTabComponent {
     this.colorFilter.set('');
     this.sizeFilter.set('');
     this.includeArchived.set(false);
+    this.createdAtSort.set(null);
+  }
+
+  protected toggleCreatedAtSort(): void {
+    this.createdAtSort.update((current) => (current === 'desc' ? 'asc' : 'desc'));
+  }
+
+  protected clearSearchTerm(): void {
+    this.searchTerm.set('');
+    queueMicrotask(() => this.stockSearchInput()?.nativeElement.focus());
   }
 
   protected talleColor(p: ProductResponse): string {
@@ -603,6 +676,12 @@ export class StockSearchTabComponent {
       // hide the toggle from BrandManager, but also belt-and-braces it here.
       includeInactive: this.canSeeArchived() && this.includeArchived() ? true : undefined,
     };
+
+    const createdAtSort = this.createdAtSort();
+    if (createdAtSort) {
+      params.sortBy = 'createdAt';
+      params.sortDirection = createdAtSort;
+    }
 
     if (filter === 'alerts') {
       // KPI overrides the per-button stockStatus filter while it's active.

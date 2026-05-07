@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-  output,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import {
   AlertTriangle,
   Hourglass,
@@ -52,7 +45,7 @@ type Variant = 'store' | 'brand';
               <span class="text-2xl font-bold text-surface-900 dark:text-surface-0 leading-tight">
                 {{ totalUnits() }}
                 <span class="text-sm font-normal text-surface-500 dark:text-surface-400">
-                  unids.
+                  unidades activas.
                 </span>
               </span>
             }

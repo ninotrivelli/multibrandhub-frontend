@@ -3,11 +3,13 @@ import {
   Component,
   computed,
   DestroyRef,
+  ElementRef,
   effect,
   inject,
   input,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -103,7 +105,7 @@ interface TypeOption {
             </div>
           }
 
-          <p-iconfield>
+          <p-iconfield class="relative">
             @if (searchTerm().length === 0) {
               <p-inputicon>
                 <i-lucide [img]="icons.Search" class="size-4 text-surface-400" />
@@ -111,14 +113,29 @@ interface TypeOption {
             }
             <input
               pInputText
+              #movementSearchInput
               type="text"
               [ngModel]="searchTerm()"
               (ngModelChange)="searchTerm.set($event)"
               [placeholder]="
                 selectedProduct() ? 'Buscar otro producto...' : 'Buscar por SKU o nombre...'
               "
+              class="!pr-10"
               fluid
             />
+            @if (searchTerm().trim().length > 0) {
+              <button
+                type="button"
+                class="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-md p-1 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:bg-surface-700 dark:hover:text-surface-100"
+                aria-label="Limpiar búsqueda"
+                pTooltip="Limpiar búsqueda"
+                tooltipPosition="bottom"
+                (pointerdown)="$event.preventDefault()"
+                (click)="clearSearchTerm()"
+              >
+                <i-lucide [img]="icons.X" class="size-4" />
+              </button>
+            }
           </p-iconfield>
 
           @if (searchTerm().trim().length > 0) {
@@ -231,14 +248,15 @@ interface TypeOption {
         </div>
 
         @if (hasAnyFilter()) {
-          <div class="flex justify-end">
+          <div class="flex justify-start">
             <button
               pButton
               type="button"
               severity="secondary"
-              [text]="true"
+              [outlined]="true"
               size="small"
               label="Limpiar filtros"
+              class="border-primary! text-primary!"
               (click)="clearAllFilters()"
             >
               <i-lucide [img]="icons.FilterX" class="size-4 mr-1" />
@@ -366,6 +384,9 @@ export class MovementsTabComponent {
   readonly showBrandFilter = input<boolean>(true);
   readonly brandScope = input<string | null>(null);
 
+  private readonly movementSearchInput =
+    viewChild<ElementRef<HTMLInputElement>>('movementSearchInput');
+
   protected readonly icons = { Search, X, FilterX };
 
   // Product picker
@@ -467,6 +488,11 @@ export class MovementsTabComponent {
 
   protected clearProduct(): void {
     this.selectedProduct.set(null);
+  }
+
+  protected clearSearchTerm(): void {
+    this.searchTerm.set('');
+    queueMicrotask(() => this.movementSearchInput()?.nativeElement.focus());
   }
 
   protected clearAllFilters(): void {

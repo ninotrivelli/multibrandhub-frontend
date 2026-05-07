@@ -304,6 +304,8 @@ export class ProductsService {
     }
     if (params.onlyInStock) p = p.set('onlyInStock', true);
     if (params.includeInactive) p = p.set('includeInactive', true);
+    if (params.sortBy) p = p.set('sortBy', params.sortBy);
+    if (params.sortDirection) p = p.set('sortDirection', params.sortDirection);
     p = p.set('page', params.page ?? 1);
     p = p.set('pageSize', params.pageSize ?? 12);
     return p;
