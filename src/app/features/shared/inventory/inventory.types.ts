@@ -83,7 +83,6 @@ export const MovementType = {
   Sale: 'Sale',
   Return: 'Return',
   Adjustment: 'Adjustment',
-  Shooting: 'Shooting',
   Loss: 'Loss',
 } as const;
 

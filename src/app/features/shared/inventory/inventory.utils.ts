@@ -59,7 +59,6 @@ const MOVEMENT_LABELS: Record<MovementType, string> = {
   [MovementType.Sale]: 'Venta',
   [MovementType.Return]: 'Devolución',
   [MovementType.Adjustment]: 'Ajuste',
-  [MovementType.Shooting]: 'Sesión de fotos',
   [MovementType.Loss]: 'Egreso',
 };
 
@@ -75,7 +74,6 @@ const MOVEMENT_SEVERITY: Record<
   [MovementType.Sale]: 'info',
   [MovementType.Return]: 'success',
   [MovementType.Adjustment]: 'warn',
-  [MovementType.Shooting]: 'secondary',
   [MovementType.Loss]: 'danger',
 };
 

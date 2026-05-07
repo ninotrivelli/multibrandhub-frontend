@@ -393,7 +393,6 @@ export class MovementsTabComponent {
     { label: 'Venta', value: MovementType.Sale },
     { label: 'Devolución', value: MovementType.Return },
     { label: 'Ajuste manual', value: MovementType.Adjustment },
-    { label: 'Sesión de fotos', value: MovementType.Shooting },
     { label: 'Egreso / Pérdida', value: MovementType.Loss },
   ];
 

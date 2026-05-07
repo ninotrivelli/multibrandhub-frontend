@@ -291,11 +291,6 @@ export class MovementFormDialogComponent {
       value: MovementType.Return,
       hint: 'Devolución de cliente. Suma stock.',
     },
-    {
-      label: 'Sesión de fotos',
-      value: MovementType.Shooting,
-      hint: 'Resta stock. Ingresá las unidades que salen temporalmente.',
-    },
   ];
 
   protected readonly searchTerm = signal('');
