@@ -24,10 +24,10 @@ import { TableModule, TableLazyLoadEvent } from 'primeng/table';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { TooltipModule } from 'primeng/tooltip';
 import {
+  Archive,
   Pencil,
   Search,
   SlidersHorizontal,
-  Trash2,
   LucideAngularModule,
 } from 'lucide-angular';
 
@@ -211,7 +211,7 @@ type TableRow =
               >
                 <div class="flex flex-col">
                   <span class="text-sm text-surface-700 dark:text-surface-200">
-                    Mostrar archivados
+                    Incluir artículos archivados
                   </span>
                   <span class="text-[11px] text-surface-500 dark:text-surface-400">
                     Incluye productos dados de baja.
@@ -379,18 +379,18 @@ type TableRow =
                       <i-lucide [img]="icons.Pencil" class="size-4" />
                     </button>
                   }
-                  @if (canDelete() && !row.immobilized) {
+                  @if (canArchive() && !row.immobilized && row.isActive) {
                     <button
                       pButton
                       type="button"
-                      severity="danger"
+                      severity="warn"
                       [text]="true"
                       [rounded]="true"
-                      pTooltip="Eliminar artículo"
+                      pTooltip="Archivar artículo"
                       tooltipPosition="top"
-                      (click)="deleteProduct.emit(row)"
+                      (click)="archiveProduct.emit(row)"
                     >
-                      <i-lucide [img]="icons.Trash2" class="size-4" />
+                      <i-lucide [img]="icons.Archive" class="size-4" />
                     </button>
                   }
                 </div>
@@ -421,7 +421,7 @@ export class StockSearchTabComponent {
   private readonly categories = inject(ProductCategoriesService);
 
   readonly canEdit = input<boolean>(false);
-  readonly canDelete = input<boolean>(false);
+  readonly canArchive = input<boolean>(false);
   readonly showBrandFilter = input<boolean>(true);
   readonly canSeeArchived = input<boolean>(false);
   // When set, scopes the search by brand server-side (BrandManager case).
@@ -433,9 +433,9 @@ export class StockSearchTabComponent {
   readonly kpiFilter = input<KpiFilter>('all');
 
   readonly editProduct = output<ProductResponse>();
-  readonly deleteProduct = output<ProductResponse>();
+  readonly archiveProduct = output<ProductResponse>();
 
-  protected readonly icons = { Search, Pencil, Trash2, SlidersHorizontal };
+  protected readonly icons = { Search, Pencil, Archive, SlidersHorizontal };
 
   protected readonly items = this.products.items;
   protected readonly totalCount = this.products.totalCount;
@@ -599,8 +599,8 @@ export class StockSearchTabComponent {
       categoryId: this.categoryId() ?? undefined,
       color: this.colorFilter().trim() || undefined,
       size: this.sizeFilter().trim() || undefined,
-      // includeInactive is gated server-side to Admin/SuperAdmin; we hide the
-      // toggle from other roles, but also belt-and-braces it here.
+      // includeInactive is gated server-side to Admin/SuperAdmin/Seller; we
+      // hide the toggle from BrandManager, but also belt-and-braces it here.
       includeInactive: this.canSeeArchived() && this.includeArchived() ? true : undefined,
     };
 

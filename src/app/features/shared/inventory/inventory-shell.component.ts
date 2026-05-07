@@ -146,13 +146,13 @@ type TabId = 'stock' | 'movements';
           <app-stock-search-tab
             #stockTab
             [canEdit]="canEditProduct()"
-            [canDelete]="canDeleteProduct()"
+            [canArchive]="canArchiveProduct()"
             [showBrandFilter]="kpiVariant() === 'store'"
             [canSeeArchived]="canSeeArchived()"
             [brandScope]="brandScope()"
             [kpiFilter]="activeKpi()"
             (editProduct)="openEditProduct($event)"
-            (deleteProduct)="openDeleteProductDialog($event)"
+            (archiveProduct)="openArchiveProductDialog($event)"
           />
         } @else {
           <app-movements-tab
@@ -188,29 +188,30 @@ type TabId = 'stock' | 'movements';
       (saved)="onMovementSaved($event)"
     />
 
-    <!-- Delete confirm dialog -->
+    <!-- Archive confirm dialog -->
     <p-dialog
-      [visible]="deleteDialogVisible()"
-      (visibleChange)="onDeleteDialogVisibleChange($event)"
+      [visible]="archiveDialogVisible()"
+      (visibleChange)="onArchiveDialogVisibleChange($event)"
       [modal]="true"
-      [closable]="!deleting()"
-      [closeOnEscape]="!deleting()"
-      [dismissableMask]="!deleting()"
+      [closable]="!archiving()"
+      [closeOnEscape]="!archiving()"
+      [dismissableMask]="!archiving()"
       [draggable]="false"
       [style]="{ width: '32rem', maxWidth: '95vw' }"
-      header="Eliminar artículo"
+      header="Archivar artículo"
     >
-      @if (deleteTarget(); as p) {
+      @if (archiveTarget(); as p) {
         <div class="flex flex-col gap-4">
           <div
             class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
           >
-            El artículo se da de baja (soft delete). El historial de ventas y movimientos se
-            conserva.
+            El artículo no aparecerá en las búsquedas normales salvo que se incluya explícitamente
+            en archivados/desactivados, pero seguirá disponible en el histórico de ventas y
+            movimientos.
           </div>
           <div class="flex flex-col gap-2 text-sm text-surface-700 dark:text-surface-200">
             <p>
-              ¿Eliminar <strong>{{ p.name }}</strong> ({{ p.sku }})?
+              ¿Archivar <strong>{{ p.name }}</strong> ({{ p.sku }})?
             </p>
             <p class="text-xs text-surface-500 dark:text-surface-400">
               Para confirmar, escribí el SKU abajo.
@@ -218,8 +219,8 @@ type TabId = 'stock' | 'movements';
             <input
               pInputText
               type="text"
-              [ngModel]="deleteSkuInput()"
-              (ngModelChange)="deleteSkuInput.set($event)"
+              [ngModel]="archiveSkuInput()"
+              (ngModelChange)="archiveSkuInput.set($event)"
               placeholder="SKU del artículo"
               fluid
             />
@@ -231,17 +232,17 @@ type TabId = 'stock' | 'movements';
               severity="secondary"
               [text]="true"
               label="Cancelar"
-              [disabled]="deleting()"
-              (click)="cancelDelete()"
+              [disabled]="archiving()"
+              (click)="cancelArchive()"
             ></button>
             <button
               pButton
               type="button"
-              severity="danger"
-              label="Eliminar"
-              [loading]="deleting()"
-              [disabled]="!canConfirmDelete() || deleting()"
-              (click)="confirmDelete()"
+              severity="warn"
+              label="Archivar"
+              [loading]="archiving()"
+              [disabled]="!canConfirmArchive() || archiving()"
+              (click)="confirmArchive()"
             ></button>
           </div>
         </div>
@@ -271,7 +272,7 @@ export class InventoryShellComponent implements OnInit {
     const r = this.role();
     return r === 'Admin' || r === 'SuperAdmin' || r === 'Seller' || r === 'BrandManager';
   });
-  protected readonly canDeleteProduct = computed(() => this.canCreateProduct());
+  protected readonly canArchiveProduct = computed(() => this.canCreateProduct());
   protected readonly canRegisterMovement = computed(() => {
     const r = this.role();
     return r === 'Admin' || r === 'SuperAdmin' || r === 'Seller';
@@ -288,11 +289,11 @@ export class InventoryShellComponent implements OnInit {
     this.role() === 'BrandManager' ? 'brand' : 'store',
   );
 
-  // Backend: only SuperAdmin/Admin can pass `includeInactive=true` on the
-  // products search. Hide the toggle from other roles to avoid confusing UI.
+  // Backend: SuperAdmin/Admin/Seller can pass `includeInactive=true` on the
+  // products search. Hide the toggle from BrandManager to avoid confusing UI.
   protected readonly canSeeArchived = computed(() => {
     const r = this.role();
-    return r === 'Admin' || r === 'SuperAdmin';
+    return r === 'Admin' || r === 'SuperAdmin' || r === 'Seller';
   });
 
   // BrandManager: server-side enforces this from JWT, but we also pass it to
@@ -337,13 +338,13 @@ export class InventoryShellComponent implements OnInit {
   protected readonly movementDialogVisible = signal(false);
   protected readonly movementDialogProduct = signal<ProductResponse | null>(null);
 
-  // Delete dialog state
-  protected readonly deleteDialogVisible = signal(false);
-  protected readonly deleteTarget = signal<ProductResponse | null>(null);
-  protected readonly deleteSkuInput = signal('');
-  protected readonly deleting = signal(false);
-  protected readonly canConfirmDelete = computed(
-    () => this.deleteSkuInput().trim().toUpperCase() === (this.deleteTarget()?.sku ?? ''),
+  // Archive dialog state
+  protected readonly archiveDialogVisible = signal(false);
+  protected readonly archiveTarget = signal<ProductResponse | null>(null);
+  protected readonly archiveSkuInput = signal('');
+  protected readonly archiving = signal(false);
+  protected readonly canConfirmArchive = computed(
+    () => this.archiveSkuInput().trim().toUpperCase() === (this.archiveTarget()?.sku ?? ''),
   );
 
   ngOnInit(): void {
@@ -409,46 +410,47 @@ export class InventoryShellComponent implements OnInit {
     this.onProductSaved();
   }
 
-  protected openDeleteProductDialog(product: ProductResponse): void {
-    this.deleteTarget.set(product);
-    this.deleteSkuInput.set('');
-    this.deleteDialogVisible.set(true);
+  protected openArchiveProductDialog(product: ProductResponse): void {
+    this.archiveTarget.set(product);
+    this.archiveSkuInput.set('');
+    this.archiveDialogVisible.set(true);
   }
 
-  protected onDeleteDialogVisibleChange(value: boolean): void {
-    if (!value && this.deleting()) return;
-    this.deleteDialogVisible.set(value);
-    if (!value) this.resetDeleteDialog();
+  protected onArchiveDialogVisibleChange(value: boolean): void {
+    if (!value && this.archiving()) return;
+    this.archiveDialogVisible.set(value);
+    if (!value) this.resetArchiveDialog();
   }
 
-  protected cancelDelete(): void {
-    if (this.deleting()) return;
-    this.deleteDialogVisible.set(false);
-    this.resetDeleteDialog();
+  protected cancelArchive(): void {
+    if (this.archiving()) return;
+    this.archiveDialogVisible.set(false);
+    this.resetArchiveDialog();
   }
 
-  protected confirmDelete(): void {
-    const target = this.deleteTarget();
-    if (!target || !this.canConfirmDelete() || this.deleting()) return;
-    this.deleting.set(true);
-    this.products.delete(target.id).subscribe({
+  protected confirmArchive(): void {
+    const target = this.archiveTarget();
+    if (!target || !this.canConfirmArchive() || this.archiving()) return;
+    this.archiving.set(true);
+    this.products.archive(target.id).subscribe({
       next: () => {
-        this.deleting.set(false);
-        this.notifications.success(`Se eliminó ${target.name}.`);
-        this.deleteDialogVisible.set(false);
-        this.resetDeleteDialog();
+        this.archiving.set(false);
+        this.notifications.success(`Se archivó ${target.name}.`);
+        this.archiveDialogVisible.set(false);
+        this.resetArchiveDialog();
+        this.stockTab()?.refresh();
         this.onProductSaved(); // refresh KPIs
       },
       error: (_err: HttpErrorResponse) => {
-        this.deleting.set(false);
+        this.archiving.set(false);
         // error.interceptor already shows a toast
       },
     });
   }
 
-  private resetDeleteDialog(): void {
-    this.deleteTarget.set(null);
-    this.deleteSkuInput.set('');
+  private resetArchiveDialog(): void {
+    this.archiveTarget.set(null);
+    this.archiveSkuInput.set('');
   }
 
   // ---- Movements ---------------------------------------------------------

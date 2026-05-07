@@ -21,7 +21,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { TooltipModule } from 'primeng/tooltip';
-import { ImageUp, LucideAngularModule, Minus, Plus, Wand2 } from 'lucide-angular';
+import { ImageUp, LucideAngularModule, Minus, Plus, RotateCcw, Wand2 } from 'lucide-angular';
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
@@ -63,9 +63,9 @@ type ControlName =
       [visible]="visible()"
       (visibleChange)="onVisibleChange($event)"
       [modal]="true"
-      [closable]="!submitting()"
-      [closeOnEscape]="!submitting()"
-      [dismissableMask]="!submitting()"
+      [closable]="!busy()"
+      [closeOnEscape]="!busy()"
+      [dismissableMask]="!busy()"
       [draggable]="false"
       [style]="{ width: '52rem', maxWidth: '95vw' }"
       [header]="mode() === 'create' ? 'Crear Nuevo Artículo' : 'Editar Artículo'"
@@ -371,24 +371,42 @@ type ControlName =
         }
 
         <div
-          class="flex justify-end gap-2 pt-2 border-t border-surface-200 dark:border-surface-700"
+          class="flex flex-col gap-2 pt-2 border-t border-surface-200 dark:border-surface-700 sm:flex-row sm:items-center sm:justify-between"
         >
-          <button
-            pButton
-            type="button"
-            severity="secondary"
-            [text]="true"
-            label="Cancelar"
-            [disabled]="submitting()"
-            (click)="cancel()"
-          ></button>
-          <button
-            pButton
-            type="submit"
-            [label]="mode() === 'create' ? 'Ingresar nuevo Artículo' : 'Guardar Cambios'"
-            [loading]="submitting()"
-            [disabled]="submitting()"
-          ></button>
+          <div>
+            @if (canReactivateEditing()) {
+              <button
+                pButton
+                type="button"
+                severity="success"
+                [outlined]="true"
+                label="Reactivar artículo"
+                [loading]="reactivating()"
+                [disabled]="busy()"
+                (click)="reactivateEditing()"
+              >
+                <i-lucide [img]="icons.RotateCcw" class="size-4 mr-2" />
+              </button>
+            }
+          </div>
+          <div class="flex justify-end gap-2">
+            <button
+              pButton
+              type="button"
+              severity="secondary"
+              [text]="true"
+              label="Cancelar"
+              [disabled]="busy()"
+              (click)="cancel()"
+            ></button>
+            <button
+              pButton
+              type="submit"
+              [label]="mode() === 'create' ? 'Ingresar nuevo Artículo' : 'Guardar Cambios'"
+              [loading]="submitting()"
+              [disabled]="busy()"
+            ></button>
+          </div>
         </div>
       </form>
     </p-dialog>
@@ -444,9 +462,11 @@ export class ProductFormDialogComponent {
   readonly visibleChange = output<boolean>();
   readonly saved = output<ProductResponse>();
 
-  protected readonly icons = { ImageUp, Plus, Minus, Wand2 };
+  protected readonly icons = { ImageUp, Plus, Minus, RotateCcw, Wand2 };
 
   protected readonly submitting = signal(false);
+  protected readonly reactivating = signal(false);
+  protected readonly busy = computed(() => this.submitting() || this.reactivating());
   protected readonly submitError = signal<string | null>(null);
   protected readonly skuGenerating = signal(false);
 
@@ -498,6 +518,14 @@ export class ProductFormDialogComponent {
       (this.sizeValue() ?? '').trim().length > 0 &&
       (this.colorValue() ?? '').trim().length > 0,
   );
+  protected readonly canReactivateEditing = computed(() => {
+    const role = this.auth.role();
+    return (
+      this.mode() === 'edit' &&
+      this.editing()?.isActive === false &&
+      (role === 'Admin' || role === 'SuperAdmin' || role === 'Seller')
+    );
+  });
 
   protected readonly brandOptions = computed(() =>
     this.brands
@@ -569,16 +597,17 @@ export class ProductFormDialogComponent {
   }
 
   protected onVisibleChange(value: boolean): void {
-    if (!value && this.submitting()) return;
+    if (!value && this.busy()) return;
     this.visibleChange.emit(value);
   }
 
   protected cancel(): void {
+    if (this.busy()) return;
     this.visibleChange.emit(false);
   }
 
   protected submit(): void {
-    if (this.submitting()) return;
+    if (this.busy()) return;
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -635,6 +664,23 @@ export class ProductFormDialogComponent {
         error: (err: HttpErrorResponse) => this.handleError(err),
       });
     }
+  }
+
+  protected reactivateEditing(): void {
+    const editing = this.editing();
+    if (!editing || !this.canReactivateEditing() || this.busy()) return;
+
+    this.submitError.set(null);
+    this.reactivating.set(true);
+    this.products.reactivate(editing.id).subscribe({
+      next: (updated) => {
+        this.reactivating.set(false);
+        this.notifications.success(`Se reactivó ${updated.name}.`);
+        this.saved.emit(updated);
+        this.visibleChange.emit(false);
+      },
+      error: (err: HttpErrorResponse) => this.handleReactivateError(err),
+    });
   }
 
   private resetFormFromInputs(): void {
@@ -697,6 +743,15 @@ export class ProductFormDialogComponent {
 
   private handleError(err: HttpErrorResponse): void {
     this.submitting.set(false);
+    this.setSubmitError(err);
+  }
+
+  private handleReactivateError(err: HttpErrorResponse): void {
+    this.reactivating.set(false);
+    this.setSubmitError(err);
+  }
+
+  private setSubmitError(err: HttpErrorResponse): void {
     const body = err.error as { message?: string; errors?: { message: string }[] } | undefined;
     if (body?.errors?.length) {
       this.submitError.set(body.errors.map((e) => e.message).join(' • '));

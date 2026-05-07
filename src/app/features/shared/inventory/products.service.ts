@@ -184,6 +184,29 @@ export class ProductsService {
       );
   }
 
+  archive(id: string): Observable<ProductResponse> {
+    return this.http.patch<ProductResponse>(`${this.baseUrl}/${id}/archive`, {}).pipe(
+      tap((archived) => {
+        this._items.update((curr) =>
+          curr.some((p) => p.id === id && p.isActive)
+            ? curr.filter((p) => p.id !== id)
+            : curr.map((p) => (p.id === id ? archived : p)),
+        );
+        this._totalCount.update((c) => Math.max(0, c - 1));
+        this._allItems.update((curr) => curr.filter((p) => p.id !== id));
+      }),
+    );
+  }
+
+  reactivate(id: string): Observable<ProductResponse> {
+    return this.http.patch<ProductResponse>(`${this.baseUrl}/${id}/reactivate`, {}).pipe(
+      tap((reactivated) => {
+        this._items.update((curr) => curr.map((p) => (p.id === id ? reactivated : p)));
+        this._allItems.update((curr) => curr.map((p) => (p.id === id ? reactivated : p)));
+      }),
+    );
+  }
+
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`).pipe(
       tap(() => {
