@@ -12,7 +12,7 @@ import {
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
+import { debounceTime, distinctUntilChanged, map, of, switchMap } from 'rxjs';
 
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -86,7 +86,11 @@ interface MovementTypeOption {
             [ngModel]="searchTerm()"
             (ngModelChange)="searchTerm.set($event)"
             [ngModelOptions]="{ standalone: true }"
-            placeholder="Escribí SKU, nombre, talle o color..."
+            [placeholder]="
+              selectedProduct()
+                ? 'Buscar otro artículo...'
+                : 'Escribí SKU, nombre, talle o color...'
+            "
             fluid
           />
         </div>
@@ -113,7 +117,9 @@ interface MovementTypeOption {
               (click)="clearSelection()"
             ></button>
           </div>
-        } @else if (searchTerm().trim().length > 0) {
+        }
+
+        @if (searchTerm().trim().length > 0) {
           @if (searching()) {
             <div class="text-sm text-surface-500 dark:text-surface-400">Buscando...</div>
           } @else if (searchResults().length === 0) {
@@ -220,7 +226,9 @@ interface MovementTypeOption {
           </p-message>
         }
 
-        <div class="flex justify-end gap-2 pt-2 border-t border-surface-200 dark:border-surface-700">
+        <div
+          class="flex justify-end gap-2 pt-2 border-t border-surface-200 dark:border-surface-700"
+        >
           <button
             pButton
             type="button"
@@ -308,25 +316,22 @@ export class MovementFormDialogComponent {
     return t === MovementType.Adjustment || t === MovementType.Shooting;
   });
 
-  protected readonly canSubmit = computed(
-    () => this.selectedProduct() !== null && this.form.valid,
-  );
+  protected readonly canSubmit = computed(() => this.selectedProduct() !== null && this.form.valid);
 
-  // Live-search products as the user types. Skip when a product is already
-  // selected to avoid noise.
+  // Live-search products as the user types. Keep it active even when a product
+  // is selected, so users can replace a mistaken selection without closing.
   private readonly searchResults$ = toObservable(this.searchTerm).pipe(
     debounceTime(250),
     distinctUntilChanged(),
     switchMap((term) => {
-      if (this.selectedProduct() !== null) return of([] as ProductResponse[]);
       if (!term || term.trim().length < 1) {
         this.searching.set(false);
         return of([] as ProductResponse[]);
       }
       this.searching.set(true);
       return this.products
-        .search({ searchTerm: term, page: 1, pageSize: 8 })
-        .pipe(switchMap((res) => of(res.items)));
+        .searchOnce({ searchTerm: term, page: 1, pageSize: 8 })
+        .pipe(map((res) => res.items));
     }),
   );
 
@@ -362,10 +367,12 @@ export class MovementFormDialogComponent {
   protected selectProduct(p: ProductResponse): void {
     this.selectedProduct.set(p);
     this.searchTerm.set('');
+    this.submitError.set(null);
   }
 
   protected clearSelection(): void {
     this.selectedProduct.set(null);
+    this.searchTerm.set('');
   }
 
   protected submit(): void {
@@ -407,9 +414,7 @@ export class MovementFormDialogComponent {
       next: (created) => {
         this.submitting.set(false);
         const label = created.quantity >= 0 ? `+${created.quantity}` : `${created.quantity}`;
-        this.notifications.success(
-          `Movimiento registrado para ${product.name} (${label} unids.).`,
-        );
+        this.notifications.success(`Movimiento registrado para ${product.name} (${label} unids.).`);
         this.saved.emit(created);
         this.visibleChange.emit(false);
       },

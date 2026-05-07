@@ -1,32 +1,34 @@
 import { MovementType, ProductResponse, StockStatusLabel } from './inventory.types';
 
+export const URUGUAY_TIME_ZONE = 'America/Montevideo';
+
 // Map the seed category names to the matching placeholder PNG under
 // `public/images/placeholders/categories/`. Backend always seeds these
 // 22 names, so the lookup is safe to hardcode. Casing matches the actual
 // files on disk (note `Swimwear.png` and the accented `pañuelos.png`).
 const CATEGORY_PLACEHOLDER_BY_NAME: Record<string, string> = {
-  'Anillos': 'anillos.png',
+  Anillos: 'anillos.png',
   'Aros y caravanas': 'aros-y-caravanas.png',
-  'Pulseras': 'pulseras.png',
+  Pulseras: 'pulseras.png',
   'Collares y gargantillas': 'collares-y-gargantillas.png',
   'Piedras Naturales': 'piedras-naturales.png',
-  'Gorros': 'gorros.png',
-  'Pañuelos': 'pañuelos.png',
-  'Cinturones': 'cinturones.png',
-  'Otros': 'otros.png',
-  'Bolsos': 'bolsos.png',
-  'Lentes': 'lentes.png',
-  'Shorts': 'shorts.png',
-  'Camisas': 'camisas.png',
-  'Remeras': 'remeras.png',
-  'Swimwear': 'Swimwear.png',
-  'Blusas': 'blusas.png',
-  'Tops': 'tops.png',
-  'Sweaters': 'sweaters.png',
-  'Sacos': 'sacos.png',
-  'Vestidos': 'vestidos.png',
-  'Faldas': 'faldas.png',
-  'Pantalones': 'pantalones.png',
+  Gorros: 'gorros.png',
+  Pañuelos: 'pañuelos.png',
+  Cinturones: 'cinturones.png',
+  Otros: 'otros.png',
+  Bolsos: 'bolsos.png',
+  Lentes: 'lentes.png',
+  Shorts: 'shorts.png',
+  Camisas: 'camisas.png',
+  Remeras: 'remeras.png',
+  Swimwear: 'Swimwear.png',
+  Blusas: 'blusas.png',
+  Tops: 'tops.png',
+  Sweaters: 'sweaters.png',
+  Sacos: 'sacos.png',
+  Vestidos: 'vestidos.png',
+  Faldas: 'faldas.png',
+  Pantalones: 'pantalones.png',
 };
 
 const PLACEHOLDER_BASE = '/images/placeholders/categories';
@@ -65,7 +67,10 @@ export function movementTypeLabel(type: MovementType): string {
   return MOVEMENT_LABELS[type] ?? 'Movimiento';
 }
 
-const MOVEMENT_SEVERITY: Record<MovementType, 'success' | 'danger' | 'info' | 'warn' | 'secondary'> = {
+const MOVEMENT_SEVERITY: Record<
+  MovementType,
+  'success' | 'danger' | 'info' | 'warn' | 'secondary'
+> = {
   [MovementType.StockIn]: 'success',
   [MovementType.Sale]: 'info',
   [MovementType.Return]: 'success',
@@ -92,9 +97,30 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat('es-UY').format(value);
 }
 
+export function parseBackendUtcDate(iso: string): Date {
+  const value = iso.trim();
+  const hasTimezone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(value);
+  return new Date(hasTimezone ? value : `${value}Z`);
+}
+
+export function formatUruguayDate(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: URUGUAY_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? '';
+
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
 export function formatMovementDate(iso: string): string {
-  const date = new Date(iso);
+  const date = parseBackendUtcDate(iso);
   return new Intl.DateTimeFormat('es-UY', {
+    timeZone: URUGUAY_TIME_ZONE,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

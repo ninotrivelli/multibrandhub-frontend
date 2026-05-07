@@ -73,16 +73,18 @@ export interface PagedResult<T> {
   pageSize: number;
 }
 
-// MovementType in the backend is an integer-backed enum:
-//   StockIn = 1, Sale = 2, Return = 3, Adjustment = 4, Shooting = 5, Loss = 6.
-// We mirror it as a numeric union so JSON (de)serialization stays trivial.
+// MovementType in the backend is an integer-backed enum (StockIn=1 ... Loss=6),
+// but the API uses JsonStringEnumConverter globally, so the wire format is the
+// enum's *name* — e.g. "StockIn", "Sale". We mirror that string union here.
+// JsonStringEnumConverter accepts both names and integers on input, so sending
+// these strings on POST is fine.
 export const MovementType = {
-  StockIn: 1,
-  Sale: 2,
-  Return: 3,
-  Adjustment: 4,
-  Shooting: 5,
-  Loss: 6,
+  StockIn: 'StockIn',
+  Sale: 'Sale',
+  Return: 'Return',
+  Adjustment: 'Adjustment',
+  Shooting: 'Shooting',
+  Loss: 'Loss',
 } as const;
 
 export type MovementType = (typeof MovementType)[keyof typeof MovementType];
@@ -95,6 +97,8 @@ export interface StockMovementResponse {
   observations: string | null;
   productId: string;
   productName: string | null;
+  brandId: string | null;
+  brandName: string | null;
   userId: string | null;
   userFullName: string | null;
   createdAt: string;
@@ -106,6 +110,23 @@ export interface CreateStockMovementRequest {
   type: MovementType;
   observations: string | null;
   userId: string | null;
+}
+
+export interface StockMovementSearchParams {
+  productId?: string;
+  brandId?: string;
+  type?: MovementType;
+  // ISO local date (YYYY-MM-DD). Backend strips the time portion.
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface StockMovementTodaySummary {
+  totalCount: number;
+  inboundUnits: number;
+  outboundUnits: number;
 }
 
 export interface ProductCategoryResponse {

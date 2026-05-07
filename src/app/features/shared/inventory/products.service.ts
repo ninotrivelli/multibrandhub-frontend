@@ -56,6 +56,16 @@ export class ProductsService {
       );
   }
 
+  // Lookup-only variant. Does NOT touch _items / _totalCount / _loading, so
+  // product pickers (movement dialog, movements tab) can query without
+  // clobbering the list-view state behind them.
+  searchOnce(params: ProductSearchParams): Observable<PagedResult<ProductResponse>> {
+    const httpParams = this.buildSearchParams(params);
+    return this.http.get<PagedResult<ProductResponse>>(`${this.baseUrl}/search`, {
+      params: httpParams,
+    });
+  }
+
   // Three lightweight calls (pageSize=1) to get the per-status totalCount.
   // Cheap because the response carries no items beyond the first page.
   loadKpiCounts(brandIdScope?: string): Observable<KpiCounts> {
@@ -133,11 +143,13 @@ export class ProductsService {
   }
 
   update(id: string, req: UpdateProductRequest): Observable<ProductResponse> {
-    return this.http.put<ProductResponse>(`${this.baseUrl}/${id}`, req).pipe(
-      tap((updated) =>
-        this._items.update((curr) => curr.map((p) => (p.id === id ? updated : p))),
-      ),
-    );
+    return this.http
+      .put<ProductResponse>(`${this.baseUrl}/${id}`, req)
+      .pipe(
+        tap((updated) =>
+          this._items.update((curr) => curr.map((p) => (p.id === id ? updated : p))),
+        ),
+      );
   }
 
   delete(id: string): Observable<void> {
@@ -153,14 +165,10 @@ export class ProductsService {
   // mirroring the backend's recompute. Avoids an extra fetch.
   applyStockDelta(productId: string, delta: number): void {
     this._items.update((curr) =>
-      curr.map((p) =>
-        p.id === productId ? { ...p, currentStock: p.currentStock + delta } : p,
-      ),
+      curr.map((p) => (p.id === productId ? { ...p, currentStock: p.currentStock + delta } : p)),
     );
     this._allItems.update((curr) =>
-      curr.map((p) =>
-        p.id === productId ? { ...p, currentStock: p.currentStock + delta } : p,
-      ),
+      curr.map((p) => (p.id === productId ? { ...p, currentStock: p.currentStock + delta } : p)),
     );
   }
 

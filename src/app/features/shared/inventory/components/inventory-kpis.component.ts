@@ -12,6 +12,7 @@ import { TooltipModule } from 'primeng/tooltip';
 
 import { formatCurrencyUYU, formatNumber } from '../inventory.utils';
 import { ProductsService } from '../products.service';
+import { StockMovementsService } from '../stock-movements.service';
 
 type Variant = 'store' | 'brand';
 
@@ -49,7 +50,7 @@ type Variant = 'store' | 'brand';
         <!-- Movimientos de Hoy -->
         <div
           class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-5 flex items-center gap-4"
-          pTooltip="Disponible cuando agreguemos el resumen diario en el backend."
+          [pTooltip]="todayMovementsTooltip()"
           tooltipPosition="bottom"
         >
           <div
@@ -59,9 +60,24 @@ type Variant = 'store' | 'brand';
           </div>
           <div class="flex flex-col gap-1 min-w-0">
             <span class="text-sm text-surface-500 dark:text-surface-400">Movimientos de Hoy</span>
-            <span class="text-base font-medium text-surface-500 dark:text-surface-400 italic">
-              Próximamente
-            </span>
+            @if (todaySummaryLoading()) {
+              <p-skeleton width="7rem" height="1.75rem" />
+            } @else {
+              <div class="flex items-baseline gap-2 flex-wrap">
+                <span
+                  class="text-2xl font-bold text-emerald-600 dark:text-emerald-300 leading-tight"
+                >
+                  +{{ todayInboundUnits() }}
+                </span>
+                <span class="text-sm text-surface-400 dark:text-surface-500">/</span>
+                <span class="text-2xl font-bold text-red-600 dark:text-red-300 leading-tight">
+                  -{{ todayOutboundUnits() }}
+                </span>
+              </div>
+              <span class="text-xs text-surface-500 dark:text-surface-400">
+                {{ todayMovementsCountLabel() }}
+              </span>
+            }
           </div>
         </div>
 
@@ -220,6 +236,7 @@ type Variant = 'store' | 'brand';
 })
 export class InventoryKpisComponent {
   private readonly products = inject(ProductsService);
+  private readonly movements = inject(StockMovementsService);
 
   readonly variant = input.required<Variant>();
 
@@ -229,6 +246,8 @@ export class InventoryKpisComponent {
   protected readonly kpiLoading = this.products.kpiLoading;
   protected readonly allItems = this.products.allItems;
   protected readonly allItemsLoading = this.products.allItemsLoading;
+  protected readonly todaySummary = this.movements.todaySummary;
+  protected readonly todaySummaryLoading = this.movements.todaySummaryLoading;
 
   protected readonly criticalCount = computed(() => this.kpiCounts().critical);
   protected readonly outOfStockCount = computed(() => this.kpiCounts().outOfStock);
@@ -249,8 +268,20 @@ export class InventoryKpisComponent {
   });
 
   protected readonly inventoryValueFormatted = computed(() =>
-    formatCurrencyUYU(
-      this.allItems().reduce((acc, p) => acc + p.price * p.currentStock, 0),
-    ),
+    formatCurrencyUYU(this.allItems().reduce((acc, p) => acc + p.price * p.currentStock, 0)),
+  );
+
+  protected readonly todayInboundUnits = computed(() =>
+    formatNumber(this.todaySummary().inboundUnits),
+  );
+  protected readonly todayOutboundUnits = computed(() =>
+    formatNumber(this.todaySummary().outboundUnits),
+  );
+  protected readonly todayMovementsCountLabel = computed(() => {
+    const count = this.todaySummary().totalCount;
+    return count === 1 ? '1 movimiento' : `${formatNumber(count)} movimientos`;
+  });
+  protected readonly todayMovementsTooltip = computed(
+    () => `${this.todayMovementsCountLabel()} registrados hoy.`,
   );
 }

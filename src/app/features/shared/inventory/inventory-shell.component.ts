@@ -12,13 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
-import {
-  ArrowRightLeft,
-  ListOrdered,
-  LucideAngularModule,
-  Plus,
-  Search,
-} from 'lucide-angular';
+import { ArrowRightLeft, ListOrdered, LucideAngularModule, Plus, Search } from 'lucide-angular';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
@@ -77,12 +71,7 @@ type TabId = 'stock' | 'movements';
               </button>
             }
             @if (canCreateProduct()) {
-              <button
-                pButton
-                type="button"
-                label="Nuevo Artículo"
-                (click)="openCreateProduct()"
-              >
+              <button pButton type="button" label="Nuevo Artículo" (click)="openCreateProduct()">
                 <i-lucide [img]="icons.Plus" class="size-4 mr-2" />
               </button>
             }
@@ -124,7 +113,7 @@ type TabId = 'stock' | 'movements';
             (click)="activeTab.set('movements')"
           >
             <i-lucide [img]="icons.ListOrdered" class="size-4" />
-            Movimientos (Kardex)
+            Movimientos
           </button>
         </div>
 
@@ -139,7 +128,10 @@ type TabId = 'stock' | 'movements';
             (deleteProduct)="openDeleteProductDialog($event)"
           />
         } @else {
-          <app-movements-tab />
+          <app-movements-tab
+            [showBrandFilter]="kpiVariant() === 'store'"
+            [brandScope]="brandScope()"
+          />
         }
       </div>
     </div>
@@ -243,12 +235,7 @@ export class InventoryShellComponent implements OnInit {
   });
   protected readonly canEditProduct = computed(() => {
     const r = this.role();
-    return (
-      r === 'Admin' ||
-      r === 'SuperAdmin' ||
-      r === 'Seller' ||
-      r === 'BrandManager'
-    );
+    return r === 'Admin' || r === 'SuperAdmin' || r === 'Seller' || r === 'BrandManager';
   });
   protected readonly canDeleteProduct = computed(() => this.canCreateProduct());
   protected readonly canRegisterMovement = computed(() => {
@@ -270,7 +257,7 @@ export class InventoryShellComponent implements OnInit {
   // BrandManager: server-side enforces this from JWT, but we also pass it to
   // the search tab so it shows the right items even on first paint.
   protected readonly brandScope = computed<string | null>(() =>
-    this.role() === 'BrandManager' ? this.currentUser()?.brandId ?? null : null,
+    this.role() === 'BrandManager' ? (this.currentUser()?.brandId ?? null) : null,
   );
 
   protected readonly headerTitle = computed(() =>
@@ -319,6 +306,7 @@ export class InventoryShellComponent implements OnInit {
     // "units in local" / "Valor Inventario" KPIs. The list view itself uses
     // its own paginated search; this call is purely for aggregates.
     this.products.loadAll(scope).subscribe({ error: () => {} });
+    this.movements.loadTodaySummary(scope).subscribe({ error: () => {} });
   }
 
   // ---- Product CRUD ------------------------------------------------------
@@ -341,6 +329,7 @@ export class InventoryShellComponent implements OnInit {
     const scope = this.brandScope() ?? undefined;
     this.products.loadKpiCounts(scope).subscribe({ error: () => {} });
     this.products.loadAll(scope).subscribe({ error: () => {} });
+    this.movements.loadTodaySummary(scope).subscribe({ error: () => {} });
   }
 
   protected openDeleteProductDialog(product: ProductResponse): void {
@@ -403,5 +392,6 @@ export class InventoryShellComponent implements OnInit {
     // a status boundary (OK → Crítico → Agotado).
     const scope = this.brandScope() ?? undefined;
     this.products.loadKpiCounts(scope).subscribe({ error: () => {} });
+    this.movements.loadTodaySummary(scope).subscribe({ error: () => {} });
   }
 }
