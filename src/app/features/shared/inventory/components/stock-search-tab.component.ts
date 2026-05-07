@@ -1,0 +1,543 @@
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  untracked,
+} from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
+import { debounceTime, distinctUntilChanged, skip } from 'rxjs';
+
+import { ButtonModule } from 'primeng/button';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
+import { InputTextModule } from 'primeng/inputtext';
+import { PopoverModule } from 'primeng/popover';
+import { SelectModule } from 'primeng/select';
+import { SkeletonModule } from 'primeng/skeleton';
+import { TableModule, TableLazyLoadEvent } from 'primeng/table';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
+import { TooltipModule } from 'primeng/tooltip';
+import {
+  Pencil,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+  LucideAngularModule,
+} from 'lucide-angular';
+
+import { BrandResponse } from '../../../admin/settings/marcas/brands.types';
+import { BrandsService } from '../../../admin/settings/marcas/brands.service';
+import { ProductCategoriesService } from '../product-categories.service';
+import { ProductsService } from '../products.service';
+import {
+  ProductResponse,
+  ProductSearchParams,
+  ProductStockStatus,
+} from '../inventory.types';
+import { formatCurrencyUYU, formatNumber } from '../inventory.utils';
+import { ProductImageComponent } from './product-image.component';
+import { StockStatusTagComponent } from './stock-status-tag.component';
+
+@Component({
+  selector: 'app-stock-search-tab',
+  imports: [
+    FormsModule,
+    ButtonModule,
+    IconFieldModule,
+    InputIconModule,
+    InputTextModule,
+    PopoverModule,
+    SelectModule,
+    SkeletonModule,
+    TableModule,
+    ToggleSwitchModule,
+    TooltipModule,
+    LucideAngularModule,
+    ProductImageComponent,
+    StockStatusTagComponent,
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div class="flex flex-col gap-3">
+      <!-- Filter bar -->
+      <div class="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+        <p-iconfield class="flex-1 min-w-0">
+          @if (searchTerm().length === 0) {
+            <p-inputicon>
+              <i-lucide [img]="icons.Search" class="size-4 text-surface-400" />
+            </p-inputicon>
+          }
+          <input
+            pInputText
+            type="text"
+            [ngModel]="searchTerm()"
+            (ngModelChange)="searchTerm.set($event)"
+            placeholder="Buscar por SKU, nombre, talle, color..."
+            fluid
+          />
+        </p-iconfield>
+
+        @if (showBrandFilter()) {
+          <p-select
+            [options]="brandOptions()"
+            optionLabel="label"
+            optionValue="value"
+            [ngModel]="brandId()"
+            (ngModelChange)="brandId.set($event)"
+            placeholder="Todas las Marcas"
+            [showClear]="true"
+            appendTo="body"
+            styleClass="md:w-44"
+          />
+        }
+
+        <p-select
+          [options]="categoryOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="categoryId()"
+          (ngModelChange)="categoryId.set($event)"
+          placeholder="Categorías"
+          [showClear]="true"
+          [filter]="true"
+          filterBy="label"
+          appendTo="body"
+          styleClass="md:w-44"
+        />
+
+        <button
+          pButton
+          type="button"
+          [severity]="stockStatus() === 'Critical' ? 'warn' : 'secondary'"
+          [outlined]="stockStatus() !== 'Critical'"
+          size="small"
+          label="Stock Crítico"
+          (click)="setStockStatus('Critical')"
+        ></button>
+
+        <button
+          pButton
+          type="button"
+          [severity]="stockStatus() === 'OutOfStock' ? 'danger' : 'secondary'"
+          [outlined]="stockStatus() !== 'OutOfStock'"
+          size="small"
+          label="Agotados"
+          (click)="setStockStatus('OutOfStock')"
+        ></button>
+
+        <button
+          pButton
+          type="button"
+          [severity]="hasAdvancedFilters() ? 'info' : 'secondary'"
+          [outlined]="!hasAdvancedFilters()"
+          size="small"
+          [label]="hasAdvancedFilters() ? 'Más (' + advancedFiltersCount() + ')' : 'Más'"
+          (click)="advancedFiltersPopover.toggle($event)"
+        >
+          <i-lucide [img]="icons.SlidersHorizontal" class="size-4 mr-1" />
+        </button>
+
+        <p-popover #advancedFiltersPopover [style]="{ width: '22rem' }">
+          <div class="flex flex-col gap-3">
+            <h3 class="text-sm font-semibold text-surface-900 dark:text-surface-0">
+              Filtros avanzados
+            </h3>
+
+            <div class="flex flex-col gap-1">
+              <label
+                for="advColor"
+                class="text-xs font-medium text-surface-700 dark:text-surface-200"
+              >
+                Color (coincidencia exacta)
+              </label>
+              <input
+                pInputText
+                id="advColor"
+                type="text"
+                [ngModel]="colorFilter()"
+                (ngModelChange)="colorFilter.set($event)"
+                placeholder="Ej: Negro"
+                fluid
+              />
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <label
+                for="advSize"
+                class="text-xs font-medium text-surface-700 dark:text-surface-200"
+              >
+                Talle (coincidencia exacta)
+              </label>
+              <input
+                pInputText
+                id="advSize"
+                type="text"
+                [ngModel]="sizeFilter()"
+                (ngModelChange)="sizeFilter.set($event)"
+                placeholder="Ej: M"
+                fluid
+              />
+            </div>
+
+            @if (canSeeArchived()) {
+              <label
+                class="flex items-center justify-between gap-2 cursor-pointer select-none border-t border-surface-200 dark:border-surface-700 pt-3"
+              >
+                <div class="flex flex-col">
+                  <span class="text-sm text-surface-700 dark:text-surface-200">
+                    Mostrar archivados
+                  </span>
+                  <span class="text-[11px] text-surface-500 dark:text-surface-400">
+                    Incluye productos dados de baja.
+                  </span>
+                </div>
+                <p-toggleswitch
+                  [ngModel]="includeArchived()"
+                  (ngModelChange)="includeArchived.set($event)"
+                />
+              </label>
+            }
+
+            <div
+              class="flex justify-between gap-2 pt-2 border-t border-surface-200 dark:border-surface-700"
+            >
+              <button
+                pButton
+                type="button"
+                severity="secondary"
+                [text]="true"
+                size="small"
+                label="Limpiar"
+                [disabled]="!hasAdvancedFilters()"
+                (click)="clearAdvancedFilters()"
+              ></button>
+              <button
+                pButton
+                type="button"
+                size="small"
+                label="Cerrar"
+                (click)="advancedFiltersPopover.hide()"
+              ></button>
+            </div>
+          </div>
+        </p-popover>
+      </div>
+
+      <!-- Table -->
+      <div
+        class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden"
+      >
+        <p-table
+          [value]="items()"
+          [lazy]="true"
+          [paginator]="true"
+          [rows]="pageSize()"
+          [first]="(page() - 1) * pageSize()"
+          [totalRecords]="totalCount()"
+          [rowsPerPageOptions]="[12, 24, 48]"
+          [loading]="loading()"
+          (onLazyLoad)="onLazyLoad($event)"
+          dataKey="id"
+          styleClass="p-datatable-sm"
+          responsiveLayout="scroll"
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} artículos"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th class="w-20">IMG</th>
+              <th class="min-w-32">SKU</th>
+              <th class="min-w-56">ARTÍCULO</th>
+              <th class="hidden md:table-cell">CATEGORÍA</th>
+              <th class="hidden md:table-cell">MARCA</th>
+              <th class="hidden lg:table-cell">TALLE/COLOR</th>
+              <th class="text-right">PRECIO</th>
+              <th class="text-right">STOCK</th>
+              <th>ESTADO</th>
+              <th class="text-right w-28">ACCIONES</th>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="body" let-row>
+            <tr>
+              <td>
+                <app-product-image
+                  [imageUrl]="row.imageUrl"
+                  [categoryName]="row.categoryName"
+                  [alt]="row.name"
+                  size="md"
+                />
+              </td>
+              <td>
+                <span class="font-mono text-sm font-medium text-surface-800 dark:text-surface-100">
+                  {{ row.sku }}
+                </span>
+              </td>
+              <td>
+                <div class="flex flex-col">
+                  <span class="font-medium text-surface-900 dark:text-surface-0">
+                    {{ row.name }}
+                  </span>
+                  <span class="text-xs text-surface-500 dark:text-surface-400 md:hidden">
+                    {{ row.categoryName }} · {{ row.brandName }}
+                  </span>
+                </div>
+              </td>
+              <td class="hidden md:table-cell">
+                <span class="text-sm text-surface-600 dark:text-surface-300">
+                  {{ row.categoryName ?? '—' }}
+                </span>
+              </td>
+              <td class="hidden md:table-cell">
+                <span class="text-sm text-surface-700 dark:text-surface-200">
+                  {{ row.brandName ?? '—' }}
+                </span>
+              </td>
+              <td class="hidden lg:table-cell">
+                <span class="text-sm text-surface-600 dark:text-surface-300">
+                  {{ talleColor(row) }}
+                </span>
+              </td>
+              <td class="text-right">
+                <span class="text-sm font-medium text-surface-800 dark:text-surface-100">
+                  {{ formatCurrency(row.price) }}
+                </span>
+              </td>
+              <td class="text-right">
+                <span
+                  class="font-bold"
+                  [class.text-red-600]="row.currentStock <= row.minStockAlert && row.currentStock > 0"
+                  [class.dark:text-red-300]="row.currentStock <= row.minStockAlert && row.currentStock > 0"
+                  [class.text-surface-400]="row.currentStock === 0"
+                  [class.text-surface-900]="row.currentStock > row.minStockAlert"
+                  [class.dark:text-surface-0]="row.currentStock > row.minStockAlert"
+                >
+                  {{ formatNumber(row.currentStock) }}
+                </span>
+              </td>
+              <td>
+                <app-stock-status-tag
+                  [stock]="row.currentStock"
+                  [minAlert]="row.minStockAlert"
+                />
+              </td>
+              <td class="text-right">
+                <div class="flex items-center justify-end gap-1">
+                  @if (canEdit()) {
+                    <button
+                      pButton
+                      type="button"
+                      severity="secondary"
+                      [text]="true"
+                      [rounded]="true"
+                      pTooltip="Editar artículo"
+                      tooltipPosition="top"
+                      (click)="editProduct.emit(row)"
+                    >
+                      <i-lucide [img]="icons.Pencil" class="size-4" />
+                    </button>
+                  }
+                  @if (canDelete()) {
+                    <button
+                      pButton
+                      type="button"
+                      severity="danger"
+                      [text]="true"
+                      [rounded]="true"
+                      pTooltip="Eliminar artículo"
+                      tooltipPosition="top"
+                      (click)="deleteProduct.emit(row)"
+                    >
+                      <i-lucide [img]="icons.Trash2" class="size-4" />
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="10" class="text-center py-10 text-surface-500 dark:text-surface-400">
+                @if (hasAnyFilter()) {
+                  No se encontraron artículos para los filtros aplicados.
+                } @else {
+                  Todavía no hay artículos cargados. Agregá uno con
+                  <strong>+ Nuevo Artículo</strong>.
+                }
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </div>
+  `,
+})
+export class StockSearchTabComponent {
+  private readonly products = inject(ProductsService);
+  private readonly brands = inject(BrandsService);
+  private readonly categories = inject(ProductCategoriesService);
+
+  readonly canEdit = input<boolean>(false);
+  readonly canDelete = input<boolean>(false);
+  readonly showBrandFilter = input<boolean>(true);
+  readonly canSeeArchived = input<boolean>(false);
+  // When set, scopes the search by brand server-side (BrandManager case).
+  readonly brandScope = input<string | null>(null);
+
+  readonly editProduct = output<ProductResponse>();
+  readonly deleteProduct = output<ProductResponse>();
+
+  protected readonly icons = { Search, Pencil, Trash2, SlidersHorizontal };
+
+  protected readonly items = this.products.items;
+  protected readonly totalCount = this.products.totalCount;
+  protected readonly loading = this.products.loading;
+
+  // Filter state
+  protected readonly searchTerm = signal('');
+  protected readonly brandId = signal<string | null>(null);
+  protected readonly categoryId = signal<string | null>(null);
+  protected readonly stockStatus = signal<ProductStockStatus | null>(null);
+  protected readonly colorFilter = signal('');
+  protected readonly sizeFilter = signal('');
+  protected readonly includeArchived = signal(false);
+  protected readonly page = signal(1);
+  protected readonly pageSize = signal(12);
+
+  // Debounced version of searchTerm to avoid hammering the backend.
+  // skip(1) drops the synthetic emission that toObservable produces for the
+  // signal's current value at subscription time — otherwise we'd fetch twice
+  // on initial paint (once from the effect below, once from this stream).
+  private readonly debouncedSearchTerm$ = toObservable(this.searchTerm).pipe(
+    skip(1),
+    debounceTime(300),
+    distinctUntilChanged(),
+  );
+
+  protected readonly brandOptions = computed(() =>
+    this.brands
+      .items()
+      .filter((b: BrandResponse) => b.status === 'Active')
+      .map((b: BrandResponse) => ({ label: b.name, value: b.id })),
+  );
+
+  protected readonly categoryOptions = computed(() =>
+    this.categories.items().map((c) => ({ label: c.name, value: c.id })),
+  );
+
+  protected readonly hasAnyFilter = computed(
+    () =>
+      this.searchTerm().trim().length > 0 ||
+      this.brandId() !== null ||
+      this.categoryId() !== null ||
+      this.stockStatus() !== null ||
+      this.hasAdvancedFilters(),
+  );
+
+  protected readonly advancedFiltersCount = computed(() => {
+    let n = 0;
+    if (this.colorFilter().trim().length > 0) n++;
+    if (this.sizeFilter().trim().length > 0) n++;
+    if (this.includeArchived()) n++;
+    return n;
+  });
+
+  protected readonly hasAdvancedFilters = computed(() => this.advancedFiltersCount() > 0);
+
+  constructor() {
+    // Refetch when debounced search term changes.
+    this.debouncedSearchTerm$.subscribe(() => {
+      this.page.set(1);
+      this.fetch();
+    });
+
+    // Refetch on filter changes (immediate, not debounced).
+    effect(() => {
+      this.brandId();
+      this.categoryId();
+      this.stockStatus();
+      this.brandScope();
+      this.colorFilter();
+      this.sizeFilter();
+      this.includeArchived();
+      untracked(() => {
+        this.page.set(1);
+        this.fetch();
+      });
+    });
+  }
+
+  protected onLazyLoad(event: TableLazyLoadEvent): void {
+    const newPageSize = event.rows ?? 12;
+    const newPage = Math.floor((event.first ?? 0) / newPageSize) + 1;
+    this.pageSize.set(newPageSize);
+    this.page.set(newPage);
+    this.fetch();
+  }
+
+  // Stock-status filter buttons are mutually exclusive: clicking the active
+  // one clears the filter; clicking the other replaces it.
+  protected setStockStatus(target: ProductStockStatus): void {
+    this.stockStatus.update((curr) => (curr === target ? null : target));
+  }
+
+  protected clearAdvancedFilters(): void {
+    this.colorFilter.set('');
+    this.sizeFilter.set('');
+    this.includeArchived.set(false);
+  }
+
+  protected talleColor(p: ProductResponse): string {
+    const parts: string[] = [];
+    if (p.size) parts.push(p.size);
+    if (p.color) parts.push(p.color);
+    return parts.length > 0 ? parts.join(' · ') : '—';
+  }
+
+  protected formatCurrency(v: number): string {
+    return formatCurrencyUYU(v);
+  }
+
+  protected formatNumber(v: number): string {
+    return formatNumber(v);
+  }
+
+  refresh(): void {
+    this.fetch();
+  }
+
+  private fetch(): void {
+    const params: ProductSearchParams = {
+      page: this.page(),
+      pageSize: this.pageSize(),
+      searchTerm: this.searchTerm() || undefined,
+      categoryId: this.categoryId() ?? undefined,
+      stockStatus: this.stockStatus() ?? undefined,
+      color: this.colorFilter().trim() || undefined,
+      size: this.sizeFilter().trim() || undefined,
+      // includeInactive is gated server-side to Admin/SuperAdmin; we hide the
+      // toggle from other roles, but also belt-and-braces it here.
+      includeInactive: this.canSeeArchived() && this.includeArchived() ? true : undefined,
+    };
+    const scope = this.brandScope();
+    if (scope) {
+      // Server-side will also enforce this for BrandManager via JWT, but we
+      // pass it explicitly so non-scoped roles get the same effect.
+      params.brandId = scope;
+    } else if (this.brandId()) {
+      params.brandId = this.brandId()!;
+    }
+    this.products.search(params).subscribe({
+      error: () => {
+        // error.interceptor already shows a toast
+      },
+    });
+  }
+}
