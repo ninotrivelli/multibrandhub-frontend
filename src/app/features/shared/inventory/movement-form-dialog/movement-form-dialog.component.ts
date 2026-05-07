@@ -30,6 +30,7 @@ import { SelectModule } from 'primeng/select';
 import { TextareaModule } from 'primeng/textarea';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
+import { LucideAngularModule, Minus, Plus, X } from 'lucide-angular';
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
@@ -62,6 +63,7 @@ interface MovementTypeOption {
     TagModule,
     TextareaModule,
     TooltipModule,
+    LucideAngularModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -123,12 +125,13 @@ interface MovementTypeOption {
               severity="danger"
               [text]="true"
               [rounded]="true"
-              icon="pi pi-times"
               size="small"
               pTooltip="Quitar selección"
               tooltipPosition="left"
               (click)="clearSelection()"
-            ></button>
+            >
+              <i-lucide [img]="icons.X" class="size-4" />
+            </button>
           </div>
         }
 
@@ -202,12 +205,17 @@ interface MovementTypeOption {
               buttonLayout="horizontal"
               spinnerMode="horizontal"
               [step]="1"
-              incrementButtonIcon="pi pi-plus"
-              decrementButtonIcon="pi pi-minus"
               [min]="allowsNegative() ? -9999 : 1"
               [invalid]="isQuantityInvalid()"
               fluid
-            />
+            >
+              <ng-template pTemplate="incrementbuttonicon">
+                <i-lucide [img]="icons.Plus" class="size-4" />
+              </ng-template>
+              <ng-template pTemplate="decrementbuttonicon">
+                <i-lucide [img]="icons.Minus" class="size-4" />
+              </ng-template>
+            </p-inputnumber>
             @if (isQuantityInvalid()) {
               @if (form.errors?.['nonZero']) {
                 <p-message severity="error" size="small" variant="simple">
@@ -285,6 +293,8 @@ export class MovementFormDialogComponent {
 
   readonly visibleChange = output<boolean>();
   readonly saved = output<StockMovementResponse>();
+
+  protected readonly icons = { X, Plus, Minus };
 
   protected readonly typeOptions: MovementTypeOption[] = [
     {

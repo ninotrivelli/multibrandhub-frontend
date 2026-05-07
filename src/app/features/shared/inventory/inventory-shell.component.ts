@@ -92,7 +92,7 @@ type TabId = 'stock' | 'movements';
         >
           <button
             type="button"
-            class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
+            class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer"
             [class.border-primary]="activeTab() === 'stock'"
             [class.text-primary]="activeTab() === 'stock'"
             [class.border-transparent]="activeTab() !== 'stock'"
@@ -106,7 +106,7 @@ type TabId = 'stock' | 'movements';
           </button>
           <button
             type="button"
-            class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
+            class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer"
             [class.border-primary]="activeTab() === 'movements'"
             [class.text-primary]="activeTab() === 'movements'"
             [class.border-transparent]="activeTab() !== 'movements'"

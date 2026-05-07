@@ -20,7 +20,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { ConfirmationService } from 'primeng/api';
-import { Pencil, Plus, KeyRound, UserMinus, UserCheck } from 'lucide-angular';
+import { AlertTriangle, Pencil, Plus, KeyRound, UserMinus, UserCheck } from 'lucide-angular';
 import { LucideAngularModule } from 'lucide-angular';
 
 import { UserRole } from '../../../../core/auth/auth.types';
@@ -291,7 +291,11 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
       (visibleChange)="onResetVisibleChange($event)"
     />
 
-    <p-confirmdialog />
+    <p-confirmdialog>
+      <ng-template pTemplate="icon">
+        <i-lucide [img]="icons.AlertTriangle" class="size-6 text-amber-500" />
+      </ng-template>
+    </p-confirmdialog>
   `
 })
 export class AdminEquipoComponent implements OnInit {
@@ -302,7 +306,7 @@ export class AdminEquipoComponent implements OnInit {
 
   protected readonly currentUser = this.auth.user;
 
-  protected readonly icons = { Pencil, Plus, KeyRound, UserMinus, UserCheck };
+  protected readonly icons = { Pencil, Plus, KeyRound, UserMinus, UserCheck, AlertTriangle };
 
   // SuperAdmin is hidden from the list, so it's not a filterable role.
   protected readonly roleOptions: RoleFilterOption[] = [
@@ -444,7 +448,6 @@ export class AdminEquipoComponent implements OnInit {
     this.confirmation.confirm({
       header: 'Desactivar usuario',
       message: `¿Desactivar a ${user.fullName}? No podrá iniciar sesión hasta que lo reactives.`,
-      icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Sí, desactivar',
       rejectLabel: 'Cancelar',
       acceptButtonStyleClass: 'p-button-danger',

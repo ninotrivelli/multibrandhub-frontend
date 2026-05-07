@@ -19,7 +19,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { TooltipModule } from 'primeng/tooltip';
-import { ImageUp, LucideAngularModule } from 'lucide-angular';
+import { ImageUp, LucideAngularModule, Minus, Plus } from 'lucide-angular';
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
@@ -287,10 +287,15 @@ type ControlName =
                 buttonLayout="horizontal"
                 spinnerMode="horizontal"
                 [step]="1"
-                incrementButtonIcon="pi pi-plus"
-                decrementButtonIcon="pi pi-minus"
                 fluid
-              />
+              >
+                <ng-template pTemplate="incrementbuttonicon">
+                  <i-lucide [img]="icons.Plus" class="size-4" />
+                </ng-template>
+                <ng-template pTemplate="decrementbuttonicon">
+                  <i-lucide [img]="icons.Minus" class="size-4" />
+                </ng-template>
+              </p-inputnumber>
               <small class="text-xs text-surface-500 dark:text-surface-400">
                 Cuando el stock llegue a este número, aparece como crítico.
               </small>
@@ -312,11 +317,16 @@ type ControlName =
                   buttonLayout="horizontal"
                   spinnerMode="horizontal"
                   [step]="1"
-                  incrementButtonIcon="pi pi-plus"
-                  decrementButtonIcon="pi pi-minus"
                   [invalid]="isInvalid('currentStock')"
                   fluid
-                />
+                >
+                  <ng-template pTemplate="incrementbuttonicon">
+                    <i-lucide [img]="icons.Plus" class="size-4" />
+                  </ng-template>
+                  <ng-template pTemplate="decrementbuttonicon">
+                    <i-lucide [img]="icons.Minus" class="size-4" />
+                  </ng-template>
+                </p-inputnumber>
                 <small class="text-xs text-surface-500 dark:text-surface-400">
                   Unidades que entran físicamente al local ahora.
                 </small>
@@ -375,7 +385,7 @@ export class ProductFormDialogComponent {
   readonly visibleChange = output<boolean>();
   readonly saved = output<ProductResponse>();
 
-  protected readonly icons = { ImageUp };
+  protected readonly icons = { ImageUp, Plus, Minus };
 
   protected readonly submitting = signal(false);
   protected readonly submitError = signal<string | null>(null);
