@@ -71,9 +71,9 @@ type TabId = 'stock' | 'movements';
               <button
                 pButton
                 type="button"
-                severity="secondary"
                 [outlined]="true"
                 label="Reg. Movimiento"
+                class="border-primary! text-primary!"
                 (click)="openMovementDialog()"
               >
                 <i-lucide [img]="icons.ArrowRightLeft" class="size-4 mr-2" />
@@ -83,8 +83,9 @@ type TabId = 'stock' | 'movements';
               <button
                 pButton
                 type="button"
-                severity="secondary"
+                [outlined]="true"
                 label="Importar varios artículos"
+                class="border-primary! text-primary!"
                 (click)="openImportProducts()"
               >
                 <i-lucide [img]="icons.Upload" class="size-4 mr-2" />

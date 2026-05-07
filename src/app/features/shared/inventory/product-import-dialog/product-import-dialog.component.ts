@@ -24,11 +24,7 @@ import { Download, FileSpreadsheet, LucideAngularModule, Upload, X } from 'lucid
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { BrandResponse } from '../../../admin/settings/marcas/brands.types';
-import {
-  ProductImportResponse,
-  ProductImportRowError,
-  ProductsService,
-} from '../products.service';
+import { ProductImportResponse, ProductImportRowError, ProductsService } from '../products.service';
 
 const ALLOWED_EXTENSIONS = ['.csv', '.xls', '.xlsx'] as const;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -43,12 +39,12 @@ interface PreviewColumn {
 const PREVIEW_COLUMNS: readonly PreviewColumn[] = [
   { header: 'SKU', example: 'BUZO-001', required: true },
   { header: 'Nombre', example: 'Buzo oversize', required: true },
-  { header: 'Categoría', example: 'Indumentaria', required: true },
+  { header: 'Categoría', example: 'Sweaters', required: true },
   { header: 'Descripción', example: 'Buzo de algodón', required: false },
-  { header: 'Precio', example: '18999', required: true },
+  { header: 'Precio', example: '1850', required: true },
   { header: 'Color', example: 'Negro', required: false },
   { header: 'Talle', example: 'M', required: false },
-  { header: 'Stock inicial', example: '25', required: true },
+  { header: 'Stock inicial', example: '10', required: true },
 ];
 
 @Component({
@@ -148,10 +144,7 @@ const PREVIEW_COLUMNS: readonly PreviewColumn[] = [
                     >
                       {{ col.header }}
                       @if (col.required) {
-                        <span
-                          class="text-red-500"
-                          pTooltip="Requerido"
-                          tooltipPosition="top"
+                        <span class="text-red-500" pTooltip="Requerido" tooltipPosition="top"
                           >*</span
                         >
                       }
@@ -228,7 +221,9 @@ const PREVIEW_COLUMNS: readonly PreviewColumn[] = [
               No se importó ningún artículo. Corregí los siguientes errores en el archivo y volvé a
               intentar.
             </p-message>
-            <div class="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
+            <div
+              class="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden"
+            >
               <p-table
                 [value]="rowErrors()"
                 [scrollable]="true"
@@ -255,9 +250,7 @@ const PREVIEW_COLUMNS: readonly PreviewColumn[] = [
                 </ng-template>
                 <ng-template pTemplate="emptymessage">
                   <tr>
-                    <td colspan="4" class="text-center text-surface-500 py-4">
-                      Sin errores.
-                    </td>
+                    <td colspan="4" class="text-center text-surface-500 py-4">Sin errores.</td>
                   </tr>
                 </ng-template>
               </p-table>
@@ -332,9 +325,7 @@ export class ProductImportDialogComponent {
     () => this.auth.role() === 'BrandManager' && !!this.auth.user()?.brandId,
   );
 
-  protected readonly canSubmit = computed(
-    () => !!this.selectedBrandId() && !!this.selectedFile(),
-  );
+  protected readonly canSubmit = computed(() => !!this.selectedBrandId() && !!this.selectedFile());
 
   constructor() {
     effect(() => {

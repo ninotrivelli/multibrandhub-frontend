@@ -9,8 +9,10 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -19,7 +21,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { TooltipModule } from 'primeng/tooltip';
-import { ImageUp, LucideAngularModule, Minus, Plus } from 'lucide-angular';
+import { ImageUp, LucideAngularModule, Minus, Plus, Wand2 } from 'lucide-angular';
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
@@ -27,6 +29,7 @@ import { BrandsService } from '../../../admin/settings/marcas/brands.service';
 import { ProductCategoriesService } from '../product-categories.service';
 import { ProductsService } from '../products.service';
 import { CreateProductRequest, ProductResponse, UpdateProductRequest } from '../inventory.types';
+import { buildSkuCandidate } from '../inventory.utils';
 
 type DialogMode = 'create' | 'edit';
 
@@ -103,40 +106,6 @@ type ControlName =
 
           <!-- Right column: form fields -->
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div class="flex flex-col gap-1">
-              <label
-                for="productSku"
-                class="text-sm font-medium text-surface-700 dark:text-surface-200"
-              >
-                SKU (Código)
-              </label>
-              <input
-                pInputText
-                id="productSku"
-                type="text"
-                formControlName="sku"
-                [invalid]="isInvalid('sku')"
-                placeholder="Ej: ZEN-REM-002"
-                (input)="normalizeSkuInput($any($event.target).value)"
-                fluid
-              />
-              @if (mode() === 'edit') {
-                <p-message severity="secondary" size="small" variant="simple">
-                  El SKU no se puede modificar.
-                </p-message>
-              } @else if (isInvalid('sku')) {
-                @if (form.controls.sku.hasError('required')) {
-                  <p-message severity="error" size="small" variant="simple">
-                    El SKU es obligatorio.
-                  </p-message>
-                } @else {
-                  <p-message severity="error" size="small" variant="simple">
-                    Usá mayúsculas, números, guiones o guiones bajos.
-                  </p-message>
-                }
-              }
-            </div>
-
             <div class="flex flex-col gap-1">
               <label
                 for="productName"
@@ -244,6 +213,61 @@ type ControlName =
                 placeholder="Ej: Negro"
                 fluid
               />
+            </div>
+
+            <div class="flex flex-col gap-1 md:col-span-2">
+              <label
+                for="productSku"
+                class="text-sm font-medium text-surface-700 dark:text-surface-200"
+              >
+                SKU (Código)
+              </label>
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                <input
+                  pInputText
+                  id="productSku"
+                  type="text"
+                  formControlName="sku"
+                  [invalid]="isInvalid('sku')"
+                  placeholder="Ej: ZEN-REM-002"
+                  (input)="normalizeSkuInput($any($event.target).value)"
+                  class="flex-1 min-w-0"
+                />
+                @if (mode() === 'create') {
+                  <button
+                    pButton
+                    type="button"
+                    severity="secondary"
+                    [outlined]="true"
+                    [disabled]="!canGenerateSku()"
+                    [loading]="skuGenerating()"
+                    pTooltip="Genera un SKU único usando marca, nombre, talle y color cuando estén cargados"
+                    tooltipPosition="bottom"
+                    (click)="generateSku()"
+                    aria-label="Generar SKU único automáticamente"
+                    [class.sku-generate-ready]="isSkuGeneratorReady()"
+                    class="w-full justify-center gap-2 whitespace-nowrap sm:w-auto"
+                  >
+                    <i-lucide [img]="icons.Wand2" class="size-4" />
+                    <span>Generar SKU único</span>
+                  </button>
+                }
+              </div>
+              @if (mode() === 'edit') {
+                <p-message severity="secondary" size="small" variant="simple">
+                  El SKU no se puede modificar.
+                </p-message>
+              } @else if (isInvalid('sku')) {
+                @if (form.controls.sku.hasError('required')) {
+                  <p-message severity="error" size="small" variant="simple">
+                    El SKU es obligatorio.
+                  </p-message>
+                } @else {
+                  <p-message severity="error" size="small" variant="simple">
+                    Usá mayúsculas, números, guiones o guiones bajos.
+                  </p-message>
+                }
+              }
             </div>
 
             <div class="flex flex-col gap-1">
@@ -369,6 +393,41 @@ type ControlName =
       </form>
     </p-dialog>
   `,
+  styles: [
+    `
+      .sku-generate-ready.p-button.p-button-outlined {
+        border-color: #8b5cf6;
+        color: #6d28d9;
+        box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.22);
+        animation: sku-ready-glow 2.4s ease-in-out infinite;
+      }
+
+      .sku-generate-ready.p-button.p-button-outlined:hover {
+        border-color: #7c3aed;
+        box-shadow:
+          0 0 0 1px rgba(124, 58, 237, 0.32),
+          0 0 18px rgba(139, 92, 246, 0.28);
+      }
+
+      @keyframes sku-ready-glow {
+        0%,
+        100% {
+          box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.2);
+        }
+        50% {
+          box-shadow:
+            0 0 0 1px rgba(139, 92, 246, 0.45),
+            0 0 16px rgba(139, 92, 246, 0.3);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .sku-generate-ready.p-button.p-button-outlined {
+          animation: none;
+        }
+      }
+    `,
+  ],
 })
 export class ProductFormDialogComponent {
   private readonly fb = inject(FormBuilder);
@@ -385,10 +444,11 @@ export class ProductFormDialogComponent {
   readonly visibleChange = output<boolean>();
   readonly saved = output<ProductResponse>();
 
-  protected readonly icons = { ImageUp, Plus, Minus };
+  protected readonly icons = { ImageUp, Plus, Minus, Wand2 };
 
   protected readonly submitting = signal(false);
   protected readonly submitError = signal<string | null>(null);
+  protected readonly skuGenerating = signal(false);
 
   protected readonly form = this.fb.group({
     sku: this.fb.nonNullable.control('', [
@@ -405,6 +465,39 @@ export class ProductFormDialogComponent {
     currentStock: this.fb.control<number | null>(1, [Validators.required, Validators.min(0)]),
     minStockAlert: this.fb.control<number | null>(2, [Validators.required, Validators.min(0)]),
   });
+
+  // Mirror live form values as signals so canGenerateSku() reacts without
+  // OnPush change-detection hiccups (the button lives outside the input that
+  // produced the change).
+  private readonly nameValue = toSignal(this.form.controls.name.valueChanges, {
+    initialValue: '',
+  });
+  private readonly brandIdValue = toSignal(this.form.controls.brandId.valueChanges, {
+    initialValue: null as string | null,
+  });
+  private readonly categoryIdValue = toSignal(this.form.controls.categoryId.valueChanges, {
+    initialValue: null as string | null,
+  });
+  private readonly sizeValue = toSignal(this.form.controls.size.valueChanges, {
+    initialValue: '',
+  });
+  private readonly colorValue = toSignal(this.form.controls.color.valueChanges, {
+    initialValue: '',
+  });
+  protected readonly canGenerateSku = computed(
+    () =>
+      this.mode() === 'create' &&
+      !this.skuGenerating() &&
+      (this.nameValue() ?? '').trim().length > 0 &&
+      !!this.brandIdValue() &&
+      !!this.categoryIdValue(),
+  );
+  protected readonly isSkuGeneratorReady = computed(
+    () =>
+      this.canGenerateSku() &&
+      (this.sizeValue() ?? '').trim().length > 0 &&
+      (this.colorValue() ?? '').trim().length > 0,
+  );
 
   protected readonly brandOptions = computed(() =>
     this.brands
@@ -431,6 +524,48 @@ export class ProductFormDialogComponent {
 
   protected normalizeSkuInput(value: string): void {
     this.form.controls.sku.setValue(value.toUpperCase(), { emitEvent: false });
+  }
+
+  protected async generateSku(): Promise<void> {
+    if (!this.canGenerateSku()) return;
+
+    const name = this.form.controls.name.value.trim();
+    const brandId = this.form.controls.brandId.value;
+    const categoryId = this.form.controls.categoryId.value;
+    if (!name || !brandId || !categoryId) return;
+
+    const brand = this.brands.items().find((b) => b.id === brandId);
+    if (!brand) {
+      this.notifications.error('No encontramos la marca seleccionada. Probá de nuevo.');
+      return;
+    }
+
+    this.skuGenerating.set(true);
+    try {
+      const MAX_ATTEMPTS = 50;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const candidate = buildSkuCandidate({
+          brandCode: brand.code,
+          productName: name,
+          size: this.form.controls.size.value,
+          color: this.form.controls.color.value,
+          attempt,
+        });
+        const result = await firstValueFrom(this.products.validateSku(candidate));
+        if (result.isUnique) {
+          this.form.controls.sku.setValue(result.sku);
+          this.form.controls.sku.markAsDirty();
+          return;
+        }
+      }
+      this.notifications.error(
+        'No pudimos generar un SKU automáticamente. Probá ingresarlo a mano.',
+      );
+    } catch {
+      this.notifications.error('No se pudo validar el SKU. Probá de nuevo o ingresalo a mano.');
+    } finally {
+      this.skuGenerating.set(false);
+    }
   }
 
   protected onVisibleChange(value: boolean): void {

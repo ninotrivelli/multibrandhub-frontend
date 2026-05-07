@@ -10,6 +10,7 @@ import {
   PagedResult,
   ProductResponse,
   ProductSearchParams,
+  ProductSkuValidationResponse,
   UpdateProductRequest,
 } from './inventory.types';
 
@@ -155,6 +156,13 @@ export class ProductsService {
 
   getById(id: string): Observable<ProductResponse> {
     return this.http.get<ProductResponse>(`${this.baseUrl}/${id}`);
+  }
+
+  validateSku(sku: string): Observable<ProductSkuValidationResponse> {
+    const params = new HttpParams().set('sku', sku);
+    return this.http.get<ProductSkuValidationResponse>(`${this.baseUrl}/sku-validation`, {
+      params,
+    });
   }
 
   create(req: CreateProductRequest): Observable<ProductResponse> {

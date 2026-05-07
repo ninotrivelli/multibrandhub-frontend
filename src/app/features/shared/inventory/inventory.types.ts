@@ -53,6 +53,15 @@ export interface UpdateProductRequest {
   categoryId: string;
 }
 
+export interface ProductSkuValidationResponse {
+  sku: string;
+  isUnique: boolean;
+  exists: boolean;
+  isActive: boolean | null;
+  isArchived: boolean;
+  archivedAtUtc: string | null;
+}
+
 export interface ProductSearchParams {
   searchTerm?: string;
   brandId?: string;

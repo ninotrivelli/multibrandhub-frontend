@@ -127,6 +127,73 @@ export function formatMovementDate(iso: string): string {
   }).format(date);
 }
 
+export function stripAccents(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+export interface BuildSkuCandidateInput {
+  brandCode: string;
+  productName: string;
+  size?: string | null;
+  color?: string | null;
+  attempt: number;
+}
+
+const SKU_STOP_WORDS = new Set([
+  'Y',
+  'DE',
+  'DEL',
+  'LA',
+  'EL',
+  'LOS',
+  'LAS',
+  'UN',
+  'UNA',
+  'EN',
+  'CON',
+  'PARA',
+  'POR',
+]);
+
+export function buildSkuCandidate(input: BuildSkuCandidateInput): string {
+  const brandPart = buildSkuSegment(input.brandCode, 4, 'GEN');
+  const namePart = buildSkuSegment(input.productName, 6, 'GEN');
+  const sizePart = buildOptionalSkuSegment(input.size, 6);
+  const colorPart = buildOptionalSkuSegment(input.color, 6);
+  const numPart = String(input.attempt).padStart(3, '0');
+
+  return [brandPart, namePart, sizePart, colorPart, numPart]
+    .filter((part): part is string => !!part)
+    .join('-');
+}
+
+function buildOptionalSkuSegment(
+  value: string | null | undefined,
+  maxLength: number,
+): string | null {
+  const segment = buildSkuSegment(value ?? '', maxLength, '');
+  return segment.length > 0 ? segment : null;
+}
+
+function buildSkuSegment(value: string, maxLength: number, fallback: string): string {
+  const words = stripAccents(value)
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean)
+    .filter((word) => !SKU_STOP_WORDS.has(word));
+
+  if (words.length === 0) return fallback.slice(0, maxLength);
+  if (words.length === 1) return words[0].slice(0, maxLength);
+
+  const selectedWords = words.slice(0, Math.min(words.length, maxLength <= 4 ? 2 : 3));
+  const charsPerWord = Math.max(1, Math.floor(maxLength / selectedWords.length));
+
+  return selectedWords
+    .map((word) => word.slice(0, charsPerWord))
+    .join('')
+    .slice(0, maxLength);
+}
+
 // Orders products: own brand first (when known), then alphabetically.
 export function sortProductsForUser(
   products: readonly ProductResponse[],
