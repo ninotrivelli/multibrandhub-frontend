@@ -12,7 +12,7 @@ import {
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { debounceTime, distinctUntilChanged, map, of, switchMap } from 'rxjs';
+import { debounceTime, distinctUntilChanged, map, of, startWith, switchMap } from 'rxjs';
 
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -189,12 +189,19 @@ interface MovementTypeOption {
               buttonLayout="horizontal"
               spinnerMode="horizontal"
               [step]="1"
-              incrementButtonIcon="pi pi-plus"
-              decrementButtonIcon="pi pi-minus"
+              incrementButtonClass="!bg-surface-100 hover:!bg-surface-200 active:!bg-surface-300 !border-surface-300 !text-surface-700 dark:!bg-surface-800 dark:hover:!bg-surface-700 dark:active:!bg-surface-600 dark:!border-surface-600 dark:!text-surface-100"
+              decrementButtonClass="!bg-surface-100 hover:!bg-surface-200 active:!bg-surface-300 !border-surface-300 !text-surface-700 dark:!bg-surface-800 dark:hover:!bg-surface-700 dark:active:!bg-surface-600 dark:!border-surface-600 dark:!text-surface-100"
               [min]="allowsNegative() ? -9999 : 1"
               [invalid]="isInvalid('quantity')"
               fluid
-            />
+            >
+              <ng-template #incrementbuttonicon>
+                <span class="pi pi-plus !text-surface-700 dark:!text-surface-100"></span>
+              </ng-template>
+              <ng-template #decrementbuttonicon>
+                <span class="pi pi-minus !text-surface-700 dark:!text-surface-100"></span>
+              </ng-template>
+            </p-inputnumber>
             @if (isInvalid('quantity')) {
               <p-message severity="error" size="small" variant="simple">
                 Ingresá una cantidad distinta de cero.
@@ -272,7 +279,7 @@ export class MovementFormDialogComponent {
     {
       label: 'Egreso (Pérdida / Rotura)',
       value: MovementType.Loss,
-      hint: 'Resta stock. Ingresá las unidades perdidas / rotas.',
+      hint: 'Ingresá las unidades perdidas / rotas.',
     },
     {
       label: 'Ajuste manual',
@@ -287,7 +294,7 @@ export class MovementFormDialogComponent {
     {
       label: 'Sesión de fotos',
       value: MovementType.Shooting,
-      hint: 'Salida temporal por sesión. Usá negativo al sacar y positivo al regresar.',
+      hint: 'Resta stock. Ingresá las unidades que salen temporalmente.',
     },
   ];
 
@@ -305,6 +312,9 @@ export class MovementFormDialogComponent {
     ]),
     observations: this.fb.nonNullable.control(''),
   });
+  private readonly formStatus = toSignal(this.form.statusChanges.pipe(startWith(this.form.status)), {
+    initialValue: this.form.status,
+  });
 
   protected readonly typeHint = computed(() => {
     const value = this.form.controls.type.value;
@@ -313,10 +323,12 @@ export class MovementFormDialogComponent {
 
   protected readonly allowsNegative = computed(() => {
     const t = this.form.controls.type.value;
-    return t === MovementType.Adjustment || t === MovementType.Shooting;
+    return t === MovementType.Adjustment;
   });
 
-  protected readonly canSubmit = computed(() => this.selectedProduct() !== null && this.form.valid);
+  protected readonly canSubmit = computed(
+    () => this.selectedProduct() !== null && this.formStatus() === 'VALID',
+  );
 
   // Live-search products as the user types. Keep it active even when a product
   // is selected, so users can replace a mistaken selection without closing.
@@ -393,14 +405,9 @@ export class MovementFormDialogComponent {
     const raw = this.form.getRawValue();
     const userId = this.auth.user()?.userId ?? null;
 
-    // The backend keeps the sign as-provided for Adjustment / Shooting / Loss.
-    // For Loss the user enters a positive "units lost" amount, but stock must
-    // decrease, so we flip the sign here. StockIn / Sale / Return have their
-    // signs auto-corrected server-side, so anything we send is fine.
-    let quantity = Number(raw.quantity ?? 0);
-    if (raw.type === MovementType.Loss && quantity > 0) {
-      quantity = -quantity;
-    }
+    // The API is the source of truth for signed stock deltas. Manual entries
+    // send the user's quantity and the backend normalizes it by movement type.
+    const quantity = Number(raw.quantity ?? 0);
 
     const body: CreateStockMovementRequest = {
       productId: product.id,
