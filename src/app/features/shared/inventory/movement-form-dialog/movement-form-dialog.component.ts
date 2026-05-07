@@ -215,7 +215,7 @@ interface MovementTypeOption {
             for="movementObs"
             class="text-sm font-medium text-surface-700 dark:text-surface-200"
           >
-            Motivo / Observaciones
+            Motivo / Observaciones (Opcional)
           </label>
           <textarea
             pTextarea
@@ -312,9 +312,12 @@ export class MovementFormDialogComponent {
     ]),
     observations: this.fb.nonNullable.control(''),
   });
-  private readonly formStatus = toSignal(this.form.statusChanges.pipe(startWith(this.form.status)), {
-    initialValue: this.form.status,
-  });
+  private readonly formStatus = toSignal(
+    this.form.statusChanges.pipe(startWith(this.form.status)),
+    {
+      initialValue: this.form.status,
+    },
+  );
 
   protected readonly typeHint = computed(() => {
     const value = this.form.controls.type.value;
