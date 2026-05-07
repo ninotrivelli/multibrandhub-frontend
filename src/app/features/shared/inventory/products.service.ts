@@ -19,6 +19,20 @@ interface KpiCounts {
   outOfStock: number;
 }
 
+export interface ProductImportRowError {
+  row: number;
+  field: string;
+  value: string | null;
+  message: string;
+}
+
+export interface ProductImportResponse {
+  totalRows: number;
+  created: number;
+  rejected: number;
+  errors: ProductImportRowError[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class ProductsService {
   private readonly http = inject(HttpClient);
@@ -169,6 +183,23 @@ export class ProductsService {
         this._totalCount.update((c) => Math.max(0, c - 1));
       }),
     );
+  }
+
+  // Returns the Excel template the user fills out before importing. Backend
+  // serves an .xlsx blob with Spanish headers and a single example row.
+  downloadImportTemplate(): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/import-template`, { responseType: 'blob' });
+  }
+
+  // Bulk-creates products from a .csv/.xls/.xlsx. Backend is all-or-nothing:
+  // on any row error nothing is created and the response carries `errors[]`
+  // with row-level diagnostics. The shell calls `loadAll` + `loadKpiCounts` +
+  // `loadImmobilizedCount` afterwards to refresh aggregates.
+  importProducts(brandId: string, file: File): Observable<ProductImportResponse> {
+    const fd = new FormData();
+    fd.append('brandId', brandId);
+    fd.append('file', file);
+    return this.http.post<ProductImportResponse>(`${this.baseUrl}/import`, fd);
   }
 
   // KPI count for the "Stock Inmovilizado" card. Cheap call (pageSize=1).

@@ -5,6 +5,7 @@ import {
   inject,
   OnInit,
   signal,
+  viewChild,
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
@@ -12,18 +13,26 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
-import { ArrowRightLeft, ListOrdered, LucideAngularModule, Plus, Search } from 'lucide-angular';
+import {
+  ArrowRightLeft,
+  ListOrdered,
+  LucideAngularModule,
+  Plus,
+  Search,
+  Upload,
+} from 'lucide-angular';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { BrandsService } from '../../admin/settings/marcas/brands.service';
 import { ProductCategoriesService } from './product-categories.service';
-import { ProductsService } from './products.service';
+import { ProductImportResponse, ProductsService } from './products.service';
 import { KpiFilter, ProductResponse, StockMovementResponse } from './inventory.types';
 import { InventoryKpisComponent } from './components/inventory-kpis.component';
 import { MovementsTabComponent } from './components/movements-tab.component';
 import { StockSearchTabComponent } from './components/stock-search-tab.component';
 import { ProductFormDialogComponent } from './product-form-dialog/product-form-dialog.component';
+import { ProductImportDialogComponent } from './product-import-dialog/product-import-dialog.component';
 import { MovementFormDialogComponent } from './movement-form-dialog/movement-form-dialog.component';
 
 type TabId = 'stock' | 'movements';
@@ -40,6 +49,7 @@ type TabId = 'stock' | 'movements';
     StockSearchTabComponent,
     MovementsTabComponent,
     ProductFormDialogComponent,
+    ProductImportDialogComponent,
     MovementFormDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -55,7 +65,7 @@ type TabId = 'stock' | 'movements';
             {{ headerSubtitle() }}
           </p>
         </div>
-        @if (canRegisterMovement() || canCreateProduct()) {
+        @if (canRegisterMovement() || canCreateProduct() || canImportProducts()) {
           <div class="flex flex-wrap items-center gap-2">
             @if (canRegisterMovement()) {
               <button
@@ -67,6 +77,17 @@ type TabId = 'stock' | 'movements';
                 (click)="openMovementDialog()"
               >
                 <i-lucide [img]="icons.ArrowRightLeft" class="size-4 mr-2" />
+              </button>
+            }
+            @if (canImportProducts()) {
+              <button
+                pButton
+                type="button"
+                severity="secondary"
+                label="Importar varios artículos"
+                (click)="openImportProducts()"
+              >
+                <i-lucide [img]="icons.Upload" class="size-4 mr-2" />
               </button>
             }
             @if (canCreateProduct()) {
@@ -122,6 +143,7 @@ type TabId = 'stock' | 'movements';
 
         @if (activeTab() === 'stock') {
           <app-stock-search-tab
+            #stockTab
             [canEdit]="canEditProduct()"
             [canDelete]="canDeleteProduct()"
             [showBrandFilter]="kpiVariant() === 'store'"
@@ -147,6 +169,14 @@ type TabId = 'stock' | 'movements';
       [editing]="productDialogEditing()"
       (visibleChange)="productDialogVisible.set($event)"
       (saved)="onProductSaved()"
+    />
+
+    <!-- Product import dialog -->
+    <app-product-import-dialog
+      [visible]="importDialogVisible()"
+      [brands]="brands.items()"
+      (visibleChange)="importDialogVisible.set($event)"
+      (imported)="onProductsImported($event)"
     />
 
     <!-- Movement form dialog -->
@@ -221,11 +251,11 @@ type TabId = 'stock' | 'movements';
 export class InventoryShellComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly products = inject(ProductsService);
-  private readonly brands = inject(BrandsService);
+  protected readonly brands = inject(BrandsService);
   private readonly categories = inject(ProductCategoriesService);
   private readonly notifications = inject(NotificationService);
 
-  protected readonly icons = { Plus, ArrowRightLeft, Search, ListOrdered };
+  protected readonly icons = { Plus, ArrowRightLeft, Search, ListOrdered, Upload };
 
   protected readonly role = this.auth.role;
   protected readonly currentUser = this.auth.user;
@@ -242,6 +272,13 @@ export class InventoryShellComponent implements OnInit {
   });
   protected readonly canDeleteProduct = computed(() => this.canCreateProduct());
   protected readonly canRegisterMovement = computed(() => {
+    const r = this.role();
+    return r === 'Admin' || r === 'SuperAdmin' || r === 'Seller';
+  });
+  // Mirrors backend authorization on POST /api/products/import (BrandManager
+  // is blocked). Same role set as create today; kept as its own computed so
+  // future divergence stays explicit.
+  protected readonly canImportProducts = computed(() => {
     const r = this.role();
     return r === 'Admin' || r === 'SuperAdmin' || r === 'Seller';
   });
@@ -288,6 +325,12 @@ export class InventoryShellComponent implements OnInit {
   protected readonly productDialogVisible = signal(false);
   protected readonly productDialogMode = signal<'create' | 'edit'>('create');
   protected readonly productDialogEditing = signal<ProductResponse | null>(null);
+
+  // Import dialog state
+  protected readonly importDialogVisible = signal(false);
+  // Optional ref to the stock search tab; only present while activeTab === 'stock'.
+  // We use it to refresh the list after a bulk import (no optimistic update path).
+  private readonly stockTab = viewChild<StockSearchTabComponent>('stockTab');
 
   // Movement dialog state
   protected readonly movementDialogVisible = signal(false);
@@ -344,6 +387,25 @@ export class InventoryShellComponent implements OnInit {
     this.products.loadKpiCounts(scope).subscribe({ error: () => {} });
     this.products.loadAll(scope).subscribe({ error: () => {} });
     this.products.loadImmobilizedCount(scope, 60).subscribe({ error: () => {} });
+  }
+
+  // ---- Bulk import -------------------------------------------------------
+
+  protected openImportProducts(): void {
+    this.importDialogVisible.set(true);
+  }
+
+  protected onProductsImported(res: ProductImportResponse): void {
+    const created = res.created;
+    this.notifications.success(
+      created === 1 ? 'Se importó 1 artículo.' : `Se importaron ${created} artículos.`,
+    );
+    // The bulk endpoint doesn't apply optimistic updates, so re-run the
+    // current search via the tab's own filter state (preserves searchTerm,
+    // page, advanced filters). If the user is on the movements tab, the
+    // stock tab will fetch fresh data when they switch back.
+    this.stockTab()?.refresh();
+    this.onProductSaved();
   }
 
   protected openDeleteProductDialog(product: ProductResponse): void {
