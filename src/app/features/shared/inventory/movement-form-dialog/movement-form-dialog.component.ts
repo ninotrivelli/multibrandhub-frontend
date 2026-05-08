@@ -108,7 +108,7 @@ interface MovementTypeOption {
 
         @if (selectedProduct(); as p) {
           <div
-            class="rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 p-3 flex items-start justify-between gap-3"
+            class="rounded-lg border border-primary/70 bg-primary/5 dark:bg-primary/10 p-3 flex items-start justify-between gap-3"
           >
             <div class="flex flex-col gap-0.5 min-w-0">
               <span class="font-medium text-surface-900 dark:text-surface-0 truncate">
