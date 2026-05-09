@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { AvatarModule } from 'primeng/avatar';
 import { ButtonModule } from 'primeng/button';
@@ -7,23 +16,24 @@ import { LucideAngularModule, KeyRound, Settings } from 'lucide-angular';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { UserRole } from '../../../core/auth/auth.types';
+import { BrandsService } from '../../admin/settings/marcas/brands.service';
 import {
   ResetPasswordDialogComponent,
-  ResetPasswordTarget
+  ResetPasswordTarget,
 } from '../../../shared/components/reset-password-dialog/reset-password-dialog.component';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   SuperAdmin: 'Super Admin',
   Admin: 'Administrador',
   BrandManager: 'Marca',
-  Seller: 'Vendedor/a'
+  Seller: 'Vendedor/a',
 };
 
 const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'> = {
   SuperAdmin: 'warn',
   Admin: 'info',
   BrandManager: 'success',
-  Seller: 'secondary'
+  Seller: 'secondary',
 };
 
 @Component({
@@ -33,7 +43,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
     ButtonModule,
     TagModule,
     LucideAngularModule,
-    ResetPasswordDialogComponent
+    ResetPasswordDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -49,7 +59,9 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
       </header>
 
       @if (user(); as u) {
-        <section class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-6">
+        <section
+          class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-6"
+        >
           <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <p-avatar
               [label]="initials()"
@@ -66,15 +78,17 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
               </div>
               <div class="flex flex-wrap items-center gap-2 mt-1">
                 <p-tag [value]="roleLabel(u.role)" [severity]="roleSeverity(u.role)" />
-                @if (u.brandId) {
-                  <p-tag value="Marca asociada" severity="success" />
+                @if (associatedBrandName(); as brandName) {
+                  <p-tag [value]="brandName" severity="success" />
                 }
               </div>
             </div>
           </div>
         </section>
 
-        <section class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-6 flex flex-col gap-4">
+        <section
+          class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-6 flex flex-col gap-4"
+        >
           <div>
             <h3 class="text-base font-semibold text-surface-900 dark:text-surface-0">Seguridad</h3>
             <p class="text-sm text-surface-500 dark:text-surface-400">
@@ -94,9 +108,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
           </div>
         </section>
       } @else {
-        <p class="text-sm text-surface-500 dark:text-surface-400">
-          No hay sesión activa.
-        </p>
+        <p class="text-sm text-surface-500 dark:text-surface-400">No hay sesión activa.</p>
       }
     </div>
 
@@ -105,10 +117,12 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
       [target]="resetTarget()"
       (visibleChange)="onResetVisibleChange($event)"
     />
-  `
+  `,
 })
-export class ConfiguracionComponent {
+export class ConfiguracionComponent implements OnInit {
   private readonly auth = inject(AuthService);
+  private readonly brands = inject(BrandsService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly user = this.auth.user;
   protected readonly icons = { KeyRound, Settings };
@@ -127,6 +141,21 @@ export class ConfiguracionComponent {
         .join('') || '?'
     );
   });
+
+  protected readonly associatedBrandName = computed(() => {
+    const brandId = this.user()?.brandId;
+    if (!brandId) return null;
+    return this.brands.items().find((brand) => brand.id === brandId)?.name ?? null;
+  });
+
+  ngOnInit(): void {
+    if (!this.user()?.brandId || this.brands.hasItems() || this.brands.loading()) return;
+
+    this.brands
+      .list({ page: 1, pageSize: 100 })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ error: () => {} });
+  }
 
   protected roleLabel(role: UserRole): string {
     return ROLE_LABELS[role];

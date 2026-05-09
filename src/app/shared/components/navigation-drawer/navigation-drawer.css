@@ -3,7 +3,7 @@
 }
 
 :host ::ng-deep .app-nav-drawer {
-  width: 18rem !important;
+  width: 17rem !important;
   top: 0;
   height: 100dvh;
   border-right: 1px solid var(--p-content-border-color);
@@ -88,7 +88,7 @@
 @media (max-width: 768px) {
   :host ::ng-deep .app-nav-drawer,
   :host ::ng-deep .app-nav-drawer.app-nav-drawer-collapsed {
-    width: min(18rem, 92vw) !important;
+    width: min(17rem, 92vw) !important;
     z-index: 30;
     transform: translateX(-110%);
   }

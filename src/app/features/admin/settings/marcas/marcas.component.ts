@@ -149,7 +149,7 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
                         </span>
                         @if (isOwnBrand(brand)) {
                           <p-tag
-                            value="Mi Marca"
+                            value="Tu Marca"
                             severity="info"
                             styleClass="!text-xs !font-semibold !px-2 !py-1"
                           />
@@ -310,7 +310,7 @@ const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
           <div
             class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
           >
-            Esta acción es seria y no se puede revertir desde la app.
+            Esta acción es seria y no se puede revertir desde la web.
           </div>
 
           <div class="flex flex-col gap-2 text-sm text-surface-700 dark:text-surface-200">

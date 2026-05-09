@@ -47,7 +47,12 @@ import {
   ProductSearchParams,
   ProductStockStatus,
 } from '../inventory.types';
-import { formatCurrencyUYU, formatNumber, parseBackendUtcDate, URUGUAY_TIME_ZONE } from '../inventory.utils';
+import {
+  formatCurrencyUYU,
+  formatNumber,
+  parseBackendUtcDate,
+  URUGUAY_TIME_ZONE,
+} from '../inventory.utils';
 import { ProductImageComponent } from './product-image.component';
 import { StockStatusTagComponent } from './stock-status-tag.component';
 
@@ -378,8 +383,12 @@ type TableRow =
               <td class="text-right">
                 <span
                   class="font-bold"
-                  [class.text-red-600]="row.currentStock <= row.minStockAlert && row.currentStock > 0"
-                  [class.dark:text-red-300]="row.currentStock <= row.minStockAlert && row.currentStock > 0"
+                  [class.text-red-600]="
+                    row.currentStock <= row.minStockAlert && row.currentStock > 0
+                  "
+                  [class.dark:text-red-300]="
+                    row.currentStock <= row.minStockAlert && row.currentStock > 0
+                  "
                   [class.text-surface-400]="row.currentStock === 0"
                   [class.text-surface-900]="row.currentStock > row.minStockAlert"
                   [class.dark:text-surface-0]="row.currentStock > row.minStockAlert"
@@ -400,10 +409,7 @@ type TableRow =
                 </td>
               }
               <td>
-                <app-stock-status-tag
-                  [stock]="row.currentStock"
-                  [minAlert]="row.minStockAlert"
-                />
+                <app-stock-status-tag [stock]="row.currentStock" [minAlert]="row.minStockAlert" />
               </td>
               <td class="text-right">
                 <div class="flex items-center justify-end gap-1">
@@ -446,8 +452,10 @@ type TableRow =
                 @if (hasAnyFilter()) {
                   No se encontraron artículos para los filtros aplicados.
                 } @else {
-                  Todavía no hay artículos cargados. Agregá uno con
-                  <strong>+ Nuevo Artículo</strong>.
+                  Todavía no hay artículos cargados. Agregá uno haciendo click en el botón
+                  <strong>+ Nuevo Artículo</strong> o en
+                  <strong>Importar varios artículos</strong> para subir muchos desde un archivo
+                  Excel/CSV.
                 }
               </td>
             </tr>

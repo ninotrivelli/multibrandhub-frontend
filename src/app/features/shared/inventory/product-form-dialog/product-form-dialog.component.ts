@@ -296,34 +296,36 @@ type ControlName =
               }
             </div>
 
-            <div class="flex flex-col gap-1">
-              <label
-                for="productMinAlert"
-                class="text-sm font-medium text-surface-700 dark:text-surface-200"
-              >
-                Umbral de stock crítico
-              </label>
-              <p-inputnumber
-                inputId="productMinAlert"
-                formControlName="minStockAlert"
-                [min]="0"
-                [showButtons]="true"
-                buttonLayout="horizontal"
-                spinnerMode="horizontal"
-                [step]="1"
-                fluid
-              >
-                <ng-template pTemplate="incrementbuttonicon">
-                  <i-lucide [img]="icons.Plus" class="size-4" />
-                </ng-template>
-                <ng-template pTemplate="decrementbuttonicon">
-                  <i-lucide [img]="icons.Minus" class="size-4" />
-                </ng-template>
-              </p-inputnumber>
-              <small class="text-xs text-surface-500 dark:text-surface-400">
-                Cuando el stock llegue a este número, aparece como crítico.
-              </small>
-            </div>
+            @if (mode() === 'edit') {
+              <div class="flex flex-col gap-1">
+                <label
+                  for="productMinAlert"
+                  class="text-sm font-medium text-surface-700 dark:text-surface-200"
+                >
+                  Umbral de stock crítico
+                </label>
+                <p-inputnumber
+                  inputId="productMinAlert"
+                  formControlName="minStockAlert"
+                  [min]="0"
+                  [showButtons]="true"
+                  buttonLayout="horizontal"
+                  spinnerMode="horizontal"
+                  [step]="1"
+                  fluid
+                >
+                  <ng-template pTemplate="incrementbuttonicon">
+                    <i-lucide [img]="icons.Plus" class="size-4" />
+                  </ng-template>
+                  <ng-template pTemplate="decrementbuttonicon">
+                    <i-lucide [img]="icons.Minus" class="size-4" />
+                  </ng-template>
+                </p-inputnumber>
+                <small class="text-xs text-surface-500 dark:text-surface-400">
+                  Cuando el stock llegue a este número, aparece como crítico.
+                </small>
+              </div>
+            }
 
             @if (mode() === 'create') {
               <div class="flex flex-col gap-1 md:col-span-2">
@@ -630,7 +632,7 @@ export class ProductFormDialogComponent {
         color: nullableTrim(raw.color),
         size: nullableTrim(raw.size),
         currentStock: Number(raw.currentStock ?? 0),
-        minStockAlert: Number(raw.minStockAlert ?? 0),
+        minStockAlert: null,
         brandId: raw.brandId!,
         categoryId: raw.categoryId!,
       };
@@ -689,10 +691,12 @@ export class ProductFormDialogComponent {
     const skuCtrl = this.form.controls.sku;
     const brandCtrl = this.form.controls.brandId;
     const stockCtrl = this.form.controls.currentStock;
+    const minStockAlertCtrl = this.form.controls.minStockAlert;
 
     if (this.mode() === 'create') {
       skuCtrl.enable({ emitEvent: false });
       stockCtrl.enable({ emitEvent: false });
+      minStockAlertCtrl.disable({ emitEvent: false });
       // BrandManagers can only create within their own brand; lock the field.
       const role = this.auth.role();
       const ownBrandId = this.auth.user()?.brandId ?? null;
@@ -727,6 +731,7 @@ export class ProductFormDialogComponent {
       skuCtrl.disable({ emitEvent: false });
       brandCtrl.disable({ emitEvent: false });
       stockCtrl.disable({ emitEvent: false });
+      minStockAlertCtrl.enable({ emitEvent: false });
       this.form.reset({
         sku: editing.sku,
         name: editing.name,

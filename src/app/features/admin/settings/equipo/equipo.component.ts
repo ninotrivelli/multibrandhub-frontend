@@ -4,7 +4,7 @@ import {
   computed,
   inject,
   OnInit,
-  signal
+  signal,
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
@@ -31,7 +31,7 @@ import { UserResponse } from './users.types';
 import { UserFormDialogComponent } from './user-form-dialog/user-form-dialog.component';
 import {
   ResetPasswordDialogComponent,
-  ResetPasswordTarget
+  ResetPasswordTarget,
 } from '../../../../shared/components/reset-password-dialog/reset-password-dialog.component';
 
 interface RoleFilterOption {
@@ -43,14 +43,14 @@ const ROLE_LABELS: Record<UserRole, string> = {
   SuperAdmin: 'Super Admin',
   Admin: 'Administrador',
   BrandManager: 'Marca',
-  Seller: 'Vendedor/a'
+  Seller: 'Vendedor/a',
 };
 
 const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'> = {
   SuperAdmin: 'warn',
   Admin: 'info',
   BrandManager: 'success',
-  Seller: 'secondary'
+  Seller: 'secondary',
 };
 
 @Component({
@@ -69,7 +69,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
     ToggleSwitchModule,
     LucideAngularModule,
     UserFormDialogComponent,
-    ResetPasswordDialogComponent
+    ResetPasswordDialogComponent,
   ],
   providers: [ConfirmationService],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -82,12 +82,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
             Cuentas con acceso al sistema. Filtrá por rol o buscá por nombre/email.
           </p>
         </div>
-        <button
-          pButton
-          type="button"
-          label="Nuevo Usuario"
-          (click)="openCreate()"
-        >
+        <button pButton type="button" label="Nuevo Usuario" (click)="openCreate()">
           <i-lucide [img]="icons.Plus" class="size-4 mr-2" />
         </button>
       </header>
@@ -116,11 +111,10 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
             styleClass="w-full"
           />
         </div>
-        <label class="flex items-center gap-2 cursor-pointer select-none text-sm text-surface-600 dark:text-surface-300 whitespace-nowrap">
-          <p-toggleswitch
-            [ngModel]="showInactive()"
-            (ngModelChange)="showInactive.set($event)"
-          />
+        <label
+          class="flex items-center gap-2 cursor-pointer select-none text-sm text-surface-600 dark:text-surface-300 whitespace-nowrap"
+        >
+          <p-toggleswitch [ngModel]="showInactive()" (ngModelChange)="showInactive.set($event)" />
           Mostrar inactivos
         </label>
       </div>
@@ -132,7 +126,9 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
           }
         </div>
       } @else if (filteredUsers().length === 0) {
-        <div class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-8 text-center">
+        <div
+          class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-8 text-center"
+        >
           <p class="text-surface-500 dark:text-surface-400">
             @if (allUsers().length === 0) {
               No hay usuarios para mostrar.
@@ -142,7 +138,9 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
           </p>
         </div>
       } @else {
-        <div class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden">
+        <div
+          class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden"
+        >
           <p-table
             [value]="filteredUsers()"
             [paginator]="filteredUsers().length > 15"
@@ -178,7 +176,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
                         </span>
                         @if (isSelf(user)) {
                           <p-tag
-                            value="(Tu Usuario)"
+                            value="Tu Usuario"
                             severity="info"
                             styleClass="!text-xs !font-semibold !px-2 !py-1"
                           />
@@ -191,13 +189,12 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
                   </div>
                 </td>
                 <td class="hidden md:table-cell">
-                  <span class="text-sm text-surface-700 dark:text-surface-200">{{ user.email }}</span>
+                  <span class="text-sm text-surface-700 dark:text-surface-200">{{
+                    user.email
+                  }}</span>
                 </td>
                 <td>
-                  <p-tag
-                    [value]="roleLabel(user.role)"
-                    [severity]="roleSeverity(user.role)"
-                  />
+                  <p-tag [value]="roleLabel(user.role)" [severity]="roleSeverity(user.role)" />
                 </td>
                 <td class="hidden lg:table-cell">
                   <span class="text-sm text-surface-700 dark:text-surface-200">
@@ -232,7 +229,13 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
                       [text]="true"
                       [rounded]="true"
                       [disabled]="!canResetPassword(user)"
-                      [pTooltip]="canResetPassword(user) ? (isSelf(user) ? 'Resetear mi contraseña' : 'Resetear contraseña') : 'No podés cambiar la contraseña de otro Administrador'"
+                      [pTooltip]="
+                        canResetPassword(user)
+                          ? isSelf(user)
+                            ? 'Resetear mi contraseña'
+                            : 'Resetear contraseña'
+                          : 'No podés cambiar la contraseña de otro Administrador'
+                      "
                       tooltipPosition="top"
                       (click)="canResetPassword(user) && openResetPassword(user)"
                     >
@@ -246,7 +249,13 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
                         [text]="true"
                         [rounded]="true"
                         [disabled]="!canDeactivate(user)"
-                        [pTooltip]="isSelf(user) ? 'No podés desactivarte a vos mismo' : (canDeactivate(user) ? 'Desactivar' : 'No podés desactivar a otro Administrador')"
+                        [pTooltip]="
+                          isSelf(user)
+                            ? 'No podés desactivarte a vos mismo'
+                            : canDeactivate(user)
+                              ? 'Desactivar'
+                              : 'No podés desactivar a otro Administrador'
+                        "
                         tooltipPosition="top"
                         (click)="canDeactivate(user) && confirmDeactivate(user)"
                       >
@@ -260,7 +269,13 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
                         [text]="true"
                         [rounded]="true"
                         [disabled]="!canDeactivate(user)"
-                        [pTooltip]="isSelf(user) ? 'No podés reactivarte a vos mismo' : (canDeactivate(user) ? 'Reactivar' : 'No podés reactivar a otro Administrador')"
+                        [pTooltip]="
+                          isSelf(user)
+                            ? 'No podés reactivarte a vos mismo'
+                            : canDeactivate(user)
+                              ? 'Reactivar'
+                              : 'No podés reactivar a otro Administrador'
+                        "
                         tooltipPosition="top"
                         (click)="canDeactivate(user) && reactivate(user)"
                       >
@@ -296,7 +311,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
         <i-lucide [img]="icons.AlertTriangle" class="size-6 text-amber-500" />
       </ng-template>
     </p-confirmdialog>
-  `
+  `,
 })
 export class AdminEquipoComponent implements OnInit {
   private readonly users = inject(UsersService);
@@ -312,7 +327,7 @@ export class AdminEquipoComponent implements OnInit {
   protected readonly roleOptions: RoleFilterOption[] = [
     { label: 'Administrador', value: 'Admin' },
     { label: 'Marca', value: 'BrandManager' },
-    { label: 'Vendedor/a', value: 'Seller' }
+    { label: 'Vendedor/a', value: 'Seller' },
   ];
 
   protected readonly searchTerm = signal('');
@@ -357,7 +372,7 @@ export class AdminEquipoComponent implements OnInit {
     this.users.list({ page: 1, pageSize: 100 }).subscribe({
       error: () => {
         // error.interceptor already shows a toast
-      }
+      },
     });
   }
 
@@ -427,7 +442,7 @@ export class AdminEquipoComponent implements OnInit {
     this.resetTarget.set({
       id: user.id,
       fullName: user.fullName,
-      isSelf: this.isSelf(user)
+      isSelf: this.isSelf(user),
     });
     this.resetDialogVisible.set(true);
   }
@@ -451,7 +466,7 @@ export class AdminEquipoComponent implements OnInit {
       acceptLabel: 'Sí, desactivar',
       rejectLabel: 'Cancelar',
       acceptButtonStyleClass: 'p-button-danger',
-      accept: () => this.deactivate(user)
+      accept: () => this.deactivate(user),
     });
   }
 
@@ -460,7 +475,7 @@ export class AdminEquipoComponent implements OnInit {
       next: () => this.notifications.success(`Se desactivó a ${user.fullName}.`),
       error: (_err: HttpErrorResponse) => {
         // error.interceptor already shows a toast
-      }
+      },
     });
   }
 
@@ -471,13 +486,13 @@ export class AdminEquipoComponent implements OnInit {
         email: user.email,
         role: user.role,
         isActive: true,
-        brandId: user.brandId
+        brandId: user.brandId,
       })
       .subscribe({
         next: () => this.notifications.success(`Se reactivó a ${user.fullName}.`),
         error: () => {
           // error.interceptor already shows a toast
-        }
+        },
       });
   }
 }

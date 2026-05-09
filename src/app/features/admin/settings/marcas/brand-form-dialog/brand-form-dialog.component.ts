@@ -108,7 +108,7 @@ interface ContractTypeOption {
             />
             @if (mode() === 'edit') {
               <p-message severity="secondary" size="small" variant="simple">
-                El código no se puede cambiar desde este contrato.
+                El código no se puede cambiar.
               </p-message>
             } @else if (isInvalid('code')) {
               @if (form.controls.code.hasError('required')) {
@@ -117,7 +117,7 @@ interface ContractTypeOption {
                 >
               } @else {
                 <p-message severity="error" size="small" variant="simple">
-                  Usá mayúsculas, números, guiones o guiones bajos.
+                  Sin espacios. Usá mayúsculas, números, guiones o guiones bajos.
                 </p-message>
               }
             }

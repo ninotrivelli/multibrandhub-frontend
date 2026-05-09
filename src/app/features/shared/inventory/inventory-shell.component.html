@@ -1,0 +1,190 @@
+<div class="flex flex-col gap-5">
+  <!-- Header -->
+  <header class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-surface-900 dark:text-surface-0">
+        {{ headerTitle() }}
+      </h1>
+      <p class="text-sm text-surface-500 dark:text-surface-400">
+        {{ headerSubtitle() }}
+      </p>
+    </div>
+    @if (canRegisterMovement() || canCreateProduct() || canImportProducts()) {
+      <div class="flex flex-wrap items-center gap-2">
+        @if (canRegisterMovement()) {
+          <button
+            pButton
+            type="button"
+            [outlined]="true"
+            label="Reg. Movimiento"
+            class="border-primary! text-primary!"
+            (click)="openMovementDialog()"
+          >
+            <i-lucide [img]="icons.ArrowRightLeft" class="size-4 mr-2" />
+          </button>
+        }
+        @if (canImportProducts()) {
+          <button
+            pButton
+            type="button"
+            [outlined]="true"
+            label="Importar varios artículos"
+            class="border-primary! text-primary!"
+            (click)="openImportProducts()"
+          >
+            <i-lucide [img]="icons.Upload" class="size-4 mr-2" />
+          </button>
+        }
+        @if (canCreateProduct()) {
+          <button pButton type="button" label="Nuevo Artículo" (click)="openCreateProduct()">
+            <i-lucide [img]="icons.Plus" class="size-4 mr-2" />
+          </button>
+        }
+      </div>
+    }
+  </header>
+
+  <!-- KPIs -->
+  <app-inventory-kpis
+    [variant]="kpiVariant()"
+    [activeKpi]="activeKpi()"
+    (kpiSelected)="onKpiSelected($event)"
+  />
+
+  <!-- Tabs + content -->
+  <div class="flex flex-col gap-3">
+    <div
+      class="flex items-center gap-1 border-b border-surface-200 dark:border-surface-700 -mb-px overflow-x-auto"
+    >
+      <button
+        type="button"
+        class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer"
+        [class.border-primary]="activeTab() === 'stock'"
+        [class.text-primary]="activeTab() === 'stock'"
+        [class.border-transparent]="activeTab() !== 'stock'"
+        [class.text-surface-500]="activeTab() !== 'stock'"
+        [class.dark:text-surface-400]="activeTab() !== 'stock'"
+        [class.hover:text-surface-700]="activeTab() !== 'stock'"
+        (click)="activeTab.set('stock')"
+      >
+        <i-lucide [img]="icons.Search" class="size-4" />
+        Buscador de Stock
+      </button>
+      <button
+        type="button"
+        class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer"
+        [class.border-primary]="activeTab() === 'movements'"
+        [class.text-primary]="activeTab() === 'movements'"
+        [class.border-transparent]="activeTab() !== 'movements'"
+        [class.text-surface-500]="activeTab() !== 'movements'"
+        [class.dark:text-surface-400]="activeTab() !== 'movements'"
+        [class.hover:text-surface-700]="activeTab() !== 'movements'"
+        (click)="activeTab.set('movements')"
+      >
+        <i-lucide [img]="icons.ListOrdered" class="size-4" />
+        Movimientos
+      </button>
+    </div>
+
+    @if (activeTab() === 'stock') {
+      <app-stock-search-tab
+        #stockTab
+        [canEdit]="canEditProduct()"
+        [canArchive]="canArchiveProduct()"
+        [showBrandFilter]="kpiVariant() === 'store'"
+        [canSeeArchived]="canSeeArchived()"
+        [brandScope]="brandScope()"
+        [kpiFilter]="activeKpi()"
+        (editProduct)="openEditProduct($event)"
+        (archiveProduct)="openArchiveProductDialog($event)"
+      />
+    } @else {
+      <app-movements-tab [showBrandFilter]="kpiVariant() === 'store'" [brandScope]="brandScope()" />
+    }
+  </div>
+</div>
+
+<!-- Product form dialog -->
+<app-product-form-dialog
+  [visible]="productDialogVisible()"
+  [mode]="productDialogMode()"
+  [editing]="productDialogEditing()"
+  (visibleChange)="productDialogVisible.set($event)"
+  (saved)="onProductSaved()"
+/>
+
+<!-- Product import dialog -->
+<app-product-import-dialog
+  [visible]="importDialogVisible()"
+  [brands]="brands.items()"
+  (visibleChange)="importDialogVisible.set($event)"
+  (imported)="onProductsImported($event)"
+/>
+
+<!-- Movement form dialog -->
+<app-movement-form-dialog
+  [visible]="movementDialogVisible()"
+  [initialProduct]="movementDialogProduct()"
+  (visibleChange)="onMovementDialogVisibleChange($event)"
+  (saved)="onMovementSaved($event)"
+/>
+
+<!-- Archive confirm dialog -->
+<p-dialog
+  [visible]="archiveDialogVisible()"
+  (visibleChange)="onArchiveDialogVisibleChange($event)"
+  [modal]="true"
+  [closable]="!archiving()"
+  [closeOnEscape]="!archiving()"
+  [dismissableMask]="!archiving()"
+  [draggable]="false"
+  [style]="{ width: '32rem', maxWidth: '95vw' }"
+  header="Archivar artículo"
+>
+  @if (archiveTarget(); as p) {
+    <div class="flex flex-col gap-4">
+      <div
+        class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+      >
+        El artículo no aparecerá en las búsquedas normales salvo que se incluya explícitamente en
+        archivados/desactivados, pero seguirá disponible en el histórico de ventas y movimientos.
+      </div>
+      <div class="flex flex-col gap-2 text-sm text-surface-700 dark:text-surface-200">
+        <p>
+          ¿Archivar <strong>{{ p.name }}</strong> ({{ p.sku }})?
+        </p>
+        <p class="text-xs text-surface-500 dark:text-surface-400">
+          Para confirmar, escribí el SKU abajo.
+        </p>
+        <input
+          pInputText
+          type="text"
+          [ngModel]="archiveSkuInput()"
+          (ngModelChange)="archiveSkuInput.set($event)"
+          placeholder="SKU del artículo"
+          fluid
+        />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          [text]="true"
+          label="Cancelar"
+          [disabled]="archiving()"
+          (click)="cancelArchive()"
+        ></button>
+        <button
+          pButton
+          type="button"
+          severity="warn"
+          label="Archivar"
+          [loading]="archiving()"
+          [disabled]="!canConfirmArchive() || archiving()"
+          (click)="confirmArchive()"
+        ></button>
+      </div>
+    </div>
+  }
+</p-dialog>
