@@ -46,78 +46,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
     ResetPasswordDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div class="flex flex-col gap-6 max-w-2xl">
-      <header class="flex items-center gap-3">
-        <i-lucide [img]="icons.Settings" class="size-6 text-primary" />
-        <div>
-          <h2 class="text-xl font-semibold text-surface-900 dark:text-surface-0">Configuración</h2>
-          <p class="text-sm text-surface-500 dark:text-surface-400">
-            Tu perfil y preferencias de cuenta.
-          </p>
-        </div>
-      </header>
-
-      @if (user(); as u) {
-        <section
-          class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-6"
-        >
-          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <p-avatar
-              [label]="initials()"
-              shape="circle"
-              size="large"
-              styleClass="bg-primary text-primary-contrast"
-            />
-            <div class="flex flex-col gap-1 flex-1">
-              <div class="text-lg font-semibold text-surface-900 dark:text-surface-0">
-                {{ u.fullName }}
-              </div>
-              <div class="text-sm text-surface-600 dark:text-surface-300">
-                {{ u.email }}
-              </div>
-              <div class="flex flex-wrap items-center gap-2 mt-1">
-                <p-tag [value]="roleLabel(u.role)" [severity]="roleSeverity(u.role)" />
-                @if (associatedBrandName(); as brandName) {
-                  <p-tag [value]="brandName" severity="success" />
-                }
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section
-          class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-6 flex flex-col gap-4"
-        >
-          <div>
-            <h3 class="text-base font-semibold text-surface-900 dark:text-surface-0">Seguridad</h3>
-            <p class="text-sm text-surface-500 dark:text-surface-400">
-              Cambiá tu contraseña cuando lo necesites.
-            </p>
-          </div>
-          <div>
-            <button
-              pButton
-              type="button"
-              severity="secondary"
-              label="Cambiar contraseña"
-              (click)="openResetPassword()"
-            >
-              <i-lucide [img]="icons.KeyRound" class="size-4 mr-2" />
-            </button>
-          </div>
-        </section>
-      } @else {
-        <p class="text-sm text-surface-500 dark:text-surface-400">No hay sesión activa.</p>
-      }
-    </div>
-
-    <app-reset-password-dialog
-      [visible]="resetDialogVisible()"
-      [target]="resetTarget()"
-      (visibleChange)="onResetVisibleChange($event)"
-    />
-  `,
+  templateUrl: './configuracion.component.html',
 })
 export class ConfiguracionComponent implements OnInit {
   private readonly auth = inject(AuthService);

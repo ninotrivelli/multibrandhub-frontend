@@ -1,0 +1,269 @@
+
+    <p-dialog
+      [visible]="visible()"
+      (visibleChange)="onVisibleChange($event)"
+      [modal]="true"
+      [closable]="!submitting()"
+      [closeOnEscape]="!submitting()"
+      [dismissableMask]="!submitting()"
+      [draggable]="false"
+      [style]="{ width: '36rem', maxWidth: '95vw' }"
+      [header]="mode() === 'create' ? 'Nuevo Usuario' : 'Editar Usuario'"
+    >
+      <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4">
+        <div class="flex flex-col gap-1">
+          <label for="fullName" class="text-sm font-medium text-surface-700 dark:text-surface-200">
+            Nombre completo
+          </label>
+          <input
+            pInputText
+            id="fullName"
+            type="text"
+            formControlName="fullName"
+            [invalid]="isInvalid('fullName')"
+            placeholder="Ej: María Pérez"
+            fluid
+          />
+          @if (isInvalid('fullName')) {
+            <p-message severity="error" size="small" variant="simple">
+              El nombre es obligatorio.
+            </p-message>
+          }
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label for="email" class="text-sm font-medium text-surface-700 dark:text-surface-200">
+            Correo electrónico
+          </label>
+          <input
+            pInputText
+            id="email"
+            type="email"
+            formControlName="email"
+            autocomplete="off"
+            [invalid]="isInvalid('email')"
+            placeholder="usuario@correo.com"
+            fluid
+          />
+          @if (isInvalid('email')) {
+            @if (form.controls.email.hasError('required')) {
+              <p-message severity="error" size="small" variant="simple"
+                >El email es obligatorio.</p-message
+              >
+            } @else if (form.controls.email.hasError('email')) {
+              <p-message severity="error" size="small" variant="simple"
+                >Ingresá un email válido.</p-message
+              >
+            }
+          }
+        </div>
+
+        @if (mode() === 'create') {
+          <div class="flex flex-col gap-1">
+            <label
+              for="password"
+              class="text-sm font-medium text-surface-700 dark:text-surface-200"
+            >
+              Contraseña
+            </label>
+            <p-password
+              inputId="password"
+              formControlName="password"
+              [feedback]="true"
+              [toggleMask]="true"
+              autocomplete="new-password"
+              [invalid]="isInvalid('password')"
+              fluid
+            />
+            @if (isInvalid('password')) {
+              @if (form.controls.password.hasError('required')) {
+                <p-message severity="error" size="small" variant="simple"
+                  >La contraseña es obligatoria.</p-message
+                >
+              } @else if (form.controls.password.hasError('minlength')) {
+                <p-message severity="error" size="small" variant="simple"
+                  >Debe tener al menos 8 caracteres.</p-message
+                >
+              }
+            }
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label
+              for="confirmPassword"
+              class="text-sm font-medium text-surface-700 dark:text-surface-200"
+            >
+              Confirmar contraseña
+            </label>
+            <p-password
+              inputId="confirmPassword"
+              formControlName="confirmPassword"
+              [feedback]="false"
+              [toggleMask]="true"
+              autocomplete="new-password"
+              [invalid]="isInvalid('confirmPassword')"
+              fluid
+            />
+            @if (isInvalid('confirmPassword')) {
+              @if (form.controls.confirmPassword.hasError('required')) {
+                <p-message severity="error" size="small" variant="simple"
+                  >Repetí la contraseña.</p-message
+                >
+              } @else if (form.controls.confirmPassword.hasError('mismatch')) {
+                <p-message severity="error" size="small" variant="simple"
+                  >Las contraseñas no coinciden.</p-message
+                >
+              }
+            }
+          </div>
+        }
+
+        <div class="flex flex-col gap-1">
+          <label for="role" class="text-sm font-medium text-surface-700 dark:text-surface-200">
+            Rol
+          </label>
+          <p-select
+            inputId="role"
+            formControlName="role"
+            [options]="roleOptions()"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Seleccioná un rol"
+            [invalid]="isInvalid('role')"
+            appendTo="body"
+            fluid
+          />
+          @if (isInvalid('role')) {
+            <p-message severity="error" size="small" variant="simple">Elegí un rol.</p-message>
+          }
+        </div>
+
+        @if (showBrandSelector()) {
+          <div class="flex flex-col gap-1">
+            <label for="brandId" class="text-sm font-medium text-surface-700 dark:text-surface-200">
+              {{
+                selectedRole() === 'Admin' ? 'Marca asociada (si corresponde)' : 'Marca asociada'
+              }}
+            </label>
+            <p-select
+              inputId="brandId"
+              formControlName="brandId"
+              [options]="brandOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [placeholder]="selectedRole() === 'Admin' ? 'Ninguna' : 'Seleccioná una marca'"
+              [invalid]="isInvalid('brandId')"
+              appendTo="body"
+              fluid
+            />
+            @if (brandSelectorLocked()) {
+              <p-message severity="info" size="small" variant="simple">
+                Para cambiar tu marca hace falta un endpoint que emita una sesión actualizada.
+              </p-message>
+            } @else if (isInvalid('brandId')) {
+              <p-message severity="error" size="small" variant="simple">Elegí una marca.</p-message>
+            }
+          </div>
+        }
+
+        @if (mode() === 'edit') {
+          <div
+            class="flex items-center justify-between border border-surface-200 dark:border-surface-700 rounded-lg p-3"
+          >
+            <div>
+              <div class="text-sm font-medium text-surface-700 dark:text-surface-200">
+                Cuenta activa
+              </div>
+              <div class="text-xs text-surface-500 dark:text-surface-400">
+                Si está inactiva, no podrá iniciar sesión.
+              </div>
+            </div>
+            <p-toggleswitch formControlName="isActive" />
+          </div>
+        }
+
+        @if (submitError()) {
+          <p-message severity="error" variant="outlined" closable="false">{{
+            submitError()
+          }}</p-message>
+        }
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button
+            pButton
+            type="button"
+            severity="secondary"
+            [text]="true"
+            label="Cancelar"
+            [disabled]="submitting()"
+            (click)="cancel()"
+          ></button>
+          <button
+            pButton
+            type="submit"
+            label="Guardar"
+            [loading]="submitting()"
+            [disabled]="submitting()"
+          ></button>
+        </div>
+
+        @if (mode() === 'edit' && !isEditingSelf()) {
+          <div class="border-t border-surface-200 dark:border-surface-700 pt-4 mt-1">
+            @if (!showDeleteConfirm()) {
+              <button
+                pButton
+                type="button"
+                severity="danger"
+                [text]="true"
+                size="small"
+                label="Eliminar usuario"
+                [disabled]="submitting()"
+                (click)="requestDelete()"
+              ></button>
+            } @else {
+              <div
+                class="flex flex-col gap-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 p-4"
+              >
+                <p class="text-sm font-medium text-red-700 dark:text-red-300">
+                  Esta acción es permanente y no se puede deshacer.
+                </p>
+                <p class="text-sm text-red-600 dark:text-red-400">
+                  Escribí el email <strong>{{ editing()?.email }}</strong> para confirmar.
+                </p>
+                <input
+                  pInputText
+                  type="email"
+                  [value]="deleteEmailInput()"
+                  (input)="deleteEmailInput.set($any($event.target).value)"
+                  placeholder="Email del usuario"
+                  fluid
+                />
+                <div class="flex justify-end gap-2">
+                  <button
+                    pButton
+                    type="button"
+                    severity="secondary"
+                    [text]="true"
+                    size="small"
+                    label="Cancelar"
+                    [disabled]="deleting()"
+                    (click)="cancelDelete()"
+                  ></button>
+                  <button
+                    pButton
+                    type="button"
+                    severity="danger"
+                    size="small"
+                    label="Eliminar definitivamente"
+                    [loading]="deleting()"
+                    [disabled]="!canConfirmDelete() || deleting()"
+                    (click)="confirmDelete()"
+                  ></button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </form>
+    </p-dialog>
+  
