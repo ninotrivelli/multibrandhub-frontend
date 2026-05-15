@@ -1,0 +1,202 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [closable]="!submitting()"
+  [closeOnEscape]="!submitting()"
+  [dismissableMask]="!submitting()"
+  [draggable]="false"
+  [style]="{ width: '38rem', maxWidth: '95vw' }"
+  header="Registrar Movimiento"
+>
+  <p class="text-sm text-surface-500 dark:text-surface-400 mb-4">
+    Ajuste de stock para artículos existentes.
+  </p>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4">
+    <div class="flex flex-col gap-1">
+      <label
+        for="movementSearch"
+        class="text-sm font-medium text-surface-700 dark:text-surface-200"
+      >
+        Buscar Artículo (SKU o Nombre)
+      </label>
+      <input
+        pInputText
+        id="movementSearch"
+        type="text"
+        [ngModel]="searchTerm()"
+        (ngModelChange)="searchTerm.set($event)"
+        [ngModelOptions]="{ standalone: true }"
+        [placeholder]="
+          selectedProduct() ? 'Buscar otro artículo...' : 'Escribí SKU, nombre, talle o color...'
+        "
+        fluid
+      />
+    </div>
+
+    @if (selectedProduct(); as p) {
+      <div
+        class="rounded-lg border border-primary/70 bg-primary/5 dark:bg-primary/10 p-3 flex items-start justify-between gap-3"
+      >
+        <div class="flex flex-col gap-0.5 min-w-0">
+          <span class="font-medium text-surface-900 dark:text-surface-0 truncate">
+            {{ p.name }} ({{ p.sku }})
+          </span>
+          <span class="text-xs text-surface-500 dark:text-surface-400">
+            Stock actual: <strong>{{ p.currentStock }}</strong> unids. · Marca:
+            <strong>{{ p.brandName ?? '—' }}</strong>
+          </span>
+        </div>
+        <button
+          pButton
+          type="button"
+          severity="danger"
+          [text]="true"
+          [rounded]="true"
+          size="small"
+          pTooltip="Quitar selección"
+          tooltipPosition="left"
+          (click)="clearSelection()"
+        >
+          <i-lucide [img]="icons.X" class="size-4" />
+        </button>
+      </div>
+    }
+
+    @if (searchTerm().trim().length > 0) {
+      @if (searching()) {
+        <div class="text-sm text-surface-500 dark:text-surface-400">Buscando...</div>
+      } @else if (searchResults().length === 0) {
+        <div class="text-sm text-surface-500 dark:text-surface-400">
+          No se encontraron artículos.
+        </div>
+      } @else {
+        <div
+          class="rounded-lg border border-surface-200 dark:border-surface-700 max-h-48 overflow-y-auto divide-y divide-surface-200 dark:divide-surface-700"
+        >
+          @for (p of searchResults(); track p.id) {
+            <button
+              type="button"
+              class="w-full flex items-center justify-between gap-3 px-3 py-2 text-left hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+              (click)="selectProduct(p)"
+            >
+              <div class="flex flex-col min-w-0">
+                <span class="font-medium text-sm text-surface-900 dark:text-surface-0 truncate">
+                  {{ p.name }}
+                </span>
+                <span class="text-xs text-surface-500 dark:text-surface-400 truncate">
+                  {{ p.sku }} · {{ p.brandName }}
+                </span>
+              </div>
+              <span
+                class="text-xs text-surface-500 dark:text-surface-400 whitespace-nowrap shrink-0"
+              >
+                Stock: {{ p.currentStock }}
+              </span>
+            </button>
+          }
+        </div>
+      }
+    }
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div class="flex flex-col gap-1">
+        <label
+          for="movementType"
+          class="text-sm font-medium text-surface-700 dark:text-surface-200"
+        >
+          Tipo de Movimiento
+        </label>
+        <p-select
+          inputId="movementType"
+          formControlName="type"
+          [options]="typeOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          fluid
+        />
+        <p class="text-[11px] text-surface-500 dark:text-surface-400">{{ typeHint() }}</p>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label for="movementQty" class="text-sm font-medium text-surface-700 dark:text-surface-200">
+          Cantidad {{ allowsNegative() ? '(+/-)' : '' }}
+        </label>
+        <p-inputnumber
+          inputId="movementQty"
+          formControlName="quantity"
+          [showButtons]="true"
+          buttonLayout="horizontal"
+          spinnerMode="horizontal"
+          [step]="1"
+          [min]="allowsNegative() ? -9999 : 1"
+          [invalid]="isQuantityInvalid()"
+          fluid
+        >
+          <ng-template pTemplate="incrementbuttonicon">
+            <i-lucide [img]="icons.Plus" class="size-4" />
+          </ng-template>
+          <ng-template pTemplate="decrementbuttonicon">
+            <i-lucide [img]="icons.Minus" class="size-4" />
+          </ng-template>
+        </p-inputnumber>
+        @if (isQuantityInvalid()) {
+          @if (form.errors?.['nonZero']) {
+            <p-message severity="error" size="small" variant="simple">
+              Ingresá una cantidad distinta de cero.
+            </p-message>
+          } @else if (form.errors?.['negativeNotAllowed']) {
+            <p-message severity="error" size="small" variant="simple">
+              Solo "Ajuste manual" permite valores negativos.
+            </p-message>
+          } @else {
+            <p-message severity="error" size="small" variant="simple">
+              Ingresá una cantidad válida.
+            </p-message>
+          }
+        }
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label for="movementObs" class="text-sm font-medium text-surface-700 dark:text-surface-200">
+        Motivo / Observaciones (Opcional)
+      </label>
+      <textarea
+        pTextarea
+        id="movementObs"
+        formControlName="observations"
+        rows="2"
+        placeholder="Ej: Prendas prestadas a @influencer para sesión de fotos."
+        [autoResize]="false"
+      ></textarea>
+    </div>
+
+    @if (submitError()) {
+      <p-message severity="error" variant="outlined" closable="false">
+        {{ submitError() }}
+      </p-message>
+    }
+
+    <div class="flex justify-end gap-2 pt-2 border-t border-surface-200 dark:border-surface-700">
+      <button
+        pButton
+        type="button"
+        severity="secondary"
+        [text]="true"
+        label="Cancelar"
+        [disabled]="submitting()"
+        (click)="cancel()"
+      ></button>
+      <button
+        pButton
+        type="submit"
+        label="Confirmar Movimiento"
+        [loading]="submitting()"
+        [disabled]="submitting() || !canSubmit()"
+      ></button>
+    </div>
+  </form>
+</p-dialog>
