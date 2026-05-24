@@ -38,10 +38,11 @@ describe('AuthService', () => {
     service.restoreSession();
 
     expect(service.session()).toEqual(session);
+    expect(service.tenantId()).toBe(session.tenantId);
     expect(service.isAuthenticated()).toBe(true);
   });
 
-  it('clears invalid, expired, or claim-mismatched stored sessions', () => {
+  it('clears invalid, expired, claim-mismatched, or tenant-mismatched stored sessions', () => {
     const valid = makeAuthSession();
 
     localStorage.setItem(STORAGE_KEY, 'not-json');
@@ -51,6 +52,25 @@ describe('AuthService', () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({ ...valid, token: makeJwt({ exp: Math.floor(Date.now() / 1000) - 1 }) }),
+    );
+    service.restoreSession();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...valid, token: makeJwt({ tenantId: undefined }) }),
+    );
+    service.restoreSession();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(
+        makeAuthSession({
+          tenantId: 'tenant-stored',
+          claims: { tenantId: 'tenant-token' },
+        }),
+      ),
     );
     service.restoreSession();
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
@@ -84,11 +104,14 @@ describe('AuthService', () => {
         email: 'admin@test.com',
         role: 2,
         brandId: 'brand-own',
+        tenantId: 'tenant-login',
       }),
     );
 
     expect(actual?.user.role).toBe('Admin');
+    expect(actual?.tenantId).toBe('tenant-login');
     expect(service.role()).toBe('Admin');
+    expect(service.tenantId()).toBe('tenant-login');
     expect(service.token()).toBe(actual?.token);
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')).toEqual(actual);
   });

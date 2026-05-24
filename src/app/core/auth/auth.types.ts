@@ -30,6 +30,7 @@ export interface AuthUser {
 
 export interface AuthSession {
   user: AuthUser;
+  tenantId: string;
   token: string;
   expiresAtUtc: string;
 }
@@ -53,6 +54,7 @@ export interface JwtClaims {
   nameid?: string | string[];
   email?: string | string[];
   role?: string | string[];
+  tenantId?: string;
   brandId?: string;
   exp?: number;
   [ROLE_CLAIM_URI]?: string | string[];

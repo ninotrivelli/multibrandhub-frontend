@@ -34,6 +34,7 @@ export function makeJwt(claims: Partial<JwtClaims> = {}): string {
     sub: 'user-admin',
     email: 'admin@local.test',
     role: 'Admin',
+    tenantId: 'tenant-default',
     brandId: 'brand-own',
     exp: Math.floor(Date.now() / 1000) + 60 * 60,
     ...claims,
@@ -61,16 +62,19 @@ export function makeAuthSession(
 ): AuthSession {
   const { user: userOverrides, claims, ...sessionOverrides } = overrides;
   const user = makeAuthUser(userOverrides);
+  const tenantId = sessionOverrides.tenantId ?? 'tenant-default';
   const token = makeJwt({
     sub: user.userId,
     email: user.email,
     role: user.role,
+    tenantId,
     brandId: user.brandId ?? undefined,
     ...claims,
   });
 
   return {
     user,
+    tenantId,
     token,
     expiresAtUtc: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     ...sessionOverrides,
@@ -78,12 +82,14 @@ export function makeAuthSession(
 }
 
 export function makeAuthResponse(
-  overrides: Partial<AuthResponse> & { role?: AuthResponse['role'] } = {},
+  overrides: Partial<AuthResponse> & { role?: AuthResponse['role']; tenantId?: string } = {},
 ): AuthResponse {
-  const role = overrides.role ?? 'Admin';
-  const userId = overrides.userId ?? 'user-admin';
-  const email = overrides.email ?? 'admin@local.test';
-  const brandId = overrides.brandId ?? 'brand-own';
+  const { tenantId: tenantIdOverride, ...responseOverrides } = overrides;
+  const role = responseOverrides.role ?? 'Admin';
+  const userId = responseOverrides.userId ?? 'user-admin';
+  const email = responseOverrides.email ?? 'admin@local.test';
+  const brandId = responseOverrides.brandId ?? 'brand-own';
+  const tenantId = tenantIdOverride ?? 'tenant-default';
 
   return {
     userId,
@@ -95,10 +101,11 @@ export function makeAuthResponse(
       sub: userId,
       email,
       role: typeof role === 'number' ? String(role) : role,
+      tenantId,
       brandId: brandId ?? undefined,
     }),
     expiresAtUtc: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-    ...overrides,
+    ...responseOverrides,
   };
 }
 

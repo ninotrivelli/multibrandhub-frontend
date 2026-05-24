@@ -16,6 +16,7 @@ import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { errorInterceptor } from './core/http/error.interceptor';
 import { AuthService } from './core/auth/auth.service';
+import { tenantInterceptor } from './core/tenancy/tenant.interceptor';
 
 const MultiBrandHubPreset = definePreset(Aura, {
   semantic: {
@@ -40,7 +41,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withComponentInputBinding()),
     provideAnimationsAsync(),
-    provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
+    provideHttpClient(withInterceptors([tenantInterceptor, authInterceptor, errorInterceptor])),
     provideAppInitializer(() => inject(AuthService).restoreSession()),
     MessageService,
     providePrimeNG({

@@ -73,6 +73,7 @@ describe('errorInterceptor', () => {
       'No podés eliminar este usuario.',
       'Acción no permitida',
     );
+    expect(auth.logout).not.toHaveBeenCalled();
 
     http.get('/api/reports').subscribe({ error: () => {} });
     httpTesting.expectOne('/api/reports').flush(
@@ -80,5 +81,18 @@ describe('errorInterceptor', () => {
       { status: 500, statusText: 'Server Error' },
     );
     expect(notifications.error).toHaveBeenCalledWith('Servidor no disponible');
+  });
+
+  it('logs out and warns when a 403 means the session is no longer valid for the tenant', () => {
+    http.get('/api/products').subscribe({ error: () => {} });
+
+    httpTesting.expectOne('/api/products').flush(
+      { message: 'El token no corresponde al local actual.' },
+      { status: 403, statusText: 'Forbidden' },
+    );
+
+    expect(notifications.warn).toHaveBeenCalledWith('Volvé a ingresar', 'Sesión no vigente');
+    expect(auth.logout).toHaveBeenCalled();
+    expect(notifications.error).not.toHaveBeenCalled();
   });
 });

@@ -15,7 +15,8 @@ The full product spec lives in [`SPEC.md`](SPEC.md). The phased delivery plan li
 
 - Node.js 20+
 - npm 10+
-- Backend running locally at `http://localhost:5237` (see backend repo). Make sure `http://localhost:4200` is whitelisted in the backend CORS policy (`Program.cs`).
+- Backend running locally at `https://localhost:7260` (see `src/environments/environment.ts` and the backend repo).
+- In production, tenant resolution comes from each customer's domain/subdomain. The frontend should not send tenant headers in production.
 
 ## Setup
 
@@ -34,6 +35,20 @@ Opens at `http://localhost:4200`. Unauthenticated visits are redirected to `/log
 - `Admin` (and `SuperAdmin`) → `/admin`
 - `BrandManager` → `/brand-manager`
 - `Seller` → `/seller`
+
+### Testing another dev tenant locally
+
+Production tenants are resolved by the customer domain/subdomain. For local development only, when the frontend is still running from `localhost:4200` but you want the API to resolve another seeded tenant, set a dev override in the browser console of the running frontend tab:
+
+```js
+localStorage.setItem('mbh.devTenantHost', 'aurora.localhost');
+```
+
+Then log in normally. Remove it to return to the default localhost tenant:
+
+```js
+localStorage.removeItem('mbh.devTenantHost');
+```
 
 ## Build
 

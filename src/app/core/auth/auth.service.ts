@@ -41,7 +41,10 @@ function firstString(value: string | string[] | undefined): string | undefined {
   return value;
 }
 
-function claimsMatchUser(claims: JwtClaims, user: AuthUser): boolean {
+function claimsMatchSession(claims: JwtClaims, session: AuthSession): boolean {
+  const { user } = session;
+  if (!claims.tenantId || claims.tenantId !== session.tenantId) return false;
+
   const claimSub =
     claims.sub ?? firstString(claims.nameid) ?? firstString(claims[NAMEID_CLAIM_URI]);
   if (claimSub !== user.userId) return false;
@@ -67,6 +70,14 @@ function claimsMatchUser(claims: JwtClaims, user: AuthUser): boolean {
   return true;
 }
 
+function tenantIdFromToken(token: string): string {
+  const claims = jwtDecode<JwtClaims>(token);
+  if (!claims.tenantId) {
+    throw new Error('JWT tenantId claim is missing.');
+  }
+  return claims.tenantId;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
@@ -77,6 +88,7 @@ export class AuthService {
   readonly session = this._session.asReadonly();
   readonly user = computed(() => this._session()?.user ?? null);
   readonly token = computed(() => this._session()?.token ?? null);
+  readonly tenantId = computed(() => this._session()?.tenantId ?? null);
   readonly role = computed<UserRole | null>(() => this._session()?.user.role ?? null);
   readonly isAuthenticated = computed(() => this._session() !== null);
 
@@ -108,7 +120,7 @@ export class AuthService {
       return;
     }
 
-    if (!claimsMatchUser(claims, parsed.user)) {
+    if (!claimsMatchSession(claims, parsed)) {
       localStorage.removeItem(STORAGE_KEY);
       return;
     }
@@ -128,6 +140,7 @@ export class AuthService {
             role: normalizeRole(res.role),
             brandId: res.brandId
           },
+          tenantId: tenantIdFromToken(res.token),
           token: res.token,
           expiresAtUtc: res.expiresAtUtc
         })),
