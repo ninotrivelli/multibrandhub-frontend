@@ -1,0 +1,49 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
+
+import { environment } from '../../../../environments/environment';
+import { makeCategory } from '../../../../testing/builders';
+import { ProductCategoryResponse } from './inventory.types';
+import { ProductCategoriesService } from './product-categories.service';
+
+describe('ProductCategoriesService', () => {
+  let service: ProductCategoriesService;
+  let http: HttpTestingController;
+  const baseUrl = `${environment.apiBaseUrl}/product-categories`;
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    service = TestBed.inject(ProductCategoriesService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  it('caches category lists unless force reload is requested', () => {
+    const categories = [makeCategory()];
+    let latest: ProductCategoryResponse[] = [];
+
+    service.list().subscribe((items) => {
+      latest = items;
+    });
+    http.expectOne(baseUrl).flush(categories);
+
+    expect(service.items()).toEqual(categories);
+    expect(service.hasItems()).toBe(true);
+    expect(latest).toEqual(categories);
+
+    service.list().subscribe((items) => {
+      latest = items;
+    });
+    http.expectNone(baseUrl);
+    expect(latest).toEqual(categories);
+
+    service.list(true).subscribe();
+    http.expectOne(baseUrl).flush([makeCategory({ id: 'cat-dresses', name: 'Vestidos' })]);
+    expect(service.items().map((category) => category.id)).toEqual(['cat-dresses']);
+  });
+});

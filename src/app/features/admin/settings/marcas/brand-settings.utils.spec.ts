@@ -1,5 +1,6 @@
 import { UserResponse } from '../../../../core/users/users.types';
 import {
+  buildUpdateBrandRequest,
   buildCreateBrandRequest,
   hasAssociatedActiveUser,
   sortBrandsForUser,
@@ -93,5 +94,26 @@ describe('brand settings utils', () => {
         fixedRentCost: 4000,
       }).commissionPercentage,
     ).toBe(0);
+  });
+
+  it('normalizes update payloads without sending immutable brand code', () => {
+    expect(
+      buildUpdateBrandRequest({
+        name: ' Marca Editada ',
+        code: 'IGNORED',
+        logoUrl: ' ',
+        contactEmail: '',
+        contractType: 'Hybrid',
+        commissionPercentage: 12.5,
+        fixedRentCost: 2500,
+      }),
+    ).toEqual({
+      name: 'Marca Editada',
+      logoUrl: null,
+      contactEmail: null,
+      contractType: 'Hybrid',
+      commissionPercentage: 12.5,
+      fixedRentCost: 2500,
+    });
   });
 });

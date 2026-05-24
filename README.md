@@ -51,6 +51,12 @@ npm test
 
 (Vitest.)
 
+For a single non-watch run, use:
+
+```bash
+npm run test:ci
+```
+
 ## Folder structure
 
 ```
@@ -84,4 +90,5 @@ src/
 
 - [`SPEC.md`](SPEC.md) — product specification (screens, roles, business rules)
 - [`PLAN.md`](PLAN.md) — delivery plan with checklist by phase
+- [`TESTING_PLAN.md`](TESTING_PLAN.md) — behavior-focused frontend testing strategy
 - [`CLAUDE.md`](CLAUDE.md) — agent operating manual
