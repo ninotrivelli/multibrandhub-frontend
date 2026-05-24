@@ -24,7 +24,7 @@ import {
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
-import { BrandsService } from '../../admin/settings/marcas/brands.service';
+import { BrandsService } from '../../../core/brands/brands.service';
 import { ProductCategoriesService } from './product-categories.service';
 import { ProductImportResponse, ProductsService } from './products.service';
 import { KpiFilter, ProductResponse, StockMovementResponse } from './inventory.types';

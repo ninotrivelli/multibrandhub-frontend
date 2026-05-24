@@ -4,7 +4,7 @@ import {
   hasAssociatedActiveUser,
   sortBrandsForUser,
 } from './brand-settings.utils';
-import { BrandResponse } from './brands.types';
+import { BrandResponse } from '../../../../core/brands/brands.types';
 
 const baseBrand: BrandResponse = {
   id: 'brand-a',

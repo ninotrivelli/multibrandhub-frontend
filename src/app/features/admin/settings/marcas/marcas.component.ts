@@ -31,8 +31,8 @@ import {
 } from '../equipo/user-form-dialog/user-form-dialog.component';
 import { hasAssociatedActiveUser, sortBrandsForUser } from './brand-settings.utils';
 import { BrandFormDialogComponent } from './brand-form-dialog/brand-form-dialog.component';
-import { BrandsService } from './brands.service';
-import { BrandResponse, ContractType } from './brands.types';
+import { BrandsService } from '../../../../core/brands/brands.service';
+import { BrandResponse, ContractType } from '../../../../core/brands/brands.types';
 
 const CONTRACT_LABELS: Record<ContractType, string> = {
   CommissionOnly: 'Solo comisión',

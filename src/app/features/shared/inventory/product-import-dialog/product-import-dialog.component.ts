@@ -23,7 +23,7 @@ import { Download, FileSpreadsheet, LucideAngularModule, Upload, X } from 'lucid
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
-import { BrandResponse } from '../../../admin/settings/marcas/brands.types';
+import { BrandResponse } from '../../../../core/brands/brands.types';
 import { ProductImportResponse, ProductImportRowError, ProductsService } from '../products.service';
 
 const ALLOWED_EXTENSIONS = ['.csv', '.xls', '.xlsx'] as const;

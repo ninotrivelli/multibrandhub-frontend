@@ -11,9 +11,9 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { toObservable } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { debounceTime, distinctUntilChanged, skip } from 'rxjs';
+import { EMPTY, Observable, Subject, catchError, debounceTime, distinctUntilChanged, skip, switchMap } from 'rxjs';
 
 import { ButtonModule } from 'primeng/button';
 import { IconFieldModule } from 'primeng/iconfield';
@@ -36,8 +36,8 @@ import {
   LucideAngularModule,
 } from 'lucide-angular';
 
-import { BrandResponse } from '../../../admin/settings/marcas/brands.types';
-import { BrandsService } from '../../../admin/settings/marcas/brands.service';
+import { BrandResponse } from '../../../../core/brands/brands.types';
+import { BrandsService } from '../../../../core/brands/brands.service';
 import { ProductCategoriesService } from '../product-categories.service';
 import { ProductsService } from '../products.service';
 import {
@@ -200,11 +200,24 @@ export class StockSearchTabComponent {
         : 'Más nuevos primero',
   );
 
+  // All fetches funnel through here so switchMap can cancel an in-flight
+  // request when a newer trigger arrives. Without this, a slow earlier
+  // response could land after a faster newer one and overwrite the table
+  // via the tap() inside ProductsService.search().
+  private readonly fetchTrigger$ = new Subject<void>();
+
   constructor() {
+    this.fetchTrigger$
+      .pipe(
+        switchMap(() => this.buildRequest()),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
+
     // Refetch when debounced search term changes.
-    this.debouncedSearchTerm$.subscribe(() => {
+    this.debouncedSearchTerm$.pipe(takeUntilDestroyed()).subscribe(() => {
       this.page.set(1);
-      this.fetch();
+      this.fetchTrigger$.next();
     });
 
     // Refetch on filter changes (immediate, not debounced).
@@ -220,7 +233,7 @@ export class StockSearchTabComponent {
       this.kpiFilter();
       untracked(() => {
         this.page.set(1);
-        this.fetch();
+        this.fetchTrigger$.next();
       });
     });
   }
@@ -230,7 +243,7 @@ export class StockSearchTabComponent {
     const newPage = Math.floor((event.first ?? 0) / newPageSize) + 1;
     this.pageSize.set(newPageSize);
     this.page.set(newPage);
-    this.fetch();
+    this.fetchTrigger$.next();
   }
 
   // Stock-status filter buttons are mutually exclusive: clicking the active
@@ -271,10 +284,14 @@ export class StockSearchTabComponent {
   }
 
   refresh(): void {
-    this.fetch();
+    this.fetchTrigger$.next();
   }
 
-  private fetch(): void {
+  // Returns the cold Observable for the active filter set. The outer
+  // switchMap on fetchTrigger$ owns the subscription, so we don't call
+  // .subscribe() here. catchError → EMPTY keeps the upstream Subject alive
+  // after a failed request (error.interceptor still surfaces the toast).
+  private buildRequest(): Observable<unknown> {
     const filter = this.kpiFilter();
     const scope = this.brandScope();
 
@@ -282,15 +299,14 @@ export class StockSearchTabComponent {
       // The immobilized endpoint has its own (smaller) param set: it doesn't
       // accept search/category/status filters. The other on-screen filters
       // are visually disabled while this KPI is active.
-      this.products
+      return this.products
         .searchImmobilized({
           days: 60,
           page: this.page(),
           pageSize: this.pageSize(),
           brandId: scope ?? this.brandId() ?? undefined,
         })
-        .subscribe({ error: () => {} });
-      return;
+        .pipe(catchError(() => EMPTY));
     }
 
     const params: ProductSearchParams = {
@@ -325,11 +341,7 @@ export class StockSearchTabComponent {
     } else if (this.brandId()) {
       params.brandId = this.brandId()!;
     }
-    this.products.search(params).subscribe({
-      error: () => {
-        // error.interceptor already shows a toast
-      },
-    });
+    return this.products.search(params).pipe(catchError(() => EMPTY));
   }
 
   protected formatLastSale(iso: string | null): string {

@@ -21,8 +21,8 @@ import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 
 import { NotificationService } from '../../../../../core/notifications/notification.service';
-import { BrandsService } from '../brands.service';
-import { BrandResponse, ContractType } from '../brands.types';
+import { BrandsService } from '../../../../../core/brands/brands.service';
+import { BrandResponse, ContractType } from '../../../../../core/brands/brands.types';
 import { buildCreateBrandRequest, buildUpdateBrandRequest } from '../brand-settings.utils';
 
 type DialogMode = 'create' | 'edit';

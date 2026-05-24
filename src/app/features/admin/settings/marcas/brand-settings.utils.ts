@@ -4,7 +4,7 @@ import {
   ContractType,
   CreateBrandRequest,
   UpdateBrandRequest,
-} from './brands.types';
+} from '../../../../core/brands/brands.types';
 
 export interface BrandFormValue {
   name: string;

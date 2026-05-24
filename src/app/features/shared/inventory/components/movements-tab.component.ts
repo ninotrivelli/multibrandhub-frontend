@@ -25,8 +25,8 @@ import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { Search, X, FilterX, LucideAngularModule } from 'lucide-angular';
 
-import { BrandsService } from '../../../admin/settings/marcas/brands.service';
-import { BrandResponse } from '../../../admin/settings/marcas/brands.types';
+import { BrandsService } from '../../../../core/brands/brands.service';
+import { BrandResponse } from '../../../../core/brands/brands.types';
 import { ProductsService } from '../products.service';
 import { StockMovementsService } from '../stock-movements.service';
 import {

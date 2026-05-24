@@ -16,7 +16,7 @@ import { LucideAngularModule, KeyRound, Settings } from 'lucide-angular';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { UserRole } from '../../../core/auth/auth.types';
-import { BrandsService } from '../../admin/settings/marcas/brands.service';
+import { BrandsService } from '../../../core/brands/brands.service';
 import {
   ResetPasswordDialogComponent,
   ResetPasswordTarget,
