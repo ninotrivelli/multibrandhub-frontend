@@ -45,6 +45,12 @@ describe('MovementFormDialogComponent', () => {
     fixture.detectChanges();
   });
 
+  it('does not expose Sale or PriceChange in the manual creation form', () => {
+    const types = (component as any).typeOptions.map((o: { value: MovementType }) => o.value);
+    expect(types).not.toContain(MovementType.Sale);
+    expect(types).not.toContain(MovementType.PriceChange);
+  });
+
   it('requires a selected product before submitting', () => {
     fixture.componentRef.setInput('visible', true);
     fixture.detectChanges();

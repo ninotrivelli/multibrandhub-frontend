@@ -112,8 +112,10 @@ describe('inventory utils', () => {
     it('labels movement types in Spanish and maps severities', () => {
       expect(movementTypeLabel(MovementType.StockIn)).toBe('Ingreso');
       expect(movementTypeLabel(MovementType.Loss)).toBe('Egreso');
+      expect(movementTypeLabel(MovementType.PriceChange)).toBe('Cambio de precio');
       expect(movementTypeSeverity(MovementType.Loss)).toBe('danger');
       expect(movementTypeSeverity(MovementType.Adjustment)).toBe('warn');
+      expect(movementTypeSeverity(MovementType.PriceChange)).toBe('secondary');
     });
 
     it('formats dates and numbers for Uruguay users', () => {

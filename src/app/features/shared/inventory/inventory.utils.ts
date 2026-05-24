@@ -60,6 +60,7 @@ const MOVEMENT_LABELS: Record<MovementType, string> = {
   [MovementType.Return]: 'Devolución',
   [MovementType.Adjustment]: 'Ajuste',
   [MovementType.Loss]: 'Egreso',
+  [MovementType.PriceChange]: 'Cambio de precio',
 };
 
 export function movementTypeLabel(type: MovementType): string {
@@ -75,6 +76,7 @@ const MOVEMENT_SEVERITY: Record<
   [MovementType.Return]: 'success',
   [MovementType.Adjustment]: 'warn',
   [MovementType.Loss]: 'danger',
+  [MovementType.PriceChange]: 'secondary',
 };
 
 export function movementTypeSeverity(

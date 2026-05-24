@@ -101,7 +101,10 @@ export class MovementsTabComponent {
     { label: 'Devolución', value: MovementType.Return },
     { label: 'Ajuste manual', value: MovementType.Adjustment },
     { label: 'Egreso / Pérdida', value: MovementType.Loss },
+    { label: 'Cambio de precio', value: MovementType.PriceChange },
   ];
+
+  protected readonly movementType = MovementType;
 
   protected readonly brandOptions = computed(() =>
     this.brands

@@ -119,17 +119,21 @@ export interface PagedResult<T> {
   pageSize: number;
 }
 
-// MovementType in the backend is an integer-backed enum (StockIn=1 ... Loss=6),
-// but the API uses JsonStringEnumConverter globally, so the wire format is the
-// enum's *name* — e.g. "StockIn", "Sale". We mirror that string union here.
+// MovementType in the backend is an integer-backed enum (StockIn=1, Sale=2,
+// Return=3, Adjustment=4, Loss=5, PriceChange=6), but the API uses
+// JsonStringEnumConverter globally, so the wire format is the enum's *name* —
+// e.g. "StockIn", "Sale". We mirror that string union here.
 // JsonStringEnumConverter accepts both names and integers on input, so sending
-// these strings on POST is fine.
+// these strings on POST is fine. PriceChange is system-generated only (the
+// backend creates one whenever a product price changes) and is rejected by
+// the create-movement validator, so it must not appear in any manual form.
 export const MovementType = {
   StockIn: 'StockIn',
   Sale: 'Sale',
   Return: 'Return',
   Adjustment: 'Adjustment',
   Loss: 'Loss',
+  PriceChange: 'PriceChange',
 } as const;
 
 export type MovementType = (typeof MovementType)[keyof typeof MovementType];

@@ -242,6 +242,11 @@
                   {{ row.brandName }}
                 </span>
               }
+              @if (row.type === movementType.PriceChange && row.observations) {
+                <span class="text-xs italic text-surface-600 dark:text-surface-300 xl:hidden">
+                  {{ row.observations }}
+                </span>
+              }
             </div>
           </td>
           @if (showBrandFilter()) {
@@ -259,15 +264,25 @@
             />
           </td>
           <td class="text-right">
-            <span
-              class="font-bold"
-              [class.text-emerald-600]="row.quantity > 0"
-              [class.dark:text-emerald-300]="row.quantity > 0"
-              [class.text-red-600]="row.quantity < 0"
-              [class.dark:text-red-300]="row.quantity < 0"
-            >
-              {{ row.quantity > 0 ? '+' : '' }}{{ row.quantity }}
-            </span>
+            @if (row.quantity === 0) {
+              <span
+                class="text-surface-400 dark:text-surface-500"
+                pTooltip="Sin cambio de stock"
+                tooltipPosition="left"
+              >
+                —
+              </span>
+            } @else {
+              <span
+                class="font-bold"
+                [class.text-emerald-600]="row.quantity > 0"
+                [class.dark:text-emerald-300]="row.quantity > 0"
+                [class.text-red-600]="row.quantity < 0"
+                [class.dark:text-red-300]="row.quantity < 0"
+              >
+                {{ row.quantity > 0 ? '+' : '' }}{{ row.quantity }}
+              </span>
+            }
           </td>
           <td class="hidden lg:table-cell">
             <span class="text-sm text-surface-600 dark:text-surface-300">
