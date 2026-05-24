@@ -32,8 +32,8 @@ import { MessageModule } from 'primeng/message';
 import { UserRole } from '../../../../../core/auth/auth.types';
 import { AuthService } from '../../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../../core/notifications/notification.service';
-import { UsersService } from '../users.service';
-import { CreateUserRequest, UpdateUserRequest, UserResponse } from '../users.types';
+import { UsersService } from '../../../../../core/users/users.service';
+import { CreateUserRequest, UpdateUserRequest, UserResponse } from '../../../../../core/users/users.types';
 import { BrandsService } from '../../marcas/brands.service';
 import { sortBrandsForUser } from '../../marcas/brand-settings.utils';
 import {

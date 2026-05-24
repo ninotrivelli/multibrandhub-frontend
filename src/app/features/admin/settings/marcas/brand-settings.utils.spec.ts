@@ -1,4 +1,4 @@
-import { UserResponse } from '../equipo/users.types';
+import { UserResponse } from '../../../../core/users/users.types';
 import {
   buildCreateBrandRequest,
   hasAssociatedActiveUser,

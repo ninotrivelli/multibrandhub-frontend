@@ -26,8 +26,8 @@ import { LucideAngularModule } from 'lucide-angular';
 import { UserRole } from '../../../../core/auth/auth.types';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
-import { UsersService } from './users.service';
-import { UserResponse } from './users.types';
+import { UsersService } from '../../../../core/users/users.service';
+import { UserResponse } from '../../../../core/users/users.types';
 import { UserFormDialogComponent } from './user-form-dialog/user-form-dialog.component';
 import {
   ResetPasswordDialogComponent,

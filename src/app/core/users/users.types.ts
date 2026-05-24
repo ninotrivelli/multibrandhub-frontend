@@ -1,4 +1,4 @@
-import { UserRole } from '../../../../core/auth/auth.types';
+import { UserRole } from '../auth/auth.types';
 
 export interface UserResponse {
   id: string;

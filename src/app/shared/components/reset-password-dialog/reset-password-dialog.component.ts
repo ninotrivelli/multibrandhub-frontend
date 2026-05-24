@@ -24,7 +24,7 @@ import { PasswordModule } from 'primeng/password';
 import { MessageModule } from 'primeng/message';
 
 import { NotificationService } from '../../../core/notifications/notification.service';
-import { UsersService } from '../../../features/admin/settings/equipo/users.service';
+import { UsersService } from '../../../core/users/users.service';
 
 export interface ResetPasswordTarget {
   id: string;

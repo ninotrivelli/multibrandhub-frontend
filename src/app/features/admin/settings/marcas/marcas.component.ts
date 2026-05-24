@@ -23,8 +23,8 @@ import { Archive, LucideAngularModule, Pencil, Plus, Trash2, UserPlus } from 'lu
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
-import { UsersService } from '../equipo/users.service';
-import { UserResponse } from '../equipo/users.types';
+import { UsersService } from '../../../../core/users/users.service';
+import { UserResponse } from '../../../../core/users/users.types';
 import {
   UserFormDialogComponent,
   UserFormDialogDefaults,
