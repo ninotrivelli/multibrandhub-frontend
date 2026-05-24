@@ -9,7 +9,7 @@ The full product spec lives in [`SPEC.md`](SPEC.md). The phased delivery plan li
 - **Angular 21** (standalone components + signals, no NgModule)
 - **Tailwind CSS v4** + `tailwindcss-primeui` plugin
 - **PrimeNG 21** (styled mode, Aura preset)
-- **Backend:** .NET 9 + SQL Server (separate repo at `../../Backend/MultiBrandHub`)
+- **Backend:** .NET 10 + SQL Server (separate repo at `../../Backend/MultiBrandHub`)
 
 ## Prerequisites
 
