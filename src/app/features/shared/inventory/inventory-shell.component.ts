@@ -119,8 +119,8 @@ export class InventoryShellComponent implements OnInit {
   // Tabs
   protected readonly activeTab = signal<TabId>('stock');
 
-  // Active KPI — store variant only. Drives which list <app-stock-search-tab>
-  // renders (full search vs. immobilized-stock vs. critical+out-of-stock).
+  // Active KPI — drives which list <app-stock-search-tab> renders
+  // (full search vs. immobilized-stock vs. critical+out-of-stock).
   protected readonly activeKpi = signal<KpiFilter>('all');
 
   protected onKpiSelected(kpi: KpiFilter): void {

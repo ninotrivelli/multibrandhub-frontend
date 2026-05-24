@@ -3,10 +3,12 @@
     <!-- Total en Local -->
     <button
       type="button"
-      class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4 text-left transition-colors hover:bg-surface-50 dark:hover:bg-surface-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4 text-left cursor-pointer transition-colors hover:bg-surface-50 dark:hover:bg-surface-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       [class.border-primary]="activeKpi() === 'all'"
       [class.border-surface-200]="activeKpi() !== 'all'"
       [class.dark:border-surface-700]="activeKpi() !== 'all'"
+      pTooltip="Ver todas las unidades"
+      tooltipPosition="bottom"
       (click)="kpiSelected.emit('all')"
     >
       <div
@@ -32,7 +34,7 @@
     <!-- Stock Inmovilizado -->
     <button
       type="button"
-      class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4 text-left transition-colors hover:bg-surface-50 dark:hover:bg-surface-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4 text-left cursor-pointer transition-colors hover:bg-surface-50 dark:hover:bg-surface-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       [class.border-primary]="activeKpi() === 'immobilized'"
       [class.border-surface-200]="activeKpi() !== 'immobilized'"
       [class.dark:border-surface-700]="activeKpi() !== 'immobilized'"
@@ -62,12 +64,14 @@
     <!-- Alertas Activas -->
     <button
       type="button"
-      class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4 text-left transition-colors hover:bg-surface-50 dark:hover:bg-surface-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4 text-left cursor-pointer transition-colors hover:bg-surface-50 dark:hover:bg-surface-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       [class.border-primary]="activeKpi() === 'alerts'"
       [class.border-red-200]="activeKpi() !== 'alerts' && alertsCount() > 0"
       [class.dark:border-red-900]="activeKpi() !== 'alerts' && alertsCount() > 0"
       [class.border-surface-200]="activeKpi() !== 'alerts' && alertsCount() === 0"
       [class.dark:border-surface-700]="activeKpi() !== 'alerts' && alertsCount() === 0"
+      pTooltip="Ver alertas (críticos y agotados)"
+      tooltipPosition="bottom"
       (click)="kpiSelected.emit('alerts')"
     >
       <div
@@ -108,8 +112,15 @@
 } @else {
   <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
     <!-- Unidades en Local -->
-    <div
-      class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-5 flex items-center gap-4"
+    <button
+      type="button"
+      class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4 text-left cursor-pointer transition-colors hover:bg-surface-50 dark:hover:bg-surface-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      [class.border-primary]="activeKpi() === 'all'"
+      [class.border-surface-200]="activeKpi() !== 'all'"
+      [class.dark:border-surface-700]="activeKpi() !== 'all'"
+      pTooltip="Ver todas las unidades"
+      tooltipPosition="bottom"
+      (click)="kpiSelected.emit('all')"
     >
       <div
         class="size-12 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-primary shrink-0"
@@ -126,11 +137,18 @@
           </span>
         }
       </div>
-    </div>
+    </button>
 
     <!-- SKUs Activos -->
-    <div
-      class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-5 flex items-center gap-4"
+    <button
+      type="button"
+      class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4 text-left cursor-pointer transition-colors hover:bg-surface-50 dark:hover:bg-surface-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      [class.border-primary]="activeKpi() === 'all'"
+      [class.border-surface-200]="activeKpi() !== 'all'"
+      [class.dark:border-surface-700]="activeKpi() !== 'all'"
+      pTooltip="Ver todos los SKUs"
+      tooltipPosition="bottom"
+      (click)="kpiSelected.emit('all')"
     >
       <div
         class="size-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-300 shrink-0"
@@ -147,15 +165,20 @@
           </span>
         }
       </div>
-    </div>
+    </button>
 
     <!-- Alertas Activas -->
-    <div
-      class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4"
-      [class.border-red-200]="alertsCount() > 0"
-      [class.dark:border-red-900]="alertsCount() > 0"
-      [class.border-surface-200]="alertsCount() === 0"
-      [class.dark:border-surface-700]="alertsCount() === 0"
+    <button
+      type="button"
+      class="bg-surface-0 dark:bg-surface-800 border-2 rounded-xl p-5 flex items-center gap-4 text-left cursor-pointer transition-colors hover:bg-surface-50 dark:hover:bg-surface-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      [class.border-primary]="activeKpi() === 'alerts'"
+      [class.border-red-200]="activeKpi() !== 'alerts' && alertsCount() > 0"
+      [class.dark:border-red-900]="activeKpi() !== 'alerts' && alertsCount() > 0"
+      [class.border-surface-200]="activeKpi() !== 'alerts' && alertsCount() === 0"
+      [class.dark:border-surface-700]="activeKpi() !== 'alerts' && alertsCount() === 0"
+      pTooltip="Ver alertas (críticos y agotados)"
+      tooltipPosition="bottom"
+      (click)="kpiSelected.emit('alerts')"
     >
       <div
         class="size-12 rounded-xl flex items-center justify-center shrink-0"
@@ -185,7 +208,7 @@
           </span>
         }
       </div>
-    </div>
+    </button>
 
     <!-- Valor Inventario -->
     <div
