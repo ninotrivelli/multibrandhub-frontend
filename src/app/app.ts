@@ -6,7 +6,7 @@ import { ToastModule } from 'primeng/toast';
 import { ProgressBarModule } from 'primeng/progressbar';
 
 import { LoadingService } from './core/loading/loading.service';
-import { StoreProfileService } from './features/admin/settings/ajustes-generales/store-profile.service';
+import { StoreProfileService } from './core/store-profile/store-profile.service';
 
 @Component({
   selector: 'app-root',

@@ -10,8 +10,8 @@ import { LucideAngularModule, Mail, MapPin, Pencil, Phone, Plus, Store } from 'l
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
-import { StoreProfileService } from './store-profile.service';
-import { UpdateStoreProfileRequest } from './store-profile.types';
+import { StoreProfileService } from '../../../../core/store-profile/store-profile.service';
+import { UpdateStoreProfileRequest } from '../../../../core/store-profile/store-profile.types';
 
 type ProfileControlName =
   | 'storeName'

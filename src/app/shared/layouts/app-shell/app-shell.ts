@@ -6,7 +6,7 @@ import { AvatarModule } from 'primeng/avatar';
 import { LogOut, LucideAngularModule, Menu, Store } from 'lucide-angular';
 
 import { AuthService } from '../../../core/auth/auth.service';
-import { StoreProfileService } from '../../../features/admin/settings/ajustes-generales/store-profile.service';
+import { StoreProfileService } from '../../../core/store-profile/store-profile.service';
 import { NavigationDrawerComponent } from '../../components/navigation-drawer/navigation-drawer';
 import { NAV_CONFIG } from './nav-config';
 
