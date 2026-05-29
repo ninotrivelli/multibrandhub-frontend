@@ -9,13 +9,14 @@ The full product spec lives in [`SPEC.md`](SPEC.md). The phased delivery plan li
 - **Angular 21** (standalone components + signals, no NgModule)
 - **Tailwind CSS v4** + `tailwindcss-primeui` plugin
 - **PrimeNG 21** (styled mode, Aura preset)
-- **Backend:** .NET 9 + SQL Server (separate repo at `../../Backend/MultiBrandHub`)
+- **Backend:** .NET 10 + SQL Server (separate repo at `../../Backend/MultiBrandHub`)
 
 ## Prerequisites
 
 - Node.js 20+
 - npm 10+
-- Backend running locally at `http://localhost:5237` (see backend repo). Make sure `http://localhost:4200` is whitelisted in the backend CORS policy (`Program.cs`).
+- Backend running locally at `https://localhost:7260` (see `src/environments/environment.ts` and the backend repo).
+- In production, tenant resolution comes from each customer's domain/subdomain. The frontend should not send tenant headers in production.
 
 ## Setup
 
@@ -35,6 +36,20 @@ Opens at `http://localhost:4200`. Unauthenticated visits are redirected to `/log
 - `BrandManager` → `/brand-manager`
 - `Seller` → `/seller`
 
+### Testing another dev tenant locally
+
+Production tenants are resolved by the customer domain/subdomain. For local development only, when the frontend is still running from `localhost:4200` but you want the API to resolve another seeded tenant, set a dev override in the browser console of the running frontend tab:
+
+```js
+localStorage.setItem('mbh.devTenantHost', 'aurora.localhost');
+```
+
+Then log in normally. Remove it to return to the default localhost tenant:
+
+```js
+localStorage.removeItem('mbh.devTenantHost');
+```
+
 ## Build
 
 ```bash
@@ -50,6 +65,12 @@ npm test
 ```
 
 (Vitest.)
+
+For a single non-watch run, use:
+
+```bash
+npm run test:ci
+```
 
 ## Folder structure
 
@@ -84,4 +105,5 @@ src/
 
 - [`SPEC.md`](SPEC.md) — product specification (screens, roles, business rules)
 - [`PLAN.md`](PLAN.md) — delivery plan with checklist by phase
+- [`TESTING_PLAN.md`](TESTING_PLAN.md) — behavior-focused frontend testing strategy
 - [`CLAUDE.md`](CLAUDE.md) — agent operating manual

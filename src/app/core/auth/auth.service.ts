@@ -2,9 +2,21 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, map, tap } from 'rxjs';
+import { jwtDecode } from 'jwt-decode';
 
 import { environment } from '../../../environments/environment';
-import { AuthResponse, AuthSession, LoginRequest, RoleWire, UserRole } from './auth.types';
+import {
+  AuthResponse,
+  AuthSession,
+  AuthUser,
+  EMAIL_CLAIM_URI,
+  JwtClaims,
+  LoginRequest,
+  NAMEID_CLAIM_URI,
+  ROLE_CLAIM_URI,
+  RoleWire,
+  UserRole
+} from './auth.types';
 
 const STORAGE_KEY = 'mbh.token';
 
@@ -24,6 +36,48 @@ function normalizeRole(r: RoleWire): UserRole {
   return r;
 }
 
+function firstString(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+function claimsMatchSession(claims: JwtClaims, session: AuthSession): boolean {
+  const { user } = session;
+  if (!claims.tenantId || claims.tenantId !== session.tenantId) return false;
+
+  const claimSub =
+    claims.sub ?? firstString(claims.nameid) ?? firstString(claims[NAMEID_CLAIM_URI]);
+  if (claimSub !== user.userId) return false;
+
+  const claimEmail = firstString(claims.email) ?? firstString(claims[EMAIL_CLAIM_URI]);
+  if (claimEmail !== user.email) return false;
+
+  // ClaimTypes.Role is NOT in the OutboundClaimTypeMap, so the JWT carries
+  // it under the full URI (ROLE_CLAIM_URI). Older tokens or other backends
+  // may still use the short "role" form.
+  const rawRole = firstString(claims.role) ?? firstString(claims[ROLE_CLAIM_URI]);
+  if (!rawRole) return false;
+  try {
+    const claimRole = normalizeRole(rawRole as RoleWire);
+    if (claimRole !== user.role) return false;
+  } catch {
+    return false;
+  }
+
+  const claimBrand = claims.brandId ?? null;
+  if (claimBrand !== user.brandId) return false;
+
+  return true;
+}
+
+function tenantIdFromToken(token: string): string {
+  const claims = jwtDecode<JwtClaims>(token);
+  if (!claims.tenantId) {
+    throw new Error('JWT tenantId claim is missing.');
+  }
+  return claims.tenantId;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
@@ -34,6 +88,7 @@ export class AuthService {
   readonly session = this._session.asReadonly();
   readonly user = computed(() => this._session()?.user ?? null);
   readonly token = computed(() => this._session()?.token ?? null);
+  readonly tenantId = computed(() => this._session()?.tenantId ?? null);
   readonly role = computed<UserRole | null>(() => this._session()?.user.role ?? null);
   readonly isAuthenticated = computed(() => this._session() !== null);
 
@@ -41,16 +96,36 @@ export class AuthService {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
 
+    let parsed: AuthSession;
     try {
-      const parsed = JSON.parse(raw) as AuthSession;
-      if (new Date(parsed.expiresAtUtc).getTime() <= Date.now()) {
-        localStorage.removeItem(STORAGE_KEY);
-        return;
-      }
-      this._session.set(parsed);
+      parsed = JSON.parse(raw) as AuthSession;
     } catch {
       localStorage.removeItem(STORAGE_KEY);
+      return;
     }
+
+    let claims: JwtClaims;
+    try {
+      claims = jwtDecode<JwtClaims>(parsed.token);
+    } catch {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
+    // Use the JWT's own `exp` claim as the source of truth, not the
+    // separately-stored expiresAtUtc (which a tamperer could rewrite).
+    const expMs = typeof claims.exp === 'number' ? claims.exp * 1000 : 0;
+    if (expMs <= Date.now()) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
+    if (!claimsMatchSession(claims, parsed)) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
+    this._session.set(parsed);
   }
 
   login(req: LoginRequest): Observable<AuthSession> {
@@ -65,6 +140,7 @@ export class AuthService {
             role: normalizeRole(res.role),
             brandId: res.brandId
           },
+          tenantId: tenantIdFromToken(res.token),
           token: res.token,
           expiresAtUtc: res.expiresAtUtc
         })),

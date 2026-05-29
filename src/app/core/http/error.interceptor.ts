@@ -42,9 +42,36 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         return throwError(() => err);
       }
 
+      if (err.status === 403) {
+        const detail = body.message ?? 'No tenés permisos para realizar esta acción.';
+        if (isSessionInvalidForbiddenMessage(detail)) {
+          notifications.warn('Volvé a ingresar', 'Sesión no vigente');
+          auth.logout();
+          return throwError(() => err);
+        }
+
+        notifications.error(detail, 'Acción no permitida');
+        return throwError(() => err);
+      }
+
       const detail = body.message ?? 'Ocurrió un error inesperado';
       notifications.error(detail);
       return throwError(() => err);
     })
   );
 };
+
+function isSessionInvalidForbiddenMessage(message: string): boolean {
+  return SESSION_INVALID_FORBIDDEN_MESSAGES.has(message);
+}
+
+const SESSION_INVALID_FORBIDDEN_MESSAGES = new Set([
+  'No se pudo resolver el local de la solicitud.',
+  'El token no tiene tenant asociado.',
+  'El token no corresponde al local actual.',
+  'Usuario no autenticado.',
+  'Usuario no válido.',
+  'El rol del token no está vigente.',
+  'La marca del token no está vigente.',
+  'El local no está activo.',
+]);

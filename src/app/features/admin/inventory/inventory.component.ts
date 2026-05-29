@@ -1,13 +1,11 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
+import { InventoryShellComponent } from '../../shared/inventory/inventory-shell.component';
+
 @Component({
   selector: 'app-admin-inventory',
+  imports: [InventoryShellComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div class="p-8">
-      <h1 class="text-2xl font-semibold text-surface-900 dark:text-surface-0">Inventario</h1>
-      <p class="text-surface-500 dark:text-surface-400 mt-1">Stock y Movimientos</p>
-    </div>
-  `
+  template: `<app-inventory-shell />`,
 })
 export class AdminInventoryComponent {}

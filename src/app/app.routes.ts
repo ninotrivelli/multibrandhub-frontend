@@ -14,7 +14,7 @@ export const routes: Routes = [
     path: 'admin',
     canActivate: [authGuard, roleGuard(['Admin'])],
     loadComponent: () =>
-      import('./shared/layouts/admin-layout/admin-layout').then((m) => m.AdminLayout),
+      import('./shared/layouts/app-shell/app-shell').then((m) => m.AppShell),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       {
@@ -63,9 +63,7 @@ export const routes: Routes = [
     path: 'brand-manager',
     canActivate: [authGuard, roleGuard(['BrandManager'])],
     loadComponent: () =>
-      import('./shared/layouts/brand-manager-layout/brand-manager-layout').then(
-        (m) => m.BrandManagerLayout
-      ),
+      import('./shared/layouts/app-shell/app-shell').then((m) => m.AppShell),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       {
@@ -95,6 +93,13 @@ export const routes: Routes = [
           import('./features/brand-manager/settlements/settlements.component').then(
             (m) => m.BrandManagerSettlementsComponent
           )
+      },
+      {
+        path: 'configuracion',
+        loadComponent: () =>
+          import('./features/shared/configuracion/configuracion.component').then(
+            (m) => m.ConfiguracionComponent
+          )
       }
     ]
   },
@@ -103,7 +108,7 @@ export const routes: Routes = [
     path: 'seller',
     canActivate: [authGuard, roleGuard(['Seller'])],
     loadComponent: () =>
-      import('./shared/layouts/seller-layout/seller-layout').then((m) => m.SellerLayout),
+      import('./shared/layouts/app-shell/app-shell').then((m) => m.AppShell),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'pos' },
       {
@@ -129,6 +134,13 @@ export const routes: Routes = [
         path: 'tasks',
         loadComponent: () =>
           import('./features/seller/tasks/tasks.component').then((m) => m.SellerTasksComponent)
+      },
+      {
+        path: 'configuracion',
+        loadComponent: () =>
+          import('./features/shared/configuracion/configuracion.component').then(
+            (m) => m.ConfiguracionComponent
+          )
       }
     ]
   },
