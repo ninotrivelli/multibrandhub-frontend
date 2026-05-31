@@ -1,6 +1,13 @@
 @import "tailwindcss";
 @import "tailwindcss-primeui";
 
+/* Drive Tailwind's `dark:` variant from the `.app-dark` class instead of the
+ * default `prefers-color-scheme` media query, so Tailwind utilities stay in
+ * sync with PrimeNG (whose `darkModeSelector` is also `.app-dark`). Without
+ * this, picking the "Oscuro" theme on a light-OS device left every `dark:`
+ * utility off while PrimeNG went dark — broken, half-white UI. */
+@custom-variant dark (&:where(.app-dark, .app-dark *));
+
 @theme {
   --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
@@ -8,9 +15,14 @@
 :root {
   font-family: var(--font-sans);
   font-feature-settings: "cv11", "ss01", "ss03";
-  /* Force native browser widgets (scrollbars, input autofill) to render light
-   * even when the OS is in dark mode. */
+  /* Drive native browser widgets (scrollbars, input autofill) from the chosen
+   * theme rather than the OS preference. Light by default; the `.app-dark`
+   * theme flips it to dark below. */
   color-scheme: light;
+}
+
+html.app-dark {
+  color-scheme: dark;
 }
 
 html,

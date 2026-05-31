@@ -74,12 +74,18 @@
 }
 
 .drawer-link:hover {
-  background: var(--p-surface-100);
+  /* `content.hoverBackground` is color-scheme aware (surface.100 in light,
+   * surface.800 in dark). The raw `--p-surface-100` token does NOT invert —
+   * it stays near-white in dark mode, which made the hover illegible. */
+  background: var(--p-content-hover-background);
   border-color: var(--p-content-border-color);
 }
 
 .drawer-link-active {
-  background: color-mix(in srgb, var(--p-primary-color) 12%, var(--p-surface-0));
+  /* Mix over `--p-content-background` (surface.0 in light, surface.900 in dark)
+   * rather than the always-white `--p-surface-0`, so the highlight stays dark
+   * in dark mode. Identical appearance in light mode. */
+  background: color-mix(in srgb, var(--p-primary-color) 12%, var(--p-content-background));
   border-color: color-mix(in srgb, var(--p-primary-color) 35%, var(--p-content-border-color));
   color: var(--p-primary-color);
   font-weight: 600;
