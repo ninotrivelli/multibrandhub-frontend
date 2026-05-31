@@ -8,6 +8,9 @@
 :root {
   font-family: var(--font-sans);
   font-feature-settings: "cv11", "ss01", "ss03";
+  /* Force native browser widgets (scrollbars, input autofill) to render light
+   * even when the OS is in dark mode. */
+  color-scheme: light;
 }
 
 html,

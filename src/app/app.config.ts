@@ -47,6 +47,12 @@ export const appConfig: ApplicationConfig = {
     providePrimeNG({
       theme: {
         preset: MultiBrandHubPreset,
+        options: {
+          // Decouple dark mode from the OS preference. Dark styles only apply
+          // when `.app-dark` is present on <html>; we never add it, so the app
+          // stays light. A future explicit theme toggle can flip this class.
+          darkModeSelector: '.app-dark',
+        },
       },
       translation: {
         passwordPrompt: 'Ingresá una contraseña',
