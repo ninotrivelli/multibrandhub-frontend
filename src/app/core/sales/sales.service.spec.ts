@@ -1,0 +1,115 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
+
+import { environment } from '../../../environments/environment';
+import { makeSale, makeSaleSearch, paged } from '../../../testing/builders';
+import { SalesService } from './sales.service';
+
+describe('SalesService', () => {
+  let service: SalesService;
+  let http: HttpTestingController;
+  const baseUrl = `${environment.apiBaseUrl}/sales`;
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    service = TestBed.inject(SalesService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  it('POSTs a sale to /sales and returns the created sale', () => {
+    const created = makeSale();
+    let result = undefined as ReturnType<typeof makeSale> | undefined;
+
+    service
+      .create({
+        paymentMethod: 'CreditCard',
+        cardBrand: 'Visa',
+        details: [
+          { productId: 'product-1', quantity: 2, discountType: 'Percentage', discountValue: 10 },
+        ],
+        observations: 'Promo',
+      })
+      .subscribe((res) => (result = res));
+
+    const req = http.expectOne(baseUrl);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({
+      paymentMethod: 'CreditCard',
+      cardBrand: 'Visa',
+      details: [
+        { productId: 'product-1', quantity: 2, discountType: 'Percentage', discountValue: 10 },
+      ],
+      observations: 'Promo',
+    });
+    req.flush(created);
+    expect(result).toEqual(created);
+  });
+
+  it('POSTs a return to /sales/return', () => {
+    const created = makeSale({ type: 'Return', totalAmount: -1850 });
+
+    service
+      .createReturn({
+        originalSaleId: 'sale-1',
+        details: [{ originalSaleDetailId: 'detail-1', quantity: 1 }],
+        observations: null,
+      })
+      .subscribe();
+
+    const req = http.expectOne(`${baseUrl}/return`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({
+      originalSaleId: 'sale-1',
+      details: [{ originalSaleDetailId: 'detail-1', quantity: 1 }],
+      observations: null,
+    });
+    req.flush(created);
+  });
+
+  it('search updates the recent-list signals and sends trimmed params', () => {
+    const item = makeSaleSearch();
+
+    service.search({ searchTerm: '  zendra ', brandId: 'brand-own', page: 2, pageSize: 20 }).subscribe();
+
+    expect(service.recentLoading()).toBe(true);
+
+    const req = http.expectOne((r) => r.url === `${baseUrl}/search`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('searchTerm')).toBe('zendra');
+    expect(req.request.params.get('brandId')).toBe('brand-own');
+    expect(req.request.params.get('page')).toBe('2');
+    expect(req.request.params.get('pageSize')).toBe('20');
+
+    req.flush(paged([item], { totalCount: 5, page: 2, pageSize: 20 }));
+
+    expect(service.recentItems()).toEqual([item]);
+    expect(service.recentTotal()).toBe(5);
+    expect(service.recentLoading()).toBe(false);
+  });
+
+  it('searchOnce does NOT touch the recent-list signals', () => {
+    service.searchOnce({ searchTerm: 'remera' }).subscribe();
+    expect(service.recentLoading()).toBe(false);
+
+    const req = http.expectOne((r) => r.url === `${baseUrl}/search`);
+    expect(req.request.params.get('searchTerm')).toBe('remera');
+    req.flush(paged([makeSaleSearch()], { totalCount: 1 }));
+
+    expect(service.recentItems()).toEqual([]);
+    expect(service.recentTotal()).toBe(0);
+  });
+
+  it('getById fetches a single sale', () => {
+    const sale = makeSale();
+    service.getById('sale-1').subscribe();
+    const req = http.expectOne(`${baseUrl}/sale-1`);
+    expect(req.request.method).toBe('GET');
+    req.flush(sale);
+  });
+});

@@ -1,0 +1,50 @@
+<div class="flex flex-col gap-3">
+  <span class="text-xs font-semibold uppercase tracking-wide text-surface-400">
+    Método de pago
+  </span>
+
+  <div class="grid grid-cols-2 gap-2">
+    @for (option of options; track option.value) {
+      <button
+        type="button"
+        class="flex flex-col items-center justify-center gap-1.5 rounded-lg border p-3 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        [class.border-primary]="cart.paymentMethod() === option.value"
+        [class.bg-primary]="cart.paymentMethod() === option.value"
+        [class.text-primary-contrast]="cart.paymentMethod() === option.value"
+        [class.border-surface-200]="cart.paymentMethod() !== option.value"
+        [class.dark:border-surface-700]="cart.paymentMethod() !== option.value"
+        [class.text-surface-600]="cart.paymentMethod() !== option.value"
+        [class.dark:text-surface-300]="cart.paymentMethod() !== option.value"
+        [class.hover:border-primary]="cart.paymentMethod() !== option.value"
+        (click)="select(option.value)"
+      >
+        <i-lucide [img]="option.icon" class="size-5" />
+        <span class="text-sm font-medium">{{ option.label }}</span>
+      </button>
+    }
+  </div>
+
+  @if (cart.isCardPayment()) {
+    <div class="flex flex-col gap-1">
+      <label for="cardBrand" class="text-xs font-medium text-surface-700 dark:text-surface-200">
+        Marca de tarjeta
+      </label>
+      <p-select
+        inputId="cardBrand"
+        [options]="cardBrandOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="cart.cardBrand()"
+        (ngModelChange)="setCardBrand($event)"
+        placeholder="Seleccioná la tarjeta"
+        appendTo="body"
+        fluid
+      />
+      @if (cart.cardBrand() === null) {
+        <span class="text-xs text-red-600 dark:text-red-300">
+          Elegí la tarjeta para continuar.
+        </span>
+      }
+    </div>
+  }
+</div>

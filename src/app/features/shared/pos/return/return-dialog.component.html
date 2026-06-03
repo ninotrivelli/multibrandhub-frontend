@@ -1,0 +1,208 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [closable]="!submitting()"
+  [closeOnEscape]="!submitting()"
+  [dismissableMask]="!submitting()"
+  [draggable]="false"
+  [style]="{ width: '46rem', maxWidth: '95vw' }"
+  header="Registrar devolución"
+>
+  @if (step() === 'search') {
+    <div class="flex flex-col gap-4">
+      <p class="text-sm text-surface-500 dark:text-surface-400">
+        Buscá la venta original. Cada marca puede tener su propio ticket, así que podés buscar por
+        el número de ticket, el SKU, el nombre del producto o la marca.
+      </p>
+
+      <p-iconfield class="w-full">
+        <p-inputicon>
+          <i-lucide [img]="icons.Search" class="size-4 text-surface-400" />
+        </p-inputicon>
+        <input
+          pInputText
+          type="text"
+          [ngModel]="searchTerm()"
+          (ngModelChange)="searchTerm.set($event)"
+          placeholder="Buscar por ticket, SKU, producto o marca"
+          fluid
+          autofocus
+        />
+      </p-iconfield>
+
+      <div class="flex flex-col gap-2 min-h-40">
+        @if (searching()) {
+          <p class="text-sm text-surface-400 py-6 text-center">Buscando ventas…</p>
+        } @else if (searchTerm().trim().length < 2) {
+          <p class="text-sm text-surface-400 py-6 text-center">
+            Escribí al menos 2 caracteres para buscar.
+          </p>
+        } @else if (searchResults().length === 0) {
+          <p class="text-sm text-surface-400 py-6 text-center">
+            No se encontraron ventas para esa búsqueda.
+          </p>
+        } @else {
+          @for (sale of searchResults(); track sale.id) {
+            <button
+              type="button"
+              class="flex items-center justify-between gap-3 rounded-lg border border-surface-200 dark:border-surface-700 p-3 text-left transition-colors hover:border-primary hover:bg-surface-50 dark:hover:bg-surface-700/40 cursor-pointer"
+              [disabled]="loadingDetail()"
+              (click)="selectSale(sale)"
+            >
+              <div class="flex flex-col min-w-0">
+                <span class="font-mono text-sm font-medium text-surface-800 dark:text-surface-100">
+                  {{ sale.ticketId ?? '—' }}
+                </span>
+                <span class="text-xs text-surface-500 dark:text-surface-400">
+                  {{ formatDate(sale.date) }}
+                </span>
+                @if (sale.brands.length > 0) {
+                  <div class="flex flex-wrap gap-1 mt-1">
+                    @for (brand of sale.brands; track brand.brandId) {
+                      <span
+                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-surface-100 dark:bg-surface-700 text-surface-500 dark:text-surface-300"
+                      >
+                        {{ brand.brandName }}
+                      </span>
+                    }
+                  </div>
+                }
+              </div>
+              <span class="font-semibold text-surface-900 dark:text-surface-0 shrink-0">
+                {{ formatCurrency(sale.totalAmount) }}
+              </span>
+            </button>
+          }
+        }
+      </div>
+    </div>
+  } @else if (selectedSale(); as sale) {
+    <div class="flex flex-col gap-4">
+      <div class="flex items-center gap-2">
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          [text]="true"
+          size="small"
+          label="Volver"
+          [disabled]="submitting()"
+          (click)="backToSearch()"
+        >
+          <i-lucide [img]="icons.ArrowLeft" class="size-4 mr-1" />
+        </button>
+        <span class="font-mono text-sm font-medium text-surface-700 dark:text-surface-200">
+          {{ sale.ticketId ?? '—' }}
+        </span>
+        <span class="text-xs text-surface-500 dark:text-surface-400">{{ formatDate(sale.date) }}</span>
+      </div>
+
+      <p class="text-sm text-surface-500 dark:text-surface-400">
+        Elegí los productos y las cantidades que se devuelven. Podés hacer una devolución parcial.
+      </p>
+
+      <div class="flex flex-col gap-2">
+        @for (line of sale.details; track line.id) {
+          <div
+            class="flex items-center justify-between gap-3 rounded-lg border border-surface-200 dark:border-surface-700 p-3"
+          >
+            <div class="flex flex-col min-w-0 gap-0.5">
+              <span class="font-medium text-surface-900 dark:text-surface-0 truncate">
+                {{ line.productName ?? 'Producto' }}
+              </span>
+              <span class="text-xs text-surface-500 dark:text-surface-400">
+                {{ line.brandName ?? '—' }} · vendidas: {{ line.quantity }}
+              </span>
+              <div
+                class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-surface-500 dark:text-surface-400"
+              >
+                <span>{{ formatCurrency(line.unitPrice) }} c/u</span>
+                @if (line.unitDiscountAmount > 0) {
+                  <span class="text-red-600 dark:text-red-300">
+                    @if (line.discountType === 'Percentage') {
+                      Desc. {{ line.discountValue }}%
+                    } @else {
+                      Desc. {{ formatCurrency(line.discountValue ?? 0) }} c/u
+                    }
+                  </span>
+                  <span>Neto {{ formatCurrency(line.unitNetPrice) }} c/u</span>
+                }
+                <span>Subtotal {{ formatCurrency(line.subTotal) }}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <label class="text-xs text-surface-500 dark:text-surface-400">Devolver</label>
+              <p-inputnumber
+                [ngModel]="returnQty(line.id)"
+                (ngModelChange)="setReturnQty(line.id, $event, line.quantity)"
+                [showButtons]="true"
+                buttonLayout="horizontal"
+                [step]="1"
+                [min]="0"
+                [max]="line.quantity"
+                inputStyleClass="w-12 text-center"
+              />
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label for="returnNotes" class="text-xs font-medium text-surface-700 dark:text-surface-200">
+          Notas (opcional)
+        </label>
+        <textarea
+          pTextarea
+          id="returnNotes"
+          rows="2"
+          [maxlength]="maxObservations"
+          [ngModel]="observations()"
+          (ngModelChange)="observations.set($event)"
+          placeholder="Ej: Cambio de talle, cliente cambió por otra prenda, devolución parcial."
+          [autoResize]="false"
+        ></textarea>
+      </div>
+
+      <div
+        class="flex items-center justify-between rounded-lg bg-surface-50 dark:bg-surface-700/40 px-3 py-2"
+      >
+        <span class="text-sm font-medium text-surface-700 dark:text-surface-200">
+          Total a devolver
+        </span>
+        <span class="text-lg font-bold text-red-600 dark:text-red-300">
+          - {{ formatCurrency(returnTotal()) }}
+        </span>
+      </div>
+
+      @if (submitError()) {
+        <div
+          class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+        >
+          {{ submitError() }}
+        </div>
+      }
+
+      <div class="flex justify-end gap-2 pt-1">
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          [text]="true"
+          label="Cancelar"
+          [disabled]="submitting()"
+          (click)="cancel()"
+        ></button>
+        <button
+          pButton
+          type="button"
+          severity="warn"
+          label="Registrar devolución"
+          [loading]="submitting()"
+          [disabled]="!canSubmit()"
+          (click)="submit()"
+        ></button>
+      </div>
+    </div>
+  }
+</p-dialog>

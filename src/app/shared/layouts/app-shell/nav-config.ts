@@ -23,6 +23,7 @@ export interface RoleNavConfig {
 
 const ADMIN_NAV: ReadonlyArray<NavItem> = [
   { path: '/admin/dashboard', label: 'Inicio', icon: lucide(Home) },
+  { path: '/admin/pos', label: 'Ingresar Venta', icon: lucide(CirclePlus) },
   { path: '/admin/sales', label: 'Ventas', icon: lucide(Tag) },
   { path: '/admin/settlements', label: 'Liquidaciones', icon: fa(faHandHoldingDollar) },
   { path: '/admin/inventory', label: 'Inventario', icon: lucide(Package) },

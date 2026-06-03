@@ -1,0 +1,41 @@
+<div class="flex flex-col gap-5">
+  <!-- Header -->
+  <header class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-surface-900 dark:text-surface-0">Ingresar Venta</h1>
+      <p class="text-sm text-surface-500 dark:text-surface-400">
+        Punto de venta unificado — combiná productos de cualquier marca en un mismo ticket.
+      </p>
+    </div>
+    <button
+      pButton
+      type="button"
+      [outlined]="true"
+      label="Registrar devolución"
+      class="border-primary! text-primary!"
+      (click)="returnDialogVisible.set(true)"
+    >
+      <i-lucide [img]="icons.Undo2" class="size-4 mr-2" />
+    </button>
+  </header>
+
+  <!-- Search + cart -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+    <div class="lg:col-span-2">
+      <app-pos-product-search-panel />
+    </div>
+    <div class="lg:col-span-1 lg:sticky lg:top-4">
+      <app-pos-cart-panel [submitting]="submitting()" (submitSale)="submitSale()" />
+    </div>
+  </div>
+
+  <!-- Recent sales -->
+  <app-pos-recent-sales-list />
+</div>
+
+<!-- Return / devolución dialog -->
+<app-pos-return-dialog
+  [visible]="returnDialogVisible()"
+  (visibleChange)="returnDialogVisible.set($event)"
+  (saved)="onReturnSaved($event)"
+/>

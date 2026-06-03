@@ -1,0 +1,220 @@
+<div
+  class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex flex-col h-full"
+>
+  <!-- Header -->
+  <div
+    class="flex items-center justify-between px-4 py-3 border-b border-surface-200 dark:border-surface-700"
+  >
+    <h2 class="text-base font-semibold text-surface-900 dark:text-surface-0">Registro de Venta</h2>
+    <button
+      type="button"
+      class="flex items-center gap-1 text-xs font-medium text-surface-500 hover:text-red-600 dark:text-surface-400 dark:hover:text-red-300 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+      [disabled]="cart.isEmpty()"
+      (click)="cart.clear()"
+    >
+      <i-lucide [img]="icons.Trash2" class="size-4" />
+      Vaciar
+    </button>
+  </div>
+
+  <!-- Line items -->
+  <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-32">
+    @if (cart.isEmpty()) {
+      <div
+        class="flex flex-col items-center justify-center gap-2 py-10 text-center text-surface-400"
+      >
+        <i-lucide [img]="icons.ShoppingCart" class="size-8" />
+        <p class="text-sm">Agregá productos para iniciar la venta.</p>
+      </div>
+    } @else {
+      @for (line of cart.pricedLines(); track line.product.id) {
+        <div
+          class="rounded-lg border border-surface-200 dark:border-surface-700 p-3 flex flex-col gap-2"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex flex-col min-w-0">
+              <span class="font-medium text-surface-900 dark:text-surface-0 truncate">
+                {{ line.product.name }}
+              </span>
+              <span
+                class="mt-0.5 inline-flex w-fit items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-surface-100 dark:bg-surface-700 text-surface-500 dark:text-surface-300"
+              >
+                {{ line.product.brandName ?? '—' }}
+              </span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <div class="flex flex-col items-end leading-tight">
+                @if (line.unitDiscount > 0) {
+                  <span class="text-xs text-surface-400 line-through">
+                    {{ formatCurrency(line.product.price * line.quantity) }}
+                  </span>
+                }
+                <span class="font-semibold text-surface-900 dark:text-surface-0">
+                  {{ formatCurrency(line.lineSubtotal) }}
+                </span>
+              </div>
+              <button
+                type="button"
+                class="rounded-md p-1 text-surface-400 hover:bg-surface-100 hover:text-red-600 dark:hover:bg-surface-700 dark:hover:text-red-300 transition-colors"
+                aria-label="Quitar producto"
+                (click)="cart.remove(line.product.id)"
+              >
+                <i-lucide [img]="icons.X" class="size-4" />
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              pButton
+              type="button"
+              severity="secondary"
+              [outlined]="true"
+              size="small"
+              [rounded]="true"
+              aria-label="Restar unidad"
+              [disabled]="line.quantity <= 1"
+              (click)="cart.decrement(line.product.id)"
+            >
+              <i-lucide [img]="icons.Minus" class="size-4" />
+            </button>
+            <span class="w-8 text-center text-sm font-semibold text-surface-900 dark:text-surface-0">
+              {{ line.quantity }}
+            </span>
+            <button
+              pButton
+              type="button"
+              severity="secondary"
+              [outlined]="true"
+              size="small"
+              [rounded]="true"
+              aria-label="Sumar unidad"
+              [disabled]="line.quantity >= line.product.currentStock"
+              (click)="cart.increment(line.product.id)"
+            >
+              <i-lucide [img]="icons.Plus" class="size-4" />
+            </button>
+            @if (line.quantity >= line.product.currentStock) {
+              <span class="text-[11px] text-surface-400">Máx. en stock</span>
+            }
+          </div>
+
+          <!-- Per-line discount -->
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <p-select
+                [options]="discountTypeOptions"
+                optionLabel="label"
+                optionValue="value"
+                [ngModel]="line.discountType"
+                (ngModelChange)="cart.setLineDiscountType(line.product.id, $event)"
+                appendTo="body"
+                styleClass="flex-1 min-w-0"
+              />
+              @if (line.discountType === 'Percentage') {
+                <p-inputnumber
+                  [ngModel]="line.discountValue"
+                  (ngModelChange)="cart.setLineDiscountValue(line.product.id, $event)"
+                  suffix=" %"
+                  [min]="0"
+                  [max]="100"
+                  [maxFractionDigits]="0"
+                  [invalid]="!line.valid"
+                  placeholder="0 %"
+                  inputStyleClass="w-20 text-center"
+                />
+              } @else if (line.discountType === 'FixedAmount') {
+                <p-inputnumber
+                  [ngModel]="line.discountValue"
+                  (ngModelChange)="cart.setLineDiscountValue(line.product.id, $event)"
+                  mode="currency"
+                  currency="UYU"
+                  locale="es-UY"
+                  [maxFractionDigits]="0"
+                  [min]="0"
+                  [invalid]="!line.valid"
+                  placeholder="$ 0"
+                  inputStyleClass="w-24"
+                />
+              }
+            </div>
+            @if (line.discountType === 'FixedAmount') {
+              <span class="text-[11px] text-surface-400">Monto por unidad</span>
+            }
+            @if (!line.valid) {
+              <span class="text-xs text-red-600 dark:text-red-300">
+                @if (line.discountType === 'Percentage') {
+                  Ingresá un porcentaje entre 1 y 100.
+                } @else {
+                  El descuento por unidad debe ser mayor a 0 y no superar
+                  {{ formatCurrency(line.product.price) }}.
+                }
+              </span>
+            }
+          </div>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Footer: payment, discount, notes, totals, submit -->
+  @if (!cart.isEmpty()) {
+    <div
+      class="border-t border-surface-200 dark:border-surface-700 p-4 flex flex-col gap-4"
+    >
+      <app-pos-payment-method-selector />
+
+      <div class="flex flex-col gap-1">
+        <label for="notes" class="text-xs font-medium text-surface-700 dark:text-surface-200">
+          Notas (opcional)
+        </label>
+        <textarea
+          pTextarea
+          id="notes"
+          rows="2"
+          [maxlength]="maxObservations"
+          [ngModel]="cart.observations()"
+          (ngModelChange)="cart.setObservations($event)"
+          placeholder="Ej: Cliente pidió factura, descuento por promo, etc."
+          [autoResize]="false"
+        ></textarea>
+      </div>
+
+      <div class="flex flex-col gap-1.5 text-sm">
+        <div class="flex items-center justify-between text-surface-600 dark:text-surface-300">
+          <span>Subtotal ({{ cart.itemCount() }} ítems)</span>
+          <span>{{ formatCurrency(cart.subtotal()) }}</span>
+        </div>
+        @if (cart.discountTotal() > 0) {
+          <div class="flex items-center justify-between text-surface-600 dark:text-surface-300">
+            <span>Descuentos</span>
+            <span class="text-red-600 dark:text-red-300">
+              - {{ formatCurrency(cart.discountTotal()) }}
+            </span>
+          </div>
+        }
+        <div
+          class="flex items-center justify-between pt-1.5 mt-0.5 border-t border-surface-200 dark:border-surface-700"
+        >
+          <span class="text-base font-semibold text-surface-900 dark:text-surface-0">
+            Total a Ingresar
+          </span>
+          <span class="text-2xl font-bold text-surface-900 dark:text-surface-0">
+            {{ formatCurrency(cart.total()) }}
+          </span>
+        </div>
+      </div>
+
+      <button
+        pButton
+        type="button"
+        size="large"
+        label="Ingresar Venta"
+        [loading]="submitting()"
+        [disabled]="!cart.canSubmit() || submitting()"
+        (click)="onSubmit()"
+        fluid
+      ></button>
+    </div>
+  }
+</div>

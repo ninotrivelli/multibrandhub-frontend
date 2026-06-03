@@ -23,6 +23,11 @@ export const routes: Routes = [
           import('./features/admin/dashboard/dashboard.component').then((m) => m.AdminDashboardComponent)
       },
       {
+        path: 'pos',
+        loadComponent: () =>
+          import('./features/admin/pos/pos.component').then((m) => m.AdminPosComponent)
+      },
+      {
         path: 'sales',
         loadComponent: () =>
           import('./features/admin/sales/sales.component').then((m) => m.AdminSalesComponent)

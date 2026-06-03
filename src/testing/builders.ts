@@ -6,6 +6,11 @@ import {
   UserRole,
 } from '../app/core/auth/auth.types';
 import { BrandResponse, ContractType } from '../app/core/brands/brands.types';
+import {
+  SaleDetailResponse,
+  SaleResponse,
+  SaleSearchResponse,
+} from '../app/core/sales/sales.types';
 import { UserResponse } from '../app/core/users/users.types';
 import {
   ImmobilizedStockProductResponse,
@@ -222,6 +227,65 @@ export function makeMovement(
     userId: 'user-admin',
     userFullName: 'Admin Local',
     createdAt: '2026-05-01T12:00:00Z',
+    ...overrides,
+  };
+}
+
+export function makeSaleDetail(
+  overrides: Partial<SaleDetailResponse> = {},
+): SaleDetailResponse {
+  return {
+    id: 'detail-1',
+    productId: 'product-1',
+    originalSaleDetailId: null,
+    productName: 'Buzo Oversize',
+    brandName: 'Zendra',
+    quantity: 2,
+    unitPrice: 1850,
+    discountType: 'None',
+    discountValue: null,
+    unitDiscountAmount: 0,
+    unitNetPrice: 1850,
+    subTotal: 3700,
+    ...overrides,
+  };
+}
+
+export function makeSale(overrides: Partial<SaleResponse> = {}): SaleResponse {
+  return {
+    id: 'sale-1',
+    ticketId: 'TCK-20260603-120000-AB12',
+    date: '2026-06-03T12:00:00Z',
+    type: 'Sale',
+    totalAmount: 3700,
+    paymentMethod: 'Cash',
+    cardBrand: null,
+    status: 'Completed',
+    sellerId: 'user-seller',
+    sellerName: 'Venta Mostrador',
+    originalSaleId: null,
+    details: [makeSaleDetail()],
+    createdAt: '2026-06-03T12:00:00Z',
+    observations: null,
+    ...overrides,
+  };
+}
+
+export function makeSaleSearch(
+  overrides: Partial<SaleSearchResponse> = {},
+): SaleSearchResponse {
+  return {
+    id: 'sale-1',
+    ticketId: 'TCK-20260603-120000-AB12',
+    date: '2026-06-03T12:00:00Z',
+    type: 'Sale',
+    totalAmount: 3700,
+    status: 'Completed',
+    sellerId: 'user-seller',
+    sellerName: 'Venta Mostrador',
+    createdAt: '2026-06-03T12:00:00Z',
+    observations: null,
+    brands: [{ brandId: 'brand-own', brandName: 'Zendra' }],
     ...overrides,
   };
 }
