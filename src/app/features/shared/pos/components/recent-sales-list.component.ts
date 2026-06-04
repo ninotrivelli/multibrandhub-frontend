@@ -37,8 +37,9 @@ import {
 } from '../../../../core/sales/sales.utils';
 import {
   formatCurrencyUYU,
-  formatRelativeDay,
+  formatShortDate,
   parseBackendUtcDate,
+  relativeDayLabel,
   URUGUAY_TIME_ZONE,
 } from '../../inventory/inventory.utils';
 import { SaleDetailDialogComponent } from './sale-detail-dialog.component';
@@ -185,8 +186,12 @@ export class RecentSalesListComponent {
     this.fetchTrigger$.next();
   }
 
-  protected relativeDay(iso: string): string {
-    return formatRelativeDay(iso);
+  protected fullDate(iso: string): string {
+    return formatShortDate(iso);
+  }
+
+  protected dayLabel(iso: string): 'Hoy' | 'Ayer' | null {
+    return relativeDayLabel(iso);
   }
 
   protected formatTime(iso: string): string {
@@ -194,6 +199,7 @@ export class RecentSalesListComponent {
       timeZone: URUGUAY_TIME_ZONE,
       hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
     }).format(parseBackendUtcDate(iso));
   }
 

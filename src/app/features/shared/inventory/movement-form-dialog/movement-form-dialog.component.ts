@@ -99,11 +99,6 @@ export class MovementFormDialogComponent {
       value: MovementType.Adjustment,
       hint: 'Corrige el stock. Usá positivo para sumar o negativo para restar.',
     },
-    {
-      label: 'Devolución',
-      value: MovementType.Return,
-      hint: 'Devolución de cliente. Suma stock.',
-    },
   ];
 
   protected readonly searchTerm = signal('');
