@@ -112,6 +112,8 @@
     [first]="(page() - 1) * pageSize()"
     [totalRecords]="totalCount()"
     [rowsPerPageOptions]="[10, 20, 50]"
+    paginatorDropdownAppendTo="body"
+    [rowHover]="true"
     [loading]="loading()"
     (onLazyLoad)="onLazyLoad($event)"
     dataKey="id"
@@ -133,7 +135,10 @@
     </ng-template>
 
     <ng-template pTemplate="body" let-row>
-      <tr>
+      <tr
+        class="cursor-pointer transition-colors hover:bg-surface-100 dark:hover:bg-surface-700/60"
+        (click)="openDetail(row)"
+      >
         <!-- Fecha + hora -->
         <td class="whitespace-nowrap">
           <div class="flex flex-col leading-tight">
@@ -233,3 +238,9 @@
     </ng-template>
   </p-table>
 </div>
+
+<app-pos-sale-detail-dialog
+  [visible]="detailVisible()"
+  (visibleChange)="detailVisible.set($event)"
+  [saleId]="selectedSaleId()"
+/>

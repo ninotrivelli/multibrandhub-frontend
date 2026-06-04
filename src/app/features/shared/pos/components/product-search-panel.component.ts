@@ -149,6 +149,19 @@ export class ProductSearchPanelComponent {
     this.brandId.set(brandId);
   }
 
+  // Brand filter chips are plain buttons styled with theme tokens instead of
+  // PrimeNG's `pButton` + `[outlined]` toggle: the ButtonDirective fails to
+  // remove `p-button-outlined` when `outlined` flips true→false, leaving the
+  // freshly-selected chip looking outlined instead of solid. Controlling the
+  // classes here keeps the active chip clearly filled on every selection.
+  protected chipClasses(active: boolean): string {
+    const base =
+      'inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+    return active
+      ? `${base} bg-primary text-primary-contrast border border-primary shadow-sm`
+      : `${base} bg-surface-0 dark:bg-surface-800 text-surface-600 dark:text-surface-300 border border-surface-300 dark:border-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 hover:text-surface-800 dark:hover:text-surface-100`;
+  }
+
   protected clearSearchTerm(): void {
     this.searchTerm.set('');
     queueMicrotask(() => this.searchInput()?.nativeElement.focus());

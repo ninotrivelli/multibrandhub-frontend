@@ -54,24 +54,22 @@
         Filtros
       </span>
       <button
-        pButton
         type="button"
-        size="small"
-        label="Todas las Marcas"
-        [outlined]="brandId() !== null"
-        [severity]="brandId() === null ? 'primary' : 'secondary'"
+        [class]="chipClasses(brandId() === null)"
+        [attr.aria-pressed]="brandId() === null"
         (click)="selectBrand(null)"
-      ></button>
+      >
+        Todas las Marcas
+      </button>
       @for (brand of activeBrands(); track brand.id) {
         <button
-          pButton
           type="button"
-          size="small"
-          [label]="brand.name"
-          [outlined]="brandId() !== brand.id"
-          [severity]="brandId() === brand.id ? 'primary' : 'secondary'"
+          [class]="chipClasses(brandId() === brand.id)"
+          [attr.aria-pressed]="brandId() === brand.id"
           (click)="selectBrand(brand.id)"
-        ></button>
+        >
+          {{ brand.name }}
+        </button>
       }
     </div>
   </div>
@@ -99,6 +97,8 @@
       [first]="(page() - 1) * pageSize()"
       [totalRecords]="totalCount()"
       [rowsPerPageOptions]="[8, 16, 32]"
+      paginatorDropdownAppendTo="body"
+      [rowHover]="true"
       [loading]="loading()"
       (onLazyLoad)="onLazyLoad($event)"
       dataKey="id"
@@ -170,6 +170,7 @@
               [pTooltip]="row.currentStock <= 0 ? 'Sin stock' : 'Agregar a la venta'"
               tooltipPosition="left"
               aria-label="Agregar a la venta"
+              class="transition-colors enabled:hover:bg-primary! enabled:hover:text-primary-contrast!"
               (click)="cart.add(row)"
             >
               <i-lucide [img]="icons.Plus" class="size-4" />

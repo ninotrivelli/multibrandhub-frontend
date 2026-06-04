@@ -27,6 +27,7 @@ import {
   CardBrand,
   PaymentMethod,
   SaleSearchParams,
+  SaleSearchResponse,
   SaleType,
 } from '../../../../core/sales/sales.types';
 import {
@@ -40,6 +41,7 @@ import {
   parseBackendUtcDate,
   URUGUAY_TIME_ZONE,
 } from '../../inventory/inventory.utils';
+import { SaleDetailDialogComponent } from './sale-detail-dialog.component';
 
 @Component({
   selector: 'app-pos-recent-sales-list',
@@ -53,6 +55,7 @@ import {
     TableModule,
     TagModule,
     LucideAngularModule,
+    SaleDetailDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './recent-sales-list.component.html',
@@ -76,6 +79,10 @@ export class RecentSalesListComponent {
   protected readonly endDate = signal('');
   protected readonly page = signal(1);
   protected readonly pageSize = signal(10);
+
+  // Sale-detail modal state. Clicking a row loads that sale's full detail.
+  protected readonly detailVisible = signal(false);
+  protected readonly selectedSaleId = signal<string | null>(null);
 
   protected readonly typeOptions: { label: string; value: SaleType | null }[] = [
     { label: 'Ventas y devoluciones', value: null },
@@ -155,6 +162,11 @@ export class RecentSalesListComponent {
     this.pageSize.set(newPageSize);
     this.page.set(newPage);
     this.fetchTrigger$.next();
+  }
+
+  protected openDetail(row: SaleSearchResponse): void {
+    this.selectedSaleId.set(row.id);
+    this.detailVisible.set(true);
   }
 
   protected clearSearchTerm(): void {

@@ -64,6 +64,12 @@ export interface SaleDetailResponse {
   unitDiscountAmount: number;
   unitNetPrice: number;
   subTotal: number;
+  // TODO: confirm with user — the backend SaleDetailResponse does NOT return
+  // these yet. Needed to render the product thumbnail in the sale-detail modal
+  // (falls back to the category placeholder, then a generic one). Optional until
+  // the backend adds ImageUrl + CategoryName to the sale detail projection.
+  imageUrl?: string | null;
+  categoryName?: string | null;
 }
 
 export interface SaleResponse {
