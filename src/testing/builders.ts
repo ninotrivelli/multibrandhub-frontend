@@ -280,6 +280,8 @@ export function makeSaleSearch(
     date: '2026-06-03T12:00:00Z',
     type: 'Sale',
     totalAmount: 3700,
+    paymentMethod: 'Cash',
+    cardBrand: null,
     status: 'Completed',
     sellerId: 'user-seller',
     sellerName: 'Venta Mostrador',

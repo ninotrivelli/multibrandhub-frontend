@@ -76,6 +76,7 @@ export class SalesService {
       p = p.set('ticketId', params.ticketId.trim());
     }
     if (params.brandId) p = p.set('brandId', params.brandId);
+    if (params.saleType) p = p.set('saleType', params.saleType);
     if (params.startDate) p = p.set('startDate', params.startDate);
     if (params.endDate) p = p.set('endDate', params.endDate);
     p = p.set('page', params.page ?? 1);

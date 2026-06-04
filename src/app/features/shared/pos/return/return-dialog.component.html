@@ -7,7 +7,7 @@
   [dismissableMask]="!submitting()"
   [draggable]="false"
   [style]="{ width: '46rem', maxWidth: '95vw' }"
-  header="Registrar devolución"
+  header="Ingresar devolución"
 >
   @if (step() === 'search') {
     <div class="flex flex-col gap-4">
@@ -133,16 +133,35 @@
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <label class="text-xs text-surface-500 dark:text-surface-400">Devolver</label>
-              <p-inputnumber
-                [ngModel]="returnQty(line.id)"
-                (ngModelChange)="setReturnQty(line.id, $event, line.quantity)"
-                [showButtons]="true"
-                buttonLayout="horizontal"
-                [step]="1"
-                [min]="0"
-                [max]="line.quantity"
-                inputStyleClass="w-12 text-center"
-              />
+              <button
+                pButton
+                type="button"
+                severity="secondary"
+                [outlined]="true"
+                size="small"
+                [rounded]="true"
+                aria-label="Restar unidad a devolver"
+                [disabled]="returnQty(line.id) <= 0"
+                (click)="setReturnQty(line.id, returnQty(line.id) - 1, line.quantity)"
+              >
+                <i-lucide [img]="icons.Minus" class="size-4" />
+              </button>
+              <span class="w-7 text-center text-sm font-semibold text-surface-900 dark:text-surface-0">
+                {{ returnQty(line.id) }}
+              </span>
+              <button
+                pButton
+                type="button"
+                severity="secondary"
+                [outlined]="true"
+                size="small"
+                [rounded]="true"
+                aria-label="Sumar unidad a devolver"
+                [disabled]="returnQty(line.id) >= line.quantity"
+                (click)="setReturnQty(line.id, returnQty(line.id) + 1, line.quantity)"
+              >
+                <i-lucide [img]="icons.Plus" class="size-4" />
+              </button>
             </div>
           </div>
         }
@@ -196,8 +215,7 @@
         <button
           pButton
           type="button"
-          severity="warn"
-          label="Registrar devolución"
+          label="Ingresar Devolución"
           [loading]="submitting()"
           [disabled]="!canSubmit()"
           (click)="submit()"

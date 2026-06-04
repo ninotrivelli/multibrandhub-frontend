@@ -2,16 +2,14 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { SelectModule } from 'primeng/select';
-import {
-  ArrowRightLeft,
-  Banknote,
-  CreditCard,
-  LucideAngularModule,
-  LucideIconData,
-  Wallet,
-} from 'lucide-angular';
+import { LucideAngularModule, LucideIconData } from 'lucide-angular';
 
 import { CardBrand, PaymentMethod } from '../../../../core/sales/sales.types';
+import {
+  cardBrandLabel,
+  paymentMethodIcon,
+  paymentMethodLabel,
+} from '../../../../core/sales/sales.utils';
 import { PosCartStore } from '../pos-cart.store';
 
 interface PaymentOption {
@@ -19,6 +17,9 @@ interface PaymentOption {
   label: string;
   icon: LucideIconData;
 }
+
+const SELECTABLE_METHODS: PaymentMethod[] = ['Cash', 'DebitCard', 'CreditCard', 'Transfer'];
+const SELECTABLE_CARD_BRANDS: CardBrand[] = ['Visa', 'MasterCard', 'Oca', 'Other'];
 
 @Component({
   selector: 'app-pos-payment-method-selector',
@@ -30,20 +31,16 @@ export class PaymentMethodSelectorComponent {
   protected readonly cart = inject(PosCartStore);
 
   // Each tile maps 1:1 to a backend PaymentMethod, so Débito/Crédito are
-  // first-class choices rather than a nested toggle under "Tarjeta".
-  protected readonly options: PaymentOption[] = [
-    { value: 'Cash', label: 'Efectivo', icon: Banknote },
-    { value: 'DebitCard', label: 'Débito', icon: Wallet },
-    { value: 'CreditCard', label: 'Crédito', icon: CreditCard },
-    { value: 'Transfer', label: 'Transferencia', icon: ArrowRightLeft },
-  ];
+  // first-class choices rather than a nested toggle under "Tarjeta". Labels and
+  // icons come from the shared sales.utils so the recent-sales list stays in sync.
+  protected readonly options: PaymentOption[] = SELECTABLE_METHODS.map((value) => ({
+    value,
+    label: paymentMethodLabel(value),
+    icon: paymentMethodIcon(value),
+  }));
 
-  protected readonly cardBrandOptions: { label: string; value: CardBrand }[] = [
-    { label: 'Visa', value: 'Visa' },
-    { label: 'Mastercard', value: 'MasterCard' },
-    { label: 'OCA', value: 'Oca' },
-    { label: 'Otra', value: 'Other' },
-  ];
+  protected readonly cardBrandOptions: { label: string; value: CardBrand }[] =
+    SELECTABLE_CARD_BRANDS.map((value) => ({ label: cardBrandLabel(value), value }));
 
   protected select(method: PaymentMethod): void {
     this.cart.setPaymentMethod(method);

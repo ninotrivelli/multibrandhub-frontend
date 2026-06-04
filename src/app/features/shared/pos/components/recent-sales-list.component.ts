@@ -7,23 +7,53 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { EMPTY, Subject, catchError, switchMap } from 'rxjs';
+import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 
+import { ButtonModule } from 'primeng/button';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
+import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { TableModule, TableLazyLoadEvent } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
-import { LucideAngularModule, History } from 'lucide-angular';
+import { History, LucideAngularModule, LucideIconData, Search, X } from 'lucide-angular';
 
 import { BrandsService } from '../../../../core/brands/brands.service';
 import { BrandResponse } from '../../../../core/brands/brands.types';
 import { SalesService } from '../../../../core/sales/sales.service';
-import { formatCurrencyUYU, parseBackendUtcDate, URUGUAY_TIME_ZONE } from '../../inventory/inventory.utils';
+import {
+  CardBrand,
+  PaymentMethod,
+  SaleSearchParams,
+  SaleType,
+} from '../../../../core/sales/sales.types';
+import {
+  cardBrandLabel,
+  paymentMethodIcon,
+  paymentMethodLabel,
+} from '../../../../core/sales/sales.utils';
+import {
+  formatCurrencyUYU,
+  formatRelativeDay,
+  parseBackendUtcDate,
+  URUGUAY_TIME_ZONE,
+} from '../../inventory/inventory.utils';
 
 @Component({
   selector: 'app-pos-recent-sales-list',
-  imports: [FormsModule, SelectModule, TableModule, TagModule, LucideAngularModule],
+  imports: [
+    FormsModule,
+    ButtonModule,
+    IconFieldModule,
+    InputIconModule,
+    InputTextModule,
+    SelectModule,
+    TableModule,
+    TagModule,
+    LucideAngularModule,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './recent-sales-list.component.html',
 })
@@ -31,15 +61,27 @@ export class RecentSalesListComponent {
   private readonly sales = inject(SalesService);
   private readonly brands = inject(BrandsService);
 
-  protected readonly icons = { History };
+  protected readonly icons = { History, Search, X };
 
   protected readonly items = this.sales.recentItems;
   protected readonly totalCount = this.sales.recentTotal;
   protected readonly loading = this.sales.recentLoading;
 
+  // Filters. searchTerm is debounced before it hits the backend; the rest fire
+  // immediately. Empty string / null means "no filter".
+  protected readonly searchTerm = signal('');
+  protected readonly saleType = signal<SaleType | null>(null);
   protected readonly brandId = signal<string | null>(null);
+  protected readonly startDate = signal('');
+  protected readonly endDate = signal('');
   protected readonly page = signal(1);
   protected readonly pageSize = signal(10);
+
+  protected readonly typeOptions: { label: string; value: SaleType | null }[] = [
+    { label: 'Ventas y devoluciones', value: null },
+    { label: 'Solo ventas', value: 'Sale' },
+    { label: 'Solo devoluciones', value: 'Return' },
+  ];
 
   protected readonly brandOptions = computed(() => [
     { label: 'Todas las marcas', value: null },
@@ -49,32 +91,62 @@ export class RecentSalesListComponent {
       .map((b: BrandResponse) => ({ label: b.name, value: b.id as string | null })),
   ]);
 
+  protected readonly hasAnyFilter = computed(
+    () =>
+      this.searchTerm().trim().length > 0 ||
+      this.saleType() !== null ||
+      this.brandId() !== null ||
+      this.startDate().length > 0 ||
+      this.endDate().length > 0,
+  );
+
+  // Debounced view of the search box so typing doesn't spam the backend. Drives
+  // the same effect as the other filters below.
+  private readonly debouncedSearch = toSignal(
+    toObservable(this.searchTerm).pipe(
+      debounceTime(300),
+      map((term) => term.trim()),
+      distinctUntilChanged(),
+    ),
+    { initialValue: '' },
+  );
+
   private readonly fetchTrigger$ = new Subject<void>();
 
   constructor() {
     this.fetchTrigger$
       .pipe(
-        switchMap(() =>
-          this.sales
-            .search({
-              brandId: this.brandId() ?? undefined,
-              page: this.page(),
-              pageSize: this.pageSize(),
-            })
-            .pipe(catchError(() => EMPTY)),
-        ),
+        switchMap(() => this.sales.search(this.currentParams()).pipe(catchError(() => EMPTY))),
         takeUntilDestroyed(),
       )
       .subscribe();
 
-    // Initial load + refetch when the brand filter changes.
+    // Initial load + refetch whenever any filter changes. Reads every filter
+    // signal (incl. the debounced search) so the effect re-runs on any change;
+    // page is reset to 1 inside untracked() so it never re-triggers itself.
     effect(() => {
+      this.debouncedSearch();
+      this.saleType();
       this.brandId();
+      this.startDate();
+      this.endDate();
       untracked(() => {
         this.page.set(1);
         this.fetchTrigger$.next();
       });
     });
+  }
+
+  private currentParams(): SaleSearchParams {
+    return {
+      searchTerm: this.debouncedSearch() || undefined,
+      saleType: this.saleType() ?? undefined,
+      brandId: this.brandId() ?? undefined,
+      startDate: this.startDate() || undefined,
+      endDate: this.endDate() || undefined,
+      page: this.page(),
+      pageSize: this.pageSize(),
+    };
   }
 
   protected onLazyLoad(event: TableLazyLoadEvent): void {
@@ -85,12 +157,44 @@ export class RecentSalesListComponent {
     this.fetchTrigger$.next();
   }
 
+  protected clearSearchTerm(): void {
+    this.searchTerm.set('');
+  }
+
+  protected clearFilters(): void {
+    this.searchTerm.set('');
+    this.saleType.set(null);
+    this.brandId.set(null);
+    this.startDate.set('');
+    this.endDate.set('');
+    // Guarantees an immediate refetch even when only the (debounced) search was
+    // active and the other filter signals don't actually change value.
+    this.page.set(1);
+    this.fetchTrigger$.next();
+  }
+
+  protected relativeDay(iso: string): string {
+    return formatRelativeDay(iso);
+  }
+
   protected formatTime(iso: string): string {
     return new Intl.DateTimeFormat('es-UY', {
       timeZone: URUGUAY_TIME_ZONE,
       hour: '2-digit',
       minute: '2-digit',
     }).format(parseBackendUtcDate(iso));
+  }
+
+  protected paymentIcon(method: PaymentMethod): LucideIconData {
+    return paymentMethodIcon(method);
+  }
+
+  protected paymentLabel(method: PaymentMethod): string {
+    return paymentMethodLabel(method);
+  }
+
+  protected cardBrand(brand: CardBrand): string {
+    return cardBrandLabel(brand);
   }
 
   protected formatCurrency(value: number): string {

@@ -94,6 +94,10 @@ export interface SaleSearchResponse {
   date: string;
   type: SaleType;
   totalAmount: number;
+  paymentMethod: PaymentMethod;
+  // Null for non-card methods (Cash/Transfer/MercadoPago). On returns the
+  // backend copies the original sale's method/brand.
+  cardBrand: CardBrand | null;
   status: SaleStatus;
   sellerId: string | null;
   sellerName: string | null;
@@ -106,6 +110,8 @@ export interface SaleSearchParams {
   searchTerm?: string;
   ticketId?: string;
   brandId?: string;
+  // Restrict the feed to sales ('Sale') or returns ('Return'). Omitted = both.
+  saleType?: SaleType;
   startDate?: string;
   endDate?: string;
   page?: number;

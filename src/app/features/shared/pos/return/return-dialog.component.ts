@@ -18,10 +18,10 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
-import { InputNumberModule } from 'primeng/inputnumber';
+import { InputTextModule } from 'primeng/inputtext';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
-import { LucideAngularModule, ArrowLeft, Search } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Minus, Plus, Search } from 'lucide-angular';
 
 import { SalesService } from '../../../../core/sales/sales.service';
 import { SaleResponse, SaleSearchResponse } from '../../../../core/sales/sales.types';
@@ -41,7 +41,7 @@ type Step = 'search' | 'detail';
     DialogModule,
     IconFieldModule,
     InputIconModule,
-    InputNumberModule,
+    InputTextModule,
     TagModule,
     TextareaModule,
     LucideAngularModule,
@@ -56,7 +56,7 @@ export class ReturnDialogComponent {
   readonly visibleChange = output<boolean>();
   readonly saved = output<SaleResponse>();
 
-  protected readonly icons = { Search, ArrowLeft };
+  protected readonly icons = { Search, ArrowLeft, Minus, Plus };
   protected readonly maxObservations = 500;
 
   protected readonly step = signal<Step>('search');
