@@ -9,7 +9,15 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
+import {
+  EMPTY,
+  Subject,
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  map,
+  switchMap,
+} from 'rxjs';
 
 import { ButtonModule } from 'primeng/button';
 import { IconFieldModule } from 'primeng/iconfield';
@@ -35,6 +43,7 @@ import {
   paymentMethodIcon,
   paymentMethodLabel,
 } from '../../../../core/sales/sales.utils';
+import { BrandChipComponent } from '../../../../shared/components/brand-chip/brand-chip.component';
 import {
   formatCurrencyUYU,
   formatShortDate,
@@ -56,6 +65,7 @@ import { SaleDetailDialogComponent } from './sale-detail-dialog.component';
     TableModule,
     TagModule,
     LucideAngularModule,
+    BrandChipComponent,
     SaleDetailDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,

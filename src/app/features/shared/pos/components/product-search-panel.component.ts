@@ -11,7 +11,16 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, skip, switchMap, tap } from 'rxjs';
+import {
+  EMPTY,
+  Subject,
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  skip,
+  switchMap,
+  tap,
+} from 'rxjs';
 
 import { ButtonModule } from 'primeng/button';
 import { IconFieldModule } from 'primeng/iconfield';
@@ -30,6 +39,7 @@ import { ProductResponse } from '../../inventory/inventory.types';
 import { formatCurrencyUYU, formatNumber } from '../../inventory/inventory.utils';
 import { ProductImageComponent } from '../../inventory/components/product-image.component';
 import { PosCartStore } from '../pos-cart.store';
+import { BrandChipComponent } from '../../../../shared/components/brand-chip/brand-chip.component';
 
 @Component({
   selector: 'app-pos-product-search-panel',
@@ -44,6 +54,7 @@ import { PosCartStore } from '../pos-cart.store';
     TooltipModule,
     LucideAngularModule,
     ProductImageComponent,
+    BrandChipComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './product-search-panel.component.html',

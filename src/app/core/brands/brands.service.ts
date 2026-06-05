@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { SessionStateRegistry } from '../session/session-state-registry.service';
 import {
   BrandOffboardingResponse,
   BrandResponse,
@@ -15,6 +16,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class BrandsService {
   private readonly http = inject(HttpClient);
+  private readonly sessionState = inject(SessionStateRegistry);
   private readonly baseUrl = `${environment.apiBaseUrl}/brands`;
 
   private readonly _items = signal<BrandResponse[]>([]);
@@ -26,9 +28,14 @@ export class BrandsService {
   readonly loading = this._loading.asReadonly();
   readonly hasItems = computed(() => this._items().length > 0);
 
+  constructor() {
+    this.sessionState.registerResetter(() => this.resetSessionState());
+  }
+
   list({ page = 1, pageSize = 100, includeArchived = false }: ListBrandsParams = {}): Observable<
     PagedResult<BrandResponse>
   > {
+    const generation = this.sessionState.captureGeneration();
     let params = new HttpParams().set('page', page).set('pageSize', pageSize);
     if (includeArchived) {
       params = params.set('includeArchived', true);
@@ -37,11 +44,14 @@ export class BrandsService {
     return this.http.get<PagedResult<BrandResponse>>(this.baseUrl, { params }).pipe(
       tap({
         next: (res) => {
+          if (!this.sessionState.isCurrentGeneration(generation)) return;
           this._items.set(res.items);
           this._totalCount.set(res.totalCount);
           this._loading.set(false);
         },
-        error: () => this._loading.set(false),
+        error: () => {
+          if (this.sessionState.isCurrentGeneration(generation)) this._loading.set(false);
+        },
       }),
     );
   }
@@ -51,40 +61,57 @@ export class BrandsService {
   }
 
   create(req: CreateBrandRequest): Observable<BrandResponse> {
-    return this.http
-      .post<BrandResponse>(this.baseUrl, req)
-      .pipe(tap((created) => this._items.update((curr) => [created, ...curr])));
+    const generation = this.sessionState.captureGeneration();
+    return this.http.post<BrandResponse>(this.baseUrl, req).pipe(
+      tap((created) => {
+        if (this.sessionState.isCurrentGeneration(generation)) {
+          this._items.update((curr) => [created, ...curr]);
+        }
+      }),
+    );
   }
 
   update(id: string, req: UpdateBrandRequest): Observable<BrandResponse> {
-    return this.http
-      .put<BrandResponse>(`${this.baseUrl}/${id}`, req)
-      .pipe(
-        tap((updated) =>
-          this._items.update((curr) => curr.map((brand) => (brand.id === id ? updated : brand))),
-        ),
-      );
+    const generation = this.sessionState.captureGeneration();
+    return this.http.put<BrandResponse>(`${this.baseUrl}/${id}`, req).pipe(
+      tap((updated) => {
+        if (this.sessionState.isCurrentGeneration(generation)) {
+          this._items.update((curr) => curr.map((brand) => (brand.id === id ? updated : brand)));
+        }
+      }),
+    );
   }
 
   delete(id: string): Observable<void> {
-    return this.http
-      .delete<void>(`${this.baseUrl}/${id}`)
-      .pipe(tap(() => this._items.update((curr) => curr.filter((brand) => brand.id !== id))));
+    const generation = this.sessionState.captureGeneration();
+    return this.http.delete<void>(`${this.baseUrl}/${id}`).pipe(
+      tap(() => {
+        if (this.sessionState.isCurrentGeneration(generation)) {
+          this._items.update((curr) => curr.filter((brand) => brand.id !== id));
+        }
+      }),
+    );
   }
 
   offboard(id: string): Observable<BrandOffboardingResponse> {
-    return this.http
-      .post<BrandOffboardingResponse>(`${this.baseUrl}/${id}/offboard`, null)
-      .pipe(
-        tap((res) =>
-          this._items.update((curr) =>
-            curr.map((brand) =>
-              brand.id === id
-                ? { ...brand, status: res.status, archivedAtUtc: res.archivedAtUtc }
-                : brand,
-            ),
+    const generation = this.sessionState.captureGeneration();
+    return this.http.post<BrandOffboardingResponse>(`${this.baseUrl}/${id}/offboard`, null).pipe(
+      tap((res) => {
+        if (!this.sessionState.isCurrentGeneration(generation)) return;
+        this._items.update((curr) =>
+          curr.map((brand) =>
+            brand.id === id
+              ? { ...brand, status: res.status, archivedAtUtc: res.archivedAtUtc }
+              : brand,
           ),
-        ),
-      );
+        );
+      }),
+    );
+  }
+
+  private resetSessionState(): void {
+    this._items.set([]);
+    this._totalCount.set(0);
+    this._loading.set(false);
   }
 }

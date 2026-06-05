@@ -60,11 +60,11 @@
                 @if (sale.brands.length > 0) {
                   <div class="flex flex-wrap gap-1 mt-1">
                     @for (brand of sale.brands; track brand.brandId) {
-                      <span
-                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-surface-100 dark:bg-surface-700 text-surface-500 dark:text-surface-300"
-                      >
-                        {{ brand.brandName }}
-                      </span>
+                      <app-brand-chip
+                        [brandId]="brand.brandId"
+                        [brandName]="brand.brandName"
+                        size="xs"
+                      />
                     }
                   </div>
                 }
@@ -95,7 +95,9 @@
         <span class="font-mono text-sm font-medium text-surface-700 dark:text-surface-200">
           {{ sale.ticketId ?? '—' }}
         </span>
-        <span class="text-xs text-surface-500 dark:text-surface-400">{{ formatDate(sale.date) }}</span>
+        <span class="text-xs text-surface-500 dark:text-surface-400">{{
+          formatDate(sale.date)
+        }}</span>
       </div>
 
       <p class="text-sm text-surface-500 dark:text-surface-400">
@@ -111,9 +113,12 @@
               <span class="font-medium text-surface-900 dark:text-surface-0 truncate">
                 {{ line.productName ?? 'Producto' }}
               </span>
-              <span class="text-xs text-surface-500 dark:text-surface-400">
-                {{ line.brandName ?? '—' }} · vendidas: {{ line.quantity }}
-              </span>
+              <div
+                class="flex flex-wrap items-center gap-1.5 text-xs text-surface-500 dark:text-surface-400"
+              >
+                <app-brand-chip [brandName]="line.brandName" size="xs" />
+                <span>vendidas: {{ line.quantity }}</span>
+              </div>
               <div
                 class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-surface-500 dark:text-surface-400"
               >
@@ -146,7 +151,9 @@
               >
                 <i-lucide [img]="icons.Minus" class="size-4" />
               </button>
-              <span class="w-7 text-center text-sm font-semibold text-surface-900 dark:text-surface-0">
+              <span
+                class="w-7 text-center text-sm font-semibold text-surface-900 dark:text-surface-0"
+              >
                 {{ returnQty(line.id) }}
               </span>
               <button

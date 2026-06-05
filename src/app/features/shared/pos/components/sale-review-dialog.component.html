@@ -72,12 +72,13 @@
             >
               <div
                 class="flex items-center justify-between gap-2 border-b border-surface-200 bg-surface-50 px-3 py-2.5 dark:border-surface-700 dark:bg-surface-700/40"
+                [style]="brandGroupHeaderStyle(group.brandId, group.brandName)"
               >
                 <div class="flex min-w-0 flex-col">
-                  <span class="truncate text-sm font-semibold text-surface-900 dark:text-surface-0">
+                  <span class="truncate text-sm font-semibold text-current">
                     {{ group.brandName }}
                   </span>
-                  <span class="text-xs text-surface-500 dark:text-surface-400">
+                  <span class="text-xs text-current opacity-75">
                     {{ group.itemCount }} {{ group.itemCount === 1 ? 'ítem' : 'ítems' }}
                   </span>
                 </div>
@@ -108,10 +109,11 @@
                         }
                         @if (line.product.size || line.product.color) {
                           <span>
-                            {{ line.product.size
-                            }}@if (line.product.size && line.product.color) {
+                            {{ line.product.size }}
+                            @if (line.product.size && line.product.color) {
                               <span>·</span>
-                            }{{ line.product.color }}
+                            }
+                            {{ line.product.color }}
                           </span>
                         }
                       </div>

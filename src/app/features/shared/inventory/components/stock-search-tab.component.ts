@@ -13,7 +13,16 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { EMPTY, Observable, Subject, catchError, debounceTime, distinctUntilChanged, skip, switchMap } from 'rxjs';
+import {
+  EMPTY,
+  Observable,
+  Subject,
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  skip,
+  switchMap,
+} from 'rxjs';
 
 import { ButtonModule } from 'primeng/button';
 import { IconFieldModule } from 'primeng/iconfield';
@@ -55,6 +64,7 @@ import {
 } from '../inventory.utils';
 import { ProductImageComponent } from './product-image.component';
 import { StockStatusTagComponent } from './stock-status-tag.component';
+import { BrandChipComponent } from '../../../../shared/components/brand-chip/brand-chip.component';
 
 // Row in the table can come from either the regular search (ProductResponse)
 // or the immobilized-stock search (ImmobilizedStockProductResponse). Common
@@ -81,6 +91,7 @@ type TableRow =
     LucideAngularModule,
     ProductImageComponent,
     StockStatusTagComponent,
+    BrandChipComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './stock-search-tab.component.html',

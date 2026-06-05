@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, finalize, forkJoin, map, of, switchMap, tap } from 'rxjs';
 
 import { environment } from '../../../../environments/environment';
+import { SessionStateRegistry } from '../../../core/session/session-state-registry.service';
 import {
   CreateStockMovementRequest,
   PagedResult,
@@ -23,6 +24,7 @@ const EMPTY_TODAY_SUMMARY: StockMovementTodaySummary = {
 export class StockMovementsService {
   private readonly http = inject(HttpClient);
   private readonly products = inject(ProductsService);
+  private readonly sessionState = inject(SessionStateRegistry);
   private readonly baseUrl = `${environment.apiBaseUrl}/stock-movements`;
 
   // Per-product list state (legacy `loadByProduct` callers).
@@ -59,7 +61,12 @@ export class StockMovementsService {
 
   readonly refreshTick = this._refreshTick.asReadonly();
 
+  constructor() {
+    this.sessionState.registerResetter(() => this.resetSessionState());
+  }
+
   search(params: StockMovementSearchParams): Observable<PagedResult<StockMovementResponse>> {
+    const generation = this.sessionState.captureGeneration();
     const httpParams = this.buildSearchParams(params);
     this._searchLoading.set(true);
     return this.http
@@ -67,16 +74,20 @@ export class StockMovementsService {
       .pipe(
         tap({
           next: (res) => {
+            if (!this.sessionState.isCurrentGeneration(generation)) return;
             this._searchItems.set(res.items);
             this._searchTotalCount.set(res.totalCount);
             this._searchLoading.set(false);
           },
-          error: () => this._searchLoading.set(false),
+          error: () => {
+            if (this.sessionState.isCurrentGeneration(generation)) this._searchLoading.set(false);
+          },
         }),
       );
   }
 
   loadTodaySummary(brandIdScope?: string): Observable<StockMovementTodaySummary> {
+    const generation = this.sessionState.captureGeneration();
     this._todaySummaryLoading.set(true);
     const today = formatUruguayDate();
     const params: StockMovementSearchParams = {
@@ -110,8 +121,14 @@ export class StockMovementsService {
           pages[0]?.totalCount ?? 0,
         ),
       ),
-      tap((summary) => this._todaySummary.set(summary)),
-      finalize(() => this._todaySummaryLoading.set(false)),
+      tap((summary) => {
+        if (this.sessionState.isCurrentGeneration(generation)) this._todaySummary.set(summary);
+      }),
+      finalize(() => {
+        if (this.sessionState.isCurrentGeneration(generation)) {
+          this._todaySummaryLoading.set(false);
+        }
+      }),
     );
   }
 
@@ -120,6 +137,7 @@ export class StockMovementsService {
     page = 1,
     pageSize = 20,
   ): Observable<PagedResult<StockMovementResponse>> {
+    const generation = this.sessionState.captureGeneration();
     this._loading.set(true);
     this._activeProductId.set(productId);
     const params = new HttpParams().set('page', page).set('pageSize', pageSize);
@@ -130,11 +148,14 @@ export class StockMovementsService {
       .pipe(
         tap({
           next: (res) => {
+            if (!this.sessionState.isCurrentGeneration(generation)) return;
             this._movements.set(res.items);
             this._totalCount.set(res.totalCount);
             this._loading.set(false);
           },
-          error: () => this._loading.set(false),
+          error: () => {
+            if (this.sessionState.isCurrentGeneration(generation)) this._loading.set(false);
+          },
         }),
       );
   }
@@ -146,8 +167,10 @@ export class StockMovementsService {
   }
 
   create(req: CreateStockMovementRequest): Observable<StockMovementResponse> {
+    const generation = this.sessionState.captureGeneration();
     return this.http.post<StockMovementResponse>(this.baseUrl, req).pipe(
       tap((created) => {
+        if (!this.sessionState.isCurrentGeneration(generation)) return;
         // The backend coerces the sign for StockIn/Sale/Return; trust the
         // response's quantity to know the actual delta applied to stock.
         this.products.applyStockDelta(created.productId, created.quantity);
@@ -173,6 +196,19 @@ export class StockMovementsService {
     p = p.set('page', params.page ?? 1);
     p = p.set('pageSize', params.pageSize ?? 20);
     return p;
+  }
+
+  private resetSessionState(): void {
+    this._movements.set([]);
+    this._totalCount.set(0);
+    this._loading.set(false);
+    this._activeProductId.set(null);
+    this._searchItems.set([]);
+    this._searchTotalCount.set(0);
+    this._searchLoading.set(false);
+    this._todaySummary.set(EMPTY_TODAY_SUMMARY);
+    this._todaySummaryLoading.set(false);
+    this._refreshTick.set(0);
   }
 }
 

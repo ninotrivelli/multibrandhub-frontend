@@ -170,6 +170,13 @@
           <span class="font-mono text-xs font-medium text-surface-800 dark:text-surface-100">
             {{ row.ticketId ?? '—' }}
           </span>
+          @if (row.brands.length > 0) {
+            <div class="mt-1 flex flex-wrap gap-1 lg:hidden">
+              @for (brand of row.brands; track brand.brandId) {
+                <app-brand-chip [brandId]="brand.brandId" [brandName]="brand.brandName" size="xs" />
+              }
+            </div>
+          }
         </td>
 
         <!-- Marcas -->
@@ -177,11 +184,7 @@
           @if (row.brands.length > 0) {
             <div class="flex flex-wrap gap-1">
               @for (brand of row.brands; track brand.brandId) {
-                <span
-                  class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-surface-100 dark:bg-surface-700 text-surface-500 dark:text-surface-300"
-                >
-                  {{ brand.brandName }}
-                </span>
+                <app-brand-chip [brandId]="brand.brandId" [brandName]="brand.brandName" size="xs" />
               }
             </div>
           } @else {

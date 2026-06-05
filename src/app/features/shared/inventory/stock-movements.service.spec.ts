@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { environment } from '../../../../environments/environment';
 import { makeMovement, makeProduct, paged } from '../../../../testing/builders';
+import { SessionStateRegistry } from '../../../core/session/session-state-registry.service';
 import { MovementType } from './inventory.types';
 import { formatUruguayDate } from './inventory.utils';
 import { ProductsService } from './products.service';
@@ -12,6 +13,7 @@ import { StockMovementsService } from './stock-movements.service';
 describe('StockMovementsService', () => {
   let service: StockMovementsService;
   let products: ProductsService;
+  let sessionState: SessionStateRegistry;
   let http: HttpTestingController;
   const movementsUrl = `${environment.apiBaseUrl}/stock-movements`;
   const productsUrl = `${environment.apiBaseUrl}/products`;
@@ -23,6 +25,7 @@ describe('StockMovementsService', () => {
     });
     service = TestBed.inject(StockMovementsService);
     products = TestBed.inject(ProductsService);
+    sessionState = TestBed.inject(SessionStateRegistry);
     http = TestBed.inject(HttpTestingController);
   });
 
@@ -59,6 +62,25 @@ describe('StockMovementsService', () => {
     expect(service.searchItems()).toEqual([movement]);
     expect(service.searchTotalCount()).toBe(9);
     expect(service.searchLoading()).toBe(false);
+  });
+
+  it('clears movement state and ignores late responses after session reset', () => {
+    const movement = makeMovement();
+
+    service.search({ page: 1, pageSize: 20 }).subscribe();
+    const req = http.expectOne((request) => request.url === movementsUrl);
+    expect(service.searchLoading()).toBe(true);
+
+    sessionState.resetAll();
+
+    expect(service.searchItems()).toEqual([]);
+    expect(service.searchTotalCount()).toBe(0);
+    expect(service.searchLoading()).toBe(false);
+
+    req.flush(paged([movement], { totalCount: 1 }));
+
+    expect(service.searchItems()).toEqual([]);
+    expect(service.searchTotalCount()).toBe(0);
   });
 
   it('summarizes today using Uruguay date filters', () => {

@@ -4,10 +4,12 @@ import { TestBed } from '@angular/core/testing';
 
 import { environment } from '../../../environments/environment';
 import { makeSale, makeSaleSearch, paged } from '../../../testing/builders';
+import { SessionStateRegistry } from '../session/session-state-registry.service';
 import { SalesService } from './sales.service';
 
 describe('SalesService', () => {
   let service: SalesService;
+  let sessionState: SessionStateRegistry;
   let http: HttpTestingController;
   const baseUrl = `${environment.apiBaseUrl}/sales`;
 
@@ -17,6 +19,7 @@ describe('SalesService', () => {
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
     service = TestBed.inject(SalesService);
+    sessionState = TestBed.inject(SessionStateRegistry);
     http = TestBed.inject(HttpTestingController);
   });
 
@@ -75,7 +78,9 @@ describe('SalesService', () => {
   it('search updates the recent-list signals and sends trimmed params', () => {
     const item = makeSaleSearch();
 
-    service.search({ searchTerm: '  zendra ', brandId: 'brand-own', page: 2, pageSize: 20 }).subscribe();
+    service
+      .search({ searchTerm: '  zendra ', brandId: 'brand-own', page: 2, pageSize: 20 })
+      .subscribe();
 
     expect(service.recentLoading()).toBe(true);
 
@@ -100,6 +105,25 @@ describe('SalesService', () => {
     const req = http.expectOne((r) => r.url === `${baseUrl}/search`);
     expect(req.request.params.get('searchTerm')).toBe('remera');
     req.flush(paged([makeSaleSearch()], { totalCount: 1 }));
+
+    expect(service.recentItems()).toEqual([]);
+    expect(service.recentTotal()).toBe(0);
+  });
+
+  it('clears recent sales and ignores late search responses after session reset', () => {
+    const item = makeSaleSearch();
+
+    service.search({ page: 1, pageSize: 10 }).subscribe();
+    const req = http.expectOne((r) => r.url === `${baseUrl}/search`);
+    expect(service.recentLoading()).toBe(true);
+
+    sessionState.resetAll();
+
+    expect(service.recentItems()).toEqual([]);
+    expect(service.recentTotal()).toBe(0);
+    expect(service.recentLoading()).toBe(false);
+
+    req.flush(paged([item], { totalCount: 1 }));
 
     expect(service.recentItems()).toEqual([]);
     expect(service.recentTotal()).toBe(0);

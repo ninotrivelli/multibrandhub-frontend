@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { SessionStateRegistry } from '../session/session-state-registry.service';
 import {
   CreateReturnRequest,
   CreateSaleRequest,
@@ -15,6 +16,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class SalesService {
   private readonly http = inject(HttpClient);
+  private readonly sessionState = inject(SessionStateRegistry);
   private readonly baseUrl = `${environment.apiBaseUrl}/sales`;
 
   // State for the POS "recent sales" feed. Mirrors the ProductsService /
@@ -28,6 +30,10 @@ export class SalesService {
   readonly recentLoading = this._recentLoading.asReadonly();
   readonly hasRecent = computed(() => this._recentItems().length > 0);
 
+  constructor() {
+    this.sessionState.registerResetter(() => this.resetSessionState());
+  }
+
   create(req: CreateSaleRequest): Observable<SaleResponse> {
     return this.http.post<SaleResponse>(this.baseUrl, req);
   }
@@ -38,6 +44,7 @@ export class SalesService {
 
   // Drives the recent-sales list. Updates the shared signals via tap().
   search(params: SaleSearchParams): Observable<PagedResult<SaleSearchResponse>> {
+    const generation = this.sessionState.captureGeneration();
     const httpParams = this.buildSearchParams(params);
     this._recentLoading.set(true);
     return this.http
@@ -45,11 +52,14 @@ export class SalesService {
       .pipe(
         tap({
           next: (res) => {
+            if (!this.sessionState.isCurrentGeneration(generation)) return;
             this._recentItems.set(res.items);
             this._recentTotal.set(res.totalCount);
             this._recentLoading.set(false);
           },
-          error: () => this._recentLoading.set(false),
+          error: () => {
+            if (this.sessionState.isCurrentGeneration(generation)) this._recentLoading.set(false);
+          },
         }),
       );
   }
@@ -82,5 +92,11 @@ export class SalesService {
     p = p.set('page', params.page ?? 1);
     p = p.set('pageSize', params.pageSize ?? 10);
     return p;
+  }
+
+  private resetSessionState(): void {
+    this._recentItems.set([]);
+    this._recentTotal.set(0);
+    this._recentLoading.set(false);
   }
 }

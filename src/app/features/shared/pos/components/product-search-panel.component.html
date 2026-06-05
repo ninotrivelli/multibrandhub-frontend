@@ -135,12 +135,13 @@
                   <span> · {{ row.size || row.color }}</span>
                 }
               </span>
+              <div class="mt-1 md:hidden">
+                <app-brand-chip [brandId]="row.brandId" [brandName]="row.brandName" size="xs" />
+              </div>
             </div>
           </td>
           <td class="hidden md:table-cell">
-            <span class="text-sm text-surface-700 dark:text-surface-200">
-              {{ row.brandName ?? '—' }}
-            </span>
+            <app-brand-chip [brandId]="row.brandId" [brandName]="row.brandName" />
           </td>
           <td class="text-right">
             <span

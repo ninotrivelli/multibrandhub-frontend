@@ -21,6 +21,7 @@ import { formatCurrencyUYU } from '../../inventory/inventory.utils';
 import { ProductImageComponent } from '../../inventory/components/product-image.component';
 import { PosCartStore, PricedCartLine } from '../pos-cart.store';
 import { SaleDetailDiscountType } from '../../../../core/sales/sales.types';
+import { BrandChipComponent } from '../../../../shared/components/brand-chip/brand-chip.component';
 import { PaymentMethodSelectorComponent } from './payment-method-selector.component';
 
 @Component({
@@ -33,6 +34,7 @@ import { PaymentMethodSelectorComponent } from './payment-method-selector.compon
     TextareaModule,
     LucideAngularModule,
     ProductImageComponent,
+    BrandChipComponent,
     PaymentMethodSelectorComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,

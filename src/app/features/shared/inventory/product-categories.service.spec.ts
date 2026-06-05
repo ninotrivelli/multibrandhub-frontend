@@ -4,11 +4,13 @@ import { TestBed } from '@angular/core/testing';
 
 import { environment } from '../../../../environments/environment';
 import { makeCategory } from '../../../../testing/builders';
+import { SessionStateRegistry } from '../../../core/session/session-state-registry.service';
 import { ProductCategoryResponse } from './inventory.types';
 import { ProductCategoriesService } from './product-categories.service';
 
 describe('ProductCategoriesService', () => {
   let service: ProductCategoriesService;
+  let sessionState: SessionStateRegistry;
   let http: HttpTestingController;
   const baseUrl = `${environment.apiBaseUrl}/product-categories`;
 
@@ -18,6 +20,7 @@ describe('ProductCategoriesService', () => {
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
     service = TestBed.inject(ProductCategoriesService);
+    sessionState = TestBed.inject(SessionStateRegistry);
     http = TestBed.inject(HttpTestingController);
   });
 
@@ -43,6 +46,21 @@ describe('ProductCategoriesService', () => {
     expect(latest).toEqual(categories);
 
     service.list(true).subscribe();
+    http.expectOne(baseUrl).flush([makeCategory({ id: 'cat-dresses', name: 'Vestidos' })]);
+    expect(service.items().map((category) => category.id)).toEqual(['cat-dresses']);
+  });
+
+  it('drops the per-session category cache on session reset', () => {
+    service.list().subscribe();
+    http.expectOne(baseUrl).flush([makeCategory()]);
+    expect(service.hasItems()).toBe(true);
+
+    sessionState.resetAll();
+
+    expect(service.items()).toEqual([]);
+    expect(service.hasItems()).toBe(false);
+
+    service.list().subscribe();
     http.expectOne(baseUrl).flush([makeCategory({ id: 'cat-dresses', name: 'Vestidos' })]);
     expect(service.items().map((category) => category.id)).toEqual(['cat-dresses']);
   });

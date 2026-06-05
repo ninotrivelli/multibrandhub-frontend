@@ -43,10 +43,14 @@
           <span class="font-medium text-surface-900 dark:text-surface-0 truncate">
             {{ p.name }} ({{ p.sku }})
           </span>
-          <span class="text-xs text-surface-500 dark:text-surface-400">
-            Stock actual: <strong>{{ p.currentStock }}</strong> unids. · Marca:
-            <strong>{{ p.brandName ?? '—' }}</strong>
-          </span>
+          <div
+            class="flex flex-wrap items-center gap-1.5 text-xs text-surface-500 dark:text-surface-400"
+          >
+            <span
+              >Stock actual: <strong>{{ p.currentStock }}</strong> unids.</span
+            >
+            <app-brand-chip [brandId]="p.brandId" [brandName]="p.brandName" size="xs" />
+          </div>
         </div>
         <button
           pButton
@@ -85,9 +89,12 @@
                 <span class="font-medium text-sm text-surface-900 dark:text-surface-0 truncate">
                   {{ p.name }}
                 </span>
-                <span class="text-xs text-surface-500 dark:text-surface-400 truncate">
-                  {{ p.sku }} · {{ p.brandName }}
-                </span>
+                <div
+                  class="flex flex-wrap items-center gap-1.5 text-xs text-surface-500 dark:text-surface-400"
+                >
+                  <span>{{ p.sku }}</span>
+                  <app-brand-chip [brandId]="p.brandId" [brandName]="p.brandName" size="xs" />
+                </div>
               </div>
               <span
                 class="text-xs text-surface-500 dark:text-surface-400 whitespace-nowrap shrink-0"

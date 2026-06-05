@@ -264,9 +264,12 @@
               <span class="font-medium text-surface-900 dark:text-surface-0">
                 {{ row.name }}
               </span>
-              <span class="text-xs text-surface-500 dark:text-surface-400 md:hidden">
-                {{ row.categoryName }} · {{ row.brandName }}
-              </span>
+              <div
+                class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-surface-500 dark:text-surface-400 md:hidden"
+              >
+                <span>{{ row.categoryName ?? '—' }}</span>
+                <app-brand-chip [brandId]="row.brandId" [brandName]="row.brandName" size="xs" />
+              </div>
             </div>
           </td>
           <td class="hidden md:table-cell">
@@ -275,9 +278,7 @@
             </span>
           </td>
           <td class="hidden md:table-cell">
-            <span class="text-sm text-surface-700 dark:text-surface-200">
-              {{ row.brandName ?? '—' }}
-            </span>
+            <app-brand-chip [brandId]="row.brandId" [brandName]="row.brandName" />
           </td>
           <td class="hidden lg:table-cell">
             <span class="text-sm text-surface-600 dark:text-surface-300">

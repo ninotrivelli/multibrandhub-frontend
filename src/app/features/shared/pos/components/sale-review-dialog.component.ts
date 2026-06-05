@@ -10,6 +10,7 @@ import {
   paymentMethodIcon,
   paymentMethodLabel,
 } from '../../../../core/sales/sales.utils';
+import { BrandStyle, brandHeaderStyle } from '../../../../core/brands/brand-colors';
 import { ProductImageComponent } from '../../inventory/components/product-image.component';
 import { formatCurrencyUYU } from '../../inventory/inventory.utils';
 import { PosCartStore, PricedCartLine } from '../pos-cart.store';
@@ -59,6 +60,10 @@ export class SaleReviewDialogComponent {
 
   protected cardBrandLabel(brand: CardBrand): string {
     return cardBrandLabel(brand);
+  }
+
+  protected brandGroupHeaderStyle(brandId: string, brandName: string): BrandStyle {
+    return brandHeaderStyle({ brandId, brandName });
   }
 
   protected discountLabel(line: PricedCartLine): string {

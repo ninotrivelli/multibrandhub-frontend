@@ -3,11 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 
 import { environment } from '../../../../environments/environment';
+import { SessionStateRegistry } from '../../../core/session/session-state-registry.service';
 import { ProductCategoryResponse } from './inventory.types';
 
 @Injectable({ providedIn: 'root' })
 export class ProductCategoriesService {
   private readonly http = inject(HttpClient);
+  private readonly sessionState = inject(SessionStateRegistry);
   private readonly baseUrl = `${environment.apiBaseUrl}/product-categories`;
 
   private readonly _items = signal<ProductCategoryResponse[]>([]);
@@ -18,6 +20,10 @@ export class ProductCategoriesService {
   readonly loading = this._loading.asReadonly();
   readonly hasItems = computed(() => this._items().length > 0);
 
+  constructor() {
+    this.sessionState.registerResetter(() => this.resetSessionState());
+  }
+
   // Cache once per session — categories are seeded and rarely change.
   list(force = false): Observable<ProductCategoryResponse[]> {
     if (this._loaded() && !force) {
@@ -26,16 +32,26 @@ export class ProductCategoriesService {
         sub.complete();
       });
     }
+    const generation = this.sessionState.captureGeneration();
     this._loading.set(true);
     return this.http.get<ProductCategoryResponse[]>(this.baseUrl).pipe(
       tap({
         next: (res) => {
+          if (!this.sessionState.isCurrentGeneration(generation)) return;
           this._items.set(res);
           this._loaded.set(true);
           this._loading.set(false);
         },
-        error: () => this._loading.set(false),
+        error: () => {
+          if (this.sessionState.isCurrentGeneration(generation)) this._loading.set(false);
+        },
       }),
     );
+  }
+
+  private resetSessionState(): void {
+    this._items.set([]);
+    this._loading.set(false);
+    this._loaded.set(false);
   }
 }

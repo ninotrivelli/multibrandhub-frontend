@@ -72,17 +72,16 @@
       <!-- Detalle agrupado por marca -->
       <div class="flex flex-col gap-3">
         @for (group of brandGroups(); track group.brandName) {
-          <div
-            class="overflow-hidden rounded-lg border border-surface-200 dark:border-surface-700"
-          >
+          <div class="overflow-hidden rounded-lg border border-surface-200 dark:border-surface-700">
             <!-- Marca -->
             <div
               class="flex items-center justify-between gap-2 border-b border-surface-200 bg-surface-50 px-3 py-2 dark:border-surface-700 dark:bg-surface-700/40"
+              [style]="brandGroupHeaderStyle(group.brandName)"
             >
-              <span class="text-sm font-semibold text-surface-900 dark:text-surface-0">
+              <span class="text-sm font-semibold text-current">
                 {{ group.brandName }}
               </span>
-              <span class="text-xs text-surface-400">
+              <span class="text-xs text-current opacity-75">
                 {{ group.items.length }} {{ group.items.length === 1 ? 'ítem' : 'ítems' }}
               </span>
             </div>

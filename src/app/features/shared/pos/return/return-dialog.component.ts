@@ -19,7 +19,6 @@ import { DialogModule } from 'primeng/dialog';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { InputTextModule } from 'primeng/inputtext';
-import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { LucideAngularModule, ArrowLeft, Minus, Plus, Search } from 'lucide-angular';
 
@@ -30,6 +29,7 @@ import {
   parseBackendUtcDate,
   URUGUAY_TIME_ZONE,
 } from '../../inventory/inventory.utils';
+import { BrandChipComponent } from '../../../../shared/components/brand-chip/brand-chip.component';
 
 type Step = 'search' | 'detail';
 
@@ -42,9 +42,9 @@ type Step = 'search' | 'detail';
     IconFieldModule,
     InputIconModule,
     InputTextModule,
-    TagModule,
     TextareaModule,
     LucideAngularModule,
+    BrandChipComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './return-dialog.component.html',
@@ -86,11 +86,7 @@ export class ReturnDialogComponent {
       this.searching.set(true);
       return this.sales
         .searchOnce({ searchTerm: term, page: 1, pageSize: 10 })
-        .pipe(
-          map((res) =>
-            res.items.filter((s) => s.type === 'Sale' && s.status === 'Completed'),
-          ),
-        );
+        .pipe(map((res) => res.items.filter((s) => s.type === 'Sale' && s.status === 'Completed')));
     }),
   );
 
@@ -102,10 +98,7 @@ export class ReturnDialogComponent {
     const qty = this.returnQuantities();
     // Refund the net unit price (after the original discount), matching what the
     // backend credits from the original detail snapshot.
-    return sale.details.reduce(
-      (sum, d) => sum + d.unitNetPrice * (qty[d.id] ?? 0),
-      0,
-    );
+    return sale.details.reduce((sum, d) => sum + d.unitNetPrice * (qty[d.id] ?? 0), 0);
   });
 
   protected readonly hasReturnItems = computed(() =>
@@ -195,7 +188,9 @@ export class ReturnDialogComponent {
         },
         error: (err: HttpErrorResponse) => {
           this.submitting.set(false);
-          const body = err.error as { message?: string; errors?: { message: string }[] } | undefined;
+          const body = err.error as
+            | { message?: string; errors?: { message: string }[] }
+            | undefined;
           if (body?.errors?.length) {
             this.submitError.set(body.errors.map((e) => e.message).join(' • '));
           } else if (body?.message) {

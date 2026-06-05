@@ -28,6 +28,7 @@ import {
   paymentMethodIcon,
   paymentMethodLabel,
 } from '../../../../core/sales/sales.utils';
+import { BrandStyle, brandHeaderStyle } from '../../../../core/brands/brand-colors';
 import {
   formatCurrencyUYU,
   parseBackendUtcDate,
@@ -58,7 +59,10 @@ export class SaleDetailDialogComponent {
   protected readonly brandGroups = computed(() => {
     const s = this.sale();
     if (!s) return [];
-    const groups = new Map<string, { brandName: string; items: SaleDetailResponse[]; total: number }>();
+    const groups = new Map<
+      string,
+      { brandName: string; items: SaleDetailResponse[]; total: number }
+    >();
     for (const d of s.details) {
       const name = d.brandName ?? 'Sin marca';
       let g = groups.get(name);
@@ -130,5 +134,9 @@ export class SaleDetailDialogComponent {
 
   protected cardBrand(brand: CardBrand): string {
     return cardBrandLabel(brand);
+  }
+
+  protected brandGroupHeaderStyle(brandName: string): BrandStyle {
+    return brandHeaderStyle({ brandName });
   }
 }

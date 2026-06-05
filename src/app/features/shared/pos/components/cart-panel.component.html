@@ -50,7 +50,9 @@
           <p class="text-sm font-medium text-surface-600 dark:text-surface-300">
             Todavía no agregaste productos
           </p>
-          <p class="text-xs text-surface-400">Buscá un producto y tocá + para sumarlo a la venta.</p>
+          <p class="text-xs text-surface-400">
+            Buscá un producto y tocá + para sumarlo a la venta.
+          </p>
         </div>
       </div>
     } @else {
@@ -72,17 +74,18 @@
                 {{ line.product.name }}
               </span>
               <div class="flex flex-wrap items-center gap-1.5">
-                <span
-                  class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-surface-100 dark:bg-surface-700 text-surface-500 dark:text-surface-300"
-                >
-                  {{ line.product.brandName ?? '—' }}
-                </span>
+                <app-brand-chip
+                  [brandId]="line.product.brandId"
+                  [brandName]="line.product.brandName"
+                  size="xs"
+                />
                 @if (line.product.size || line.product.color) {
                   <span class="text-[11px] text-surface-400">
-                    {{ line.product.size
-                    }}@if (line.product.size && line.product.color) {
+                    {{ line.product.size }}
+                    @if (line.product.size && line.product.color) {
                       <span> · </span>
-                    }{{ line.product.color }}
+                    }
+                    {{ line.product.color }}
                   </span>
                 }
               </div>
@@ -136,7 +139,9 @@
               >
                 <i-lucide [img]="icons.Minus" class="size-4 !text-red-500" />
               </button>
-              <span class="w-8 text-center text-sm font-semibold text-surface-900 dark:text-surface-0">
+              <span
+                class="w-8 text-center text-sm font-semibold text-surface-900 dark:text-surface-0"
+              >
                 {{ line.quantity }}
               </span>
               <button

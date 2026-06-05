@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, finalize, forkJoin, map, of, switchMap, tap } from 'rxjs';
 
 import { environment } from '../../../../environments/environment';
+import { SessionStateRegistry } from '../../../core/session/session-state-registry.service';
 import {
   CreateProductRequest,
   ImmobilizedStockProductResponse,
@@ -37,6 +38,7 @@ export interface ProductImportResponse {
 @Injectable({ providedIn: 'root' })
 export class ProductsService {
   private readonly http = inject(HttpClient);
+  private readonly sessionState = inject(SessionStateRegistry);
   private readonly baseUrl = `${environment.apiBaseUrl}/products`;
 
   private readonly _items = signal<ProductResponse[]>([]);
@@ -64,7 +66,12 @@ export class ProductsService {
   readonly immobilizedCount = this._immobilizedCount.asReadonly();
   readonly immobilizedLoading = this._immobilizedLoading.asReadonly();
 
+  constructor() {
+    this.sessionState.registerResetter(() => this.resetSessionState());
+  }
+
   search(params: ProductSearchParams): Observable<PagedResult<ProductResponse>> {
+    const generation = this.sessionState.captureGeneration();
     const httpParams = this.buildSearchParams(params);
     this._loading.set(true);
     return this.http
@@ -72,11 +79,14 @@ export class ProductsService {
       .pipe(
         tap({
           next: (res) => {
+            if (!this.sessionState.isCurrentGeneration(generation)) return;
             this._items.set(res.items);
             this._totalCount.set(res.totalCount);
             this._loading.set(false);
           },
-          error: () => this._loading.set(false),
+          error: () => {
+            if (this.sessionState.isCurrentGeneration(generation)) this._loading.set(false);
+          },
         }),
       );
   }
@@ -94,6 +104,7 @@ export class ProductsService {
   // Three lightweight calls (pageSize=1) to get the per-status totalCount.
   // Cheap because the response carries no items beyond the first page.
   loadKpiCounts(brandIdScope?: string): Observable<KpiCounts> {
+    const generation = this.sessionState.captureGeneration();
     this._kpiLoading.set(true);
     const baseParams: ProductSearchParams = { pageSize: 1, page: 1 };
     if (brandIdScope) baseParams.brandId = brandIdScope;
@@ -114,8 +125,12 @@ export class ProductsService {
         critical: res.critical.totalCount,
         outOfStock: res.outOfStock.totalCount,
       })),
-      tap((counts) => this._kpiCounts.set(counts)),
-      finalize(() => this._kpiLoading.set(false)),
+      tap((counts) => {
+        if (this.sessionState.isCurrentGeneration(generation)) this._kpiCounts.set(counts);
+      }),
+      finalize(() => {
+        if (this.sessionState.isCurrentGeneration(generation)) this._kpiLoading.set(false);
+      }),
     );
   }
 
@@ -125,6 +140,7 @@ export class ProductsService {
   // for ~500 products it's 5. If the catalog ever grows large enough to make
   // this expensive, the right move is a dedicated stats endpoint server-side.
   loadAll(brandIdScope?: string): Observable<ProductResponse[]> {
+    const generation = this.sessionState.captureGeneration();
     this._allItemsLoading.set(true);
     const PAGE_SIZE = 100;
     const firstPage$ = this.http.get<PagedResult<ProductResponse>>(`${this.baseUrl}/search`, {
@@ -149,8 +165,12 @@ export class ProductsService {
           map((rest) => [...first.items, ...rest.flatMap((r) => r.items)]),
         );
       }),
-      tap((items) => this._allItems.set(items)),
-      finalize(() => this._allItemsLoading.set(false)),
+      tap((items) => {
+        if (this.sessionState.isCurrentGeneration(generation)) this._allItems.set(items);
+      }),
+      finalize(() => {
+        if (this.sessionState.isCurrentGeneration(generation)) this._allItemsLoading.set(false);
+      }),
     );
   }
 
@@ -166,8 +186,10 @@ export class ProductsService {
   }
 
   create(req: CreateProductRequest): Observable<ProductResponse> {
+    const generation = this.sessionState.captureGeneration();
     return this.http.post<ProductResponse>(this.baseUrl, req).pipe(
       tap((created) => {
+        if (!this.sessionState.isCurrentGeneration(generation)) return;
         this._items.update((curr) => [created, ...curr]);
         this._totalCount.update((c) => c + 1);
       }),
@@ -175,18 +197,21 @@ export class ProductsService {
   }
 
   update(id: string, req: UpdateProductRequest): Observable<ProductResponse> {
-    return this.http
-      .put<ProductResponse>(`${this.baseUrl}/${id}`, req)
-      .pipe(
-        tap((updated) =>
-          this._items.update((curr) => curr.map((p) => (p.id === id ? updated : p))),
-        ),
-      );
+    const generation = this.sessionState.captureGeneration();
+    return this.http.put<ProductResponse>(`${this.baseUrl}/${id}`, req).pipe(
+      tap((updated) => {
+        if (this.sessionState.isCurrentGeneration(generation)) {
+          this._items.update((curr) => curr.map((p) => (p.id === id ? updated : p)));
+        }
+      }),
+    );
   }
 
   archive(id: string): Observable<ProductResponse> {
+    const generation = this.sessionState.captureGeneration();
     return this.http.patch<ProductResponse>(`${this.baseUrl}/${id}/archive`, {}).pipe(
       tap((archived) => {
+        if (!this.sessionState.isCurrentGeneration(generation)) return;
         this._items.update((curr) =>
           curr.some((p) => p.id === id && p.isActive)
             ? curr.filter((p) => p.id !== id)
@@ -199,8 +224,10 @@ export class ProductsService {
   }
 
   reactivate(id: string): Observable<ProductResponse> {
+    const generation = this.sessionState.captureGeneration();
     return this.http.patch<ProductResponse>(`${this.baseUrl}/${id}/reactivate`, {}).pipe(
       tap((reactivated) => {
+        if (!this.sessionState.isCurrentGeneration(generation)) return;
         this._items.update((curr) => curr.map((p) => (p.id === id ? reactivated : p)));
         this._allItems.update((curr) => curr.map((p) => (p.id === id ? reactivated : p)));
       }),
@@ -208,8 +235,10 @@ export class ProductsService {
   }
 
   delete(id: string): Observable<void> {
+    const generation = this.sessionState.captureGeneration();
     return this.http.delete<void>(`${this.baseUrl}/${id}`).pipe(
       tap(() => {
+        if (!this.sessionState.isCurrentGeneration(generation)) return;
         this._items.update((curr) => curr.filter((p) => p.id !== id));
         this._totalCount.update((c) => Math.max(0, c - 1));
       }),
@@ -235,6 +264,7 @@ export class ProductsService {
 
   // KPI count for the "Stock Inmovilizado" card. Cheap call (pageSize=1).
   loadImmobilizedCount(brandIdScope?: string, days = 60): Observable<number> {
+    const generation = this.sessionState.captureGeneration();
     this._immobilizedLoading.set(true);
     let params = new HttpParams().set('days', days).set('page', 1).set('pageSize', 1);
     if (brandIdScope) params = params.set('brandId', brandIdScope);
@@ -243,9 +273,17 @@ export class ProductsService {
         params,
       })
       .pipe(
-        tap((res) => this._immobilizedCount.set(res.totalCount)),
+        tap((res) => {
+          if (this.sessionState.isCurrentGeneration(generation)) {
+            this._immobilizedCount.set(res.totalCount);
+          }
+        }),
         map((res) => res.totalCount),
-        finalize(() => this._immobilizedLoading.set(false)),
+        finalize(() => {
+          if (this.sessionState.isCurrentGeneration(generation)) {
+            this._immobilizedLoading.set(false);
+          }
+        }),
       );
   }
 
@@ -254,6 +292,7 @@ export class ProductsService {
   searchImmobilized(
     params: ImmobilizedStockSearchParams,
   ): Observable<PagedResult<ImmobilizedStockProductResponse>> {
+    const generation = this.sessionState.captureGeneration();
     let httpParams = new HttpParams()
       .set('days', params.days)
       .set('page', params.page ?? 1)
@@ -267,11 +306,14 @@ export class ProductsService {
       .pipe(
         tap({
           next: (res) => {
+            if (!this.sessionState.isCurrentGeneration(generation)) return;
             this._immobilizedItems.set(res.items);
             this._immobilizedTotal.set(res.totalCount);
             this._loading.set(false);
           },
-          error: () => this._loading.set(false),
+          error: () => {
+            if (this.sessionState.isCurrentGeneration(generation)) this._loading.set(false);
+          },
         }),
       );
   }
@@ -309,5 +351,19 @@ export class ProductsService {
     p = p.set('page', params.page ?? 1);
     p = p.set('pageSize', params.pageSize ?? 12);
     return p;
+  }
+
+  private resetSessionState(): void {
+    this._items.set([]);
+    this._totalCount.set(0);
+    this._loading.set(false);
+    this._kpiCounts.set({ total: 0, critical: 0, outOfStock: 0 });
+    this._kpiLoading.set(false);
+    this._allItems.set([]);
+    this._allItemsLoading.set(false);
+    this._immobilizedItems.set([]);
+    this._immobilizedTotal.set(0);
+    this._immobilizedCount.set(0);
+    this._immobilizedLoading.set(false);
   }
 }
