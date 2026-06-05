@@ -8,7 +8,9 @@ import { ChevronLeft, ChevronRight, LucideAngularModule } from 'lucide-angular';
 import { SalesDashboardDailySalesResponse } from '../../../core/sales/sales.types';
 import { formatCurrencyUYU } from '../inventory/inventory.utils';
 import {
+  compareDateOnly,
   dateOnlyInRange,
+  formatLongDate,
   formatRangeSummary,
   formatShortDateOnly,
   formatWeekday,
@@ -100,6 +102,8 @@ export class SalesWeeklyChartComponent {
           callbacks: {
             label: (context: BarTooltipContext) => {
               const label = context.dataset.label ? `${context.dataset.label}: ` : '';
+              const row = this.rows()[context.dataIndex];
+              if (row && !row.inRange) return `${label}Fuera del filtro aplicado`;
               const value = context.parsed.y ?? 0;
               return `${label}${formatCurrencyUYU(value)}`;
             },
@@ -108,7 +112,10 @@ export class SalesWeeklyChartComponent {
       },
       scales: {
         x: {
-          ticks: { color: mutedColor },
+          ticks: {
+            color: (context: TickContext) =>
+              this.rows()[context.index]?.inRange ? mutedColor : colorWithAlpha(mutedColor, 0.45),
+          },
           grid: { color: borderColor },
         },
         y: {
@@ -125,6 +132,18 @@ export class SalesWeeklyChartComponent {
     return formatRangeSummary(days[0], days[6]);
   });
 
+  protected readonly filterRangeLabel = computed(() => {
+    const days = weekDays(this.weekStart());
+    const startDate = this.startDate();
+    const endDate = this.endDate();
+    const coversFullWeek =
+      compareDateOnly(startDate, days[0]) <= 0 && compareDateOnly(endDate, days[6]) >= 0;
+
+    if (coversFullWeek) return null;
+    if (startDate === endDate) return `Filtro: solo ${formatLongDate(startDate)}`;
+    return `Filtro: ${formatRangeSummary(startDate, endDate)}`;
+  });
+
   protected netSummary(): string {
     const total = this.rows().reduce((acc, row) => acc + row.netSalesAmount, 0);
     return formatCurrencyUYU(total);
@@ -132,12 +151,17 @@ export class SalesWeeklyChartComponent {
 }
 
 interface BarTooltipContext {
+  dataIndex: number;
   dataset: {
     label?: string;
   };
   parsed: {
     y?: number | null;
   };
+}
+
+interface TickContext {
+  index: number;
 }
 
 function cssVar(name: string, fallback: string): string {

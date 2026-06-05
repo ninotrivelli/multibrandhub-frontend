@@ -9,7 +9,11 @@
         Ventas de la semana por día
       </h2>
       <p class="text-xs text-surface-500 dark:text-surface-400">
-        Semana {{ weekLabel() }} — Neto {{ netSummary() }}
+        Semana {{ weekLabel() }}
+        @if (filterRangeLabel(); as filter) {
+          <span> - {{ filter }}</span>
+        }
+        <span> - Neto {{ netSummary() }}</span>
       </p>
     </div>
     <div class="flex items-center gap-2">
