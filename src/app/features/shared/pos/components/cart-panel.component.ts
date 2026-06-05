@@ -6,6 +6,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TextareaModule } from 'primeng/textarea';
 import {
+  Check,
   LucideAngularModule,
   Minus,
   Pencil,
@@ -43,7 +44,7 @@ export class CartPanelComponent {
   readonly submitting = input<boolean>(false);
   readonly submitSale = output<void>();
 
-  protected readonly icons = { Minus, Plus, Trash2, X, ShoppingCart, Percent, Pencil };
+  protected readonly icons = { Minus, Plus, Trash2, X, ShoppingCart, Percent, Pencil, Check };
 
   // Backend caps observations at 500 chars; mirror it so the user gets
   // immediate feedback instead of a server error.
