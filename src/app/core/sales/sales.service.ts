@@ -11,6 +11,8 @@ import {
   SaleResponse,
   SaleSearchParams,
   SaleSearchResponse,
+  SalesDashboardRequest,
+  SalesDashboardResponse,
 } from './sales.types';
 
 @Injectable({ providedIn: 'root' })
@@ -18,6 +20,7 @@ export class SalesService {
   private readonly http = inject(HttpClient);
   private readonly sessionState = inject(SessionStateRegistry);
   private readonly baseUrl = `${environment.apiBaseUrl}/sales`;
+  private readonly reportsSalesUrl = `${environment.apiBaseUrl}/reports/sales`;
 
   // State for the POS "recent sales" feed. Mirrors the ProductsService /
   // BrandsService pattern: private writable signals exposed read-only.
@@ -75,6 +78,23 @@ export class SalesService {
 
   getById(id: string): Observable<SaleResponse> {
     return this.http.get<SaleResponse>(`${this.baseUrl}/${id}`);
+  }
+
+  getDashboard(params: SalesDashboardRequest): Observable<SalesDashboardResponse> {
+    let httpParams = new HttpParams()
+      .set('from', params.from)
+      .set('to', params.to)
+      .set('chartWeekStart', params.chartWeekStart)
+      .set('page', params.page ?? 1)
+      .set('pageSize', params.pageSize ?? 10);
+
+    for (const brandId of params.brandIds ?? []) {
+      httpParams = httpParams.append('brandIds', brandId);
+    }
+
+    return this.http.get<SalesDashboardResponse>(`${this.reportsSalesUrl}/dashboard`, {
+      params: httpParams,
+    });
   }
 
   private buildSearchParams(params: SaleSearchParams): HttpParams {

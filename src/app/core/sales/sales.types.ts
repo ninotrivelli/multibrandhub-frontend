@@ -52,6 +52,7 @@ export interface CreateReturnRequest {
 export interface SaleDetailResponse {
   id: string;
   productId: string;
+  brandId: string;
   // Set on return details: points back to the original sale's detail line.
   originalSaleDetailId: string | null;
   productName: string | null;
@@ -129,4 +130,70 @@ export interface PagedResult<T> {
   totalCount: number;
   page: number;
   pageSize: number;
+}
+
+export interface SalesDashboardKpisResponse {
+  grossSalesAmount: number;
+  returnsAmount: number;
+  netSalesAmount: number;
+  saleTicketCount: number;
+  returnTicketCount: number;
+  unitsSold: number;
+  unitsReturned: number;
+  netUnits: number;
+  averageGrossTicketAmount: number;
+  averageNetTicketAmount: number;
+}
+
+export interface SalesDashboardDailySalesResponse {
+  date: string;
+  grossSalesAmount: number;
+  returnsAmount: number;
+  netSalesAmount: number;
+}
+
+export interface SalesDashboardBrandDistributionResponse {
+  brandId: string;
+  brandName: string;
+  grossSalesAmount: number;
+  returnsAmount: number;
+  netSalesAmount: number;
+}
+
+export interface SalesDashboardSaleResponse {
+  id: string;
+  ticketId: string | null;
+  date: string;
+  type: SaleType;
+  totalAmount: number;
+  paymentMethod: PaymentMethod;
+  cardBrand: CardBrand | null;
+  status: SaleStatus;
+  sellerId: string | null;
+  sellerName: string | null;
+  createdAt: string;
+  observations: string | null;
+  matchingAmount: number;
+  ticketTotalAmount: number;
+  brands: SaleSearchBrandResponse[];
+}
+
+export interface SalesDashboardResponse {
+  from: string;
+  to: string;
+  brandIds: string[];
+  chartWeekStart: string;
+  kpis: SalesDashboardKpisResponse;
+  dailySales: SalesDashboardDailySalesResponse[];
+  brandDistribution: SalesDashboardBrandDistributionResponse[];
+  sales: PagedResult<SalesDashboardSaleResponse>;
+}
+
+export interface SalesDashboardRequest {
+  from: string;
+  to: string;
+  brandIds?: string[];
+  chartWeekStart: string;
+  page?: number;
+  pageSize?: number;
 }

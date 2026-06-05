@@ -49,6 +49,7 @@ export class SaleDetailDialogComponent {
   readonly visible = input.required<boolean>();
   readonly visibleChange = output<boolean>();
   readonly saleId = input<string | null>(null);
+  readonly brandScopeId = input<string | null>(null);
 
   protected readonly sale = signal<SaleResponse | null>(null);
   protected readonly loading = signal(false);
@@ -59,11 +60,15 @@ export class SaleDetailDialogComponent {
   protected readonly brandGroups = computed(() => {
     const s = this.sale();
     if (!s) return [];
+    const brandScopeId = this.brandScopeId();
+    const details = brandScopeId
+      ? s.details.filter((detail) => detail.brandId === brandScopeId)
+      : s.details;
     const groups = new Map<
       string,
       { brandName: string; items: SaleDetailResponse[]; total: number }
     >();
-    for (const d of s.details) {
+    for (const d of details) {
       const name = d.brandName ?? 'Sin marca';
       let g = groups.get(name);
       if (!g) {
@@ -75,6 +80,10 @@ export class SaleDetailDialogComponent {
     }
     return [...groups.values()];
   });
+
+  protected readonly visibleTotal = computed(() =>
+    this.brandGroups().reduce((acc, group) => acc + group.total, 0),
+  );
 
   constructor() {
     // Fetch the full detail each time the dialog opens for a sale. untracked()

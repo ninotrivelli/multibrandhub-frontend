@@ -147,6 +147,12 @@
               </span>
             </div>
           </div>
+        } @empty {
+          <div
+            class="rounded-lg border border-dashed border-surface-200 p-6 text-center text-sm text-surface-500 dark:border-surface-700 dark:text-surface-400"
+          >
+            No hay ítems visibles para tu marca en esta venta.
+          </div>
         }
       </div>
 
@@ -164,16 +170,16 @@
         class="flex items-center justify-between rounded-lg bg-surface-100 px-3 py-3 dark:bg-surface-700/60"
       >
         <span class="text-base font-semibold text-surface-900 dark:text-surface-0">
-          Total general
+          {{ brandScopeId() ? 'Total de tu marca' : 'Total general' }}
         </span>
         <span
           class="text-xl font-bold"
-          [class.text-red-600]="sale.totalAmount < 0"
-          [class.dark:text-red-300]="sale.totalAmount < 0"
-          [class.text-surface-900]="sale.totalAmount >= 0"
-          [class.dark:text-surface-0]="sale.totalAmount >= 0"
+          [class.text-red-600]="visibleTotal() < 0"
+          [class.dark:text-red-300]="visibleTotal() < 0"
+          [class.text-surface-900]="visibleTotal() >= 0"
+          [class.dark:text-surface-0]="visibleTotal() >= 0"
         >
-          {{ formatCurrency(sale.totalAmount) }}
+          {{ formatCurrency(visibleTotal()) }}
         </span>
       </div>
     </div>

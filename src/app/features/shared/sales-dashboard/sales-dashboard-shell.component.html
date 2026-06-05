@@ -1,0 +1,73 @@
+<div class="flex flex-col gap-5">
+  <header class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-surface-900 dark:text-surface-0">Ventas</h1>
+      <p class="text-sm text-surface-500 dark:text-surface-400">
+        {{ isAdmin() ? 'Análisis de ventas del local' : 'Ventas de tu marca' }}
+      </p>
+    </div>
+  </header>
+
+  <app-sales-dashboard-filter-bar
+    [variant]="variant()"
+    [brands]="brandsList()"
+    [selectedBrandIds]="selectedBrandIds()"
+    [ownBrandId]="brandScopeId()"
+    [periodPreset]="periodPreset()"
+    [startDate]="startDate()"
+    [endDate]="endDate()"
+    (periodPresetChange)="setPeriodPreset($event)"
+    (startDateChange)="setCustomStartDate($event)"
+    (endDateChange)="setCustomEndDate($event)"
+    (allBrandsSelected)="selectAllBrands()"
+    (brandToggled)="toggleBrand($event)"
+  />
+
+  @if (error(); as message) {
+    <div
+      class="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-200 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <span>{{ message }}</span>
+      <button pButton type="button" severity="danger" [outlined]="true" label="Reintentar" (click)="retry()">
+        <i-lucide [img]="icons.RefreshCw" class="size-4 mr-2" />
+      </button>
+    </div>
+  }
+
+  <app-sales-dashboard-kpis [kpis]="dashboard()?.kpis ?? null" [loading]="loading()" />
+
+  <div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(20rem,0.8fr)]">
+    <app-sales-weekly-chart
+      [dailySales]="dashboard()?.dailySales ?? []"
+      [loading]="loading()"
+      [weekStart]="chartWeekStart()"
+      [startDate]="startDate()"
+      [endDate]="endDate()"
+      [canMovePrevious]="canMovePreviousWeek()"
+      [canMoveNext]="canMoveNextWeek()"
+      (previousWeek)="movePreviousWeek()"
+      (nextWeek)="moveNextWeek()"
+    />
+
+    @if (isAdmin()) {
+      <app-sales-brand-distribution-chart
+        [distribution]="dashboard()?.brandDistribution ?? []"
+        [loading]="loading()"
+        [startDate]="startDate()"
+        [endDate]="endDate()"
+      />
+    }
+  </div>
+
+  <app-sales-dashboard-list
+    [sales]="dashboard()?.sales ?? null"
+    [loading]="loading()"
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [hasFilter]="hasAnyFilter()"
+    [detailBrandScopeId]="brandScopeId()"
+    [startDate]="startDate()"
+    [endDate]="endDate()"
+    (pageChange)="onPageChange($event)"
+  />
+</div>

@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { environment } from '../../../environments/environment';
-import { makeSale, makeSaleSearch, paged } from '../../../testing/builders';
+import { makeSale, makeSaleSearch, makeSalesDashboard, paged } from '../../../testing/builders';
 import { SessionStateRegistry } from '../session/session-state-registry.service';
 import { SalesService } from './sales.service';
 
@@ -12,6 +12,7 @@ describe('SalesService', () => {
   let sessionState: SessionStateRegistry;
   let http: HttpTestingController;
   const baseUrl = `${environment.apiBaseUrl}/sales`;
+  const reportsSalesUrl = `${environment.apiBaseUrl}/reports/sales`;
 
   beforeEach(() => {
     TestBed.resetTestingModule();
@@ -135,5 +136,33 @@ describe('SalesService', () => {
     const req = http.expectOne(`${baseUrl}/sale-1`);
     expect(req.request.method).toBe('GET');
     req.flush(sale);
+  });
+
+  it('loads the dashboard with repeated brandIds params', () => {
+    const dashboard = makeSalesDashboard();
+    let result: typeof dashboard | undefined;
+
+    service
+      .getDashboard({
+        from: '2026-06-01',
+        to: '2026-06-05',
+        chartWeekStart: '2026-06-01',
+        brandIds: ['brand-a', 'brand-b'],
+        page: 2,
+        pageSize: 20,
+      })
+      .subscribe((res) => (result = res));
+
+    const req = http.expectOne((r) => r.url === `${reportsSalesUrl}/dashboard`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('from')).toBe('2026-06-01');
+    expect(req.request.params.get('to')).toBe('2026-06-05');
+    expect(req.request.params.get('chartWeekStart')).toBe('2026-06-01');
+    expect(req.request.params.getAll('brandIds')).toEqual(['brand-a', 'brand-b']);
+    expect(req.request.params.get('page')).toBe('2');
+    expect(req.request.params.get('pageSize')).toBe('20');
+
+    req.flush(dashboard);
+    expect(result).toEqual(dashboard);
   });
 });
