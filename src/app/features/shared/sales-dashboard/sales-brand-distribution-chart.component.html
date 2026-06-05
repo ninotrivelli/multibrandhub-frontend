@@ -6,7 +6,7 @@
       Distribución por marca
     </h2>
     <p class="text-xs text-surface-500 dark:text-surface-400">
-      Proporción bruta del filtro actual - {{ rangeLabel() }}
+      Proporción bruta del filtro actual — {{ rangeLabel() }}
     </p>
   </div>
 
@@ -35,7 +35,9 @@
   </div>
 
   @if (!loading() && totalGross() > 0) {
-    <div class="border-t border-surface-200 px-4 py-3 text-xs text-surface-500 dark:border-surface-700 dark:text-surface-400">
+    <div
+      class="border-t border-surface-200 px-4 py-3 text-xs text-surface-500 dark:border-surface-700 dark:text-surface-400"
+    >
       Total bruto: {{ formatCurrency(totalGross()) }}
     </div>
   }
