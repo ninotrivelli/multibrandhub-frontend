@@ -25,13 +25,21 @@
       <app-pos-product-search-panel />
     </div>
     <div class="lg:col-span-1 lg:sticky lg:top-4">
-      <app-pos-cart-panel [submitting]="submitting()" (submitSale)="submitSale()" />
+      <app-pos-cart-panel [submitting]="submitting()" (submitSale)="openSaleReview()" />
     </div>
   </div>
 
   <!-- Recent sales -->
   <app-pos-recent-sales-list />
 </div>
+
+<!-- Sale review / confirmación -->
+<app-pos-sale-review-dialog
+  [visible]="saleReviewVisible()"
+  (visibleChange)="saleReviewVisible.set($event)"
+  [submitting]="submitting()"
+  (confirm)="confirmSale()"
+/>
 
 <!-- Return / devolución dialog -->
 <app-pos-return-dialog

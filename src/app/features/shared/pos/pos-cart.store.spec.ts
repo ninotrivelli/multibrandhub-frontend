@@ -74,6 +74,98 @@ describe('PosCartStore', () => {
     expect(store.allLinesValid()).toBe(true);
   });
 
+  it('groups priced lines by brand with item counts and net totals', () => {
+    const zendraBuzo = makeProduct({
+      id: 'p1',
+      name: 'Buzo',
+      brandId: 'brand-zendra',
+      brandName: 'Zendra',
+      price: 1000,
+      currentStock: 5,
+    });
+    const luminaTop = makeProduct({
+      id: 'p2',
+      name: 'Top',
+      brandId: 'brand-lumina',
+      brandName: 'Lumina',
+      price: 500,
+      currentStock: 5,
+    });
+    const zendraCinto = makeProduct({
+      id: 'p3',
+      name: 'Cinto',
+      brandId: 'brand-zendra',
+      brandName: 'Zendra',
+      price: 250,
+      currentStock: 5,
+    });
+
+    store.add(zendraBuzo);
+    store.add(luminaTop);
+    store.add(zendraBuzo);
+    store.add(zendraCinto);
+
+    const groups = store.brandGroups();
+
+    expect(groups.map((g) => g.brandName)).toEqual(['Zendra', 'Lumina']);
+    expect(groups[0]).toMatchObject({
+      brandId: 'brand-zendra',
+      itemCount: 3,
+      total: 2250,
+    });
+    expect(groups[0]?.lines.map((line) => line.product.id)).toEqual(['p1', 'p3']);
+    expect(groups[1]).toMatchObject({
+      brandId: 'brand-lumina',
+      itemCount: 1,
+      total: 500,
+    });
+  });
+
+  it('uses discounted net line totals in brand groups', () => {
+    store.add(
+      makeProduct({
+        id: 'p1',
+        brandId: 'brand-zendra',
+        brandName: 'Zendra',
+        price: 1000,
+        currentStock: 5,
+      }),
+    );
+    store.increment('p1');
+    store.setLineDiscountType('p1', 'Percentage');
+    store.setLineDiscountValue('p1', 10);
+
+    store.add(
+      makeProduct({
+        id: 'p2',
+        brandId: 'brand-zendra',
+        brandName: 'Zendra',
+        price: 500,
+        currentStock: 5,
+      }),
+    );
+    store.setLineDiscountType('p2', 'FixedAmount');
+    store.setLineDiscountValue('p2', 100);
+
+    const group = store.brandGroups()[0];
+
+    expect(group).toMatchObject({
+      brandId: 'brand-zendra',
+      itemCount: 3,
+      total: 2200,
+    });
+    expect(store.total()).toBe(2200);
+  });
+
+  it('uses a fallback brand label when the product has no brand name', () => {
+    store.add(makeProduct({ id: 'p1', brandId: 'brand-missing-name', brandName: null }));
+
+    expect(store.brandGroups()[0]).toMatchObject({
+      brandId: 'brand-missing-name',
+      brandName: 'Sin marca',
+    });
+  });
+
   it('flags invalid line discounts and blocks submit', () => {
     store.add(makeProduct({ id: 'p1', price: 1000, currentStock: 5 }));
 

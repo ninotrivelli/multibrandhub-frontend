@@ -26,6 +26,14 @@ export interface PricedCartLine extends CartLine {
   valid: boolean;
 }
 
+export interface CartBrandGroup {
+  brandId: string;
+  brandName: string;
+  itemCount: number;
+  lines: PricedCartLine[];
+  total: number;
+}
+
 // Screen-scoped state for the POS sale being built. Provided at the
 // `pos-shell` level (NOT providedIn: 'root') so the search panel and the cart
 // panel share one instance without prop-drilling, while staying local to the
@@ -70,6 +78,31 @@ export class PosCartStore {
   );
   // Net total = sum of net line subtotals (= subtotal - discountTotal).
   readonly total = computed(() => this.pricedLines().reduce((sum, l) => sum + l.lineSubtotal, 0));
+
+  readonly brandGroups = computed<CartBrandGroup[]>(() => {
+    const groups = new Map<string, CartBrandGroup>();
+
+    for (const line of this.pricedLines()) {
+      const brandId = line.product.brandId || 'unknown-brand';
+      let group = groups.get(brandId);
+      if (!group) {
+        group = {
+          brandId,
+          brandName: line.product.brandName ?? 'Sin marca',
+          itemCount: 0,
+          lines: [],
+          total: 0,
+        };
+        groups.set(brandId, group);
+      }
+
+      group.lines.push(line);
+      group.itemCount += line.quantity;
+      group.total += line.lineSubtotal;
+    }
+
+    return [...groups.values()];
+  });
 
   readonly allLinesValid = computed(() => this.pricedLines().every((l) => l.valid));
   readonly isCardPayment = computed(

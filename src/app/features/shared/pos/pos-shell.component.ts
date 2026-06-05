@@ -13,6 +13,7 @@ import { PosCartStore } from './pos-cart.store';
 import { CartPanelComponent } from './components/cart-panel.component';
 import { ProductSearchPanelComponent } from './components/product-search-panel.component';
 import { RecentSalesListComponent } from './components/recent-sales-list.component';
+import { SaleReviewDialogComponent } from './components/sale-review-dialog.component';
 import { ReturnDialogComponent } from './return/return-dialog.component';
 
 @Component({
@@ -23,6 +24,7 @@ import { ReturnDialogComponent } from './return/return-dialog.component';
     ProductSearchPanelComponent,
     CartPanelComponent,
     RecentSalesListComponent,
+    SaleReviewDialogComponent,
     ReturnDialogComponent,
   ],
   providers: [PosCartStore],
@@ -39,6 +41,7 @@ export class PosShellComponent {
   protected readonly icons = { Undo2 };
 
   protected readonly submitting = signal(false);
+  protected readonly saleReviewVisible = signal(false);
   protected readonly returnDialogVisible = signal(false);
 
   private readonly searchPanel = viewChild(ProductSearchPanelComponent);
@@ -53,12 +56,18 @@ export class PosShellComponent {
     this.categories.list().pipe(takeUntilDestroyed()).subscribe();
   }
 
-  protected submitSale(): void {
+  protected openSaleReview(): void {
+    if (this.submitting() || !this.cart.canSubmit()) return;
+    this.saleReviewVisible.set(true);
+  }
+
+  protected confirmSale(): void {
     if (this.submitting() || !this.cart.canSubmit()) return;
     this.submitting.set(true);
     this.sales.create(this.cart.toCreateRequest()).subscribe({
       next: (sale) => {
         this.submitting.set(false);
+        this.saleReviewVisible.set(false);
         this.notifications.success(this.ticketMessage('Venta registrada', sale), 'Venta ingresada');
         this.cart.clear();
         this.refreshAfterMutation();
