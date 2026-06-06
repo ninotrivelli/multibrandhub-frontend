@@ -66,14 +66,15 @@ export class SaleDetailDialogComponent {
       : s.details;
     const groups = new Map<
       string,
-      { brandName: string; items: SaleDetailResponse[]; total: number }
+      { brandId: string; brandName: string; items: SaleDetailResponse[]; total: number }
     >();
     for (const d of details) {
+      const brandId = d.brandId;
       const name = d.brandName ?? 'Sin marca';
-      let g = groups.get(name);
+      let g = groups.get(brandId);
       if (!g) {
-        g = { brandName: name, items: [], total: 0 };
-        groups.set(name, g);
+        g = { brandId, brandName: name, items: [], total: 0 };
+        groups.set(brandId, g);
       }
       g.items.push(d);
       g.total += d.subTotal;
@@ -145,7 +146,7 @@ export class SaleDetailDialogComponent {
     return cardBrandLabel(brand);
   }
 
-  protected brandGroupHeaderStyle(brandName: string): BrandStyle {
-    return brandHeaderStyle({ brandName });
+  protected brandGroupHeaderStyle(brandId: string, brandName: string): BrandStyle {
+    return brandHeaderStyle({ brandId, brandName });
   }
 }
