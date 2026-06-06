@@ -37,6 +37,7 @@ import {
 } from '../inventory.types';
 import { formatMovementDate, movementTypeLabel, movementTypeSeverity } from '../inventory.utils';
 import { ProductImageComponent } from './product-image.component';
+import { BrandChipComponent } from '../../../../shared/components/brand-chip/brand-chip.component';
 
 interface TypeOption {
   label: string;
@@ -57,6 +58,7 @@ interface TypeOption {
     TooltipModule,
     LucideAngularModule,
     ProductImageComponent,
+    BrandChipComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './movements-tab.component.html',

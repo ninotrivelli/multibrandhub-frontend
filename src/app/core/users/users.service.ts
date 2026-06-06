@@ -3,18 +3,20 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { SessionStateRegistry } from '../session/session-state-registry.service';
 import {
   CreateUserRequest,
   ListUsersParams,
   PagedResult,
   ResetPasswordRequest,
   UpdateUserRequest,
-  UserResponse
+  UserResponse,
 } from './users.types';
 
 @Injectable({ providedIn: 'root' })
 export class UsersService {
   private readonly http = inject(HttpClient);
+  private readonly sessionState = inject(SessionStateRegistry);
   private readonly baseUrl = `${environment.apiBaseUrl}/users`;
 
   private readonly _items = signal<UserResponse[]>([]);
@@ -26,18 +28,26 @@ export class UsersService {
   readonly loading = this._loading.asReadonly();
   readonly hasItems = computed(() => this._items().length > 0);
 
+  constructor() {
+    this.sessionState.registerResetter(() => this.resetSessionState());
+  }
+
   list({ page = 1, pageSize = 100 }: ListUsersParams = {}): Observable<PagedResult<UserResponse>> {
+    const generation = this.sessionState.captureGeneration();
     const params = new HttpParams().set('page', page).set('pageSize', pageSize);
     this._loading.set(true);
     return this.http.get<PagedResult<UserResponse>>(this.baseUrl, { params }).pipe(
       tap({
         next: (res) => {
+          if (!this.sessionState.isCurrentGeneration(generation)) return;
           this._items.set(res.items);
           this._totalCount.set(res.totalCount);
           this._loading.set(false);
         },
-        error: () => this._loading.set(false)
-      })
+        error: () => {
+          if (this.sessionState.isCurrentGeneration(generation)) this._loading.set(false);
+        },
+      }),
     );
   }
 
@@ -46,26 +56,37 @@ export class UsersService {
   }
 
   create(req: CreateUserRequest): Observable<UserResponse> {
+    const generation = this.sessionState.captureGeneration();
     return this.http.post<UserResponse>(this.baseUrl, req).pipe(
-      tap((created) => this._items.update((curr) => [created, ...curr]))
+      tap((created) => {
+        if (this.sessionState.isCurrentGeneration(generation)) {
+          this._items.update((curr) => [created, ...curr]);
+        }
+      }),
     );
   }
 
   update(id: string, req: UpdateUserRequest): Observable<UserResponse> {
+    const generation = this.sessionState.captureGeneration();
     return this.http.put<UserResponse>(`${this.baseUrl}/${id}`, req).pipe(
-      tap((updated) =>
-        this._items.update((curr) => curr.map((u) => (u.id === id ? updated : u)))
-      )
+      tap((updated) => {
+        if (this.sessionState.isCurrentGeneration(generation)) {
+          this._items.update((curr) => curr.map((u) => (u.id === id ? updated : u)));
+        }
+      }),
     );
   }
 
   deactivate(id: string): Observable<void> {
+    const generation = this.sessionState.captureGeneration();
     return this.http.patch<void>(`${this.baseUrl}/${id}/deactivate`, {}).pipe(
-      tap(() =>
-        this._items.update((curr) =>
-          curr.map((u) => (u.id === id ? { ...u, isActive: false } : u))
-        )
-      )
+      tap(() => {
+        if (this.sessionState.isCurrentGeneration(generation)) {
+          this._items.update((curr) =>
+            curr.map((u) => (u.id === id ? { ...u, isActive: false } : u)),
+          );
+        }
+      }),
     );
   }
 
@@ -75,8 +96,19 @@ export class UsersService {
   }
 
   delete(id: string): Observable<void> {
+    const generation = this.sessionState.captureGeneration();
     return this.http.delete<void>(`${this.baseUrl}/${id}`).pipe(
-      tap(() => this._items.update((curr) => curr.filter((u) => u.id !== id)))
+      tap(() => {
+        if (this.sessionState.isCurrentGeneration(generation)) {
+          this._items.update((curr) => curr.filter((u) => u.id !== id));
+        }
+      }),
     );
+  }
+
+  private resetSessionState(): void {
+    this._items.set([]);
+    this._totalCount.set(0);
+    this._loading.set(false);
   }
 }

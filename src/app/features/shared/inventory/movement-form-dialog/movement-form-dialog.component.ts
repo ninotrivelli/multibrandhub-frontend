@@ -28,7 +28,6 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { TextareaModule } from 'primeng/textarea';
-import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { LucideAngularModule, Minus, Plus, X } from 'lucide-angular';
 
@@ -42,6 +41,7 @@ import {
   ProductResponse,
   StockMovementResponse,
 } from '../inventory.types';
+import { BrandChipComponent } from '../../../../shared/components/brand-chip/brand-chip.component';
 
 interface MovementTypeOption {
   label: string;
@@ -60,10 +60,10 @@ interface MovementTypeOption {
     InputTextModule,
     MessageModule,
     SelectModule,
-    TagModule,
     TextareaModule,
     TooltipModule,
     LucideAngularModule,
+    BrandChipComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './movement-form-dialog.component.html',
@@ -98,11 +98,6 @@ export class MovementFormDialogComponent {
       label: 'Ajuste manual',
       value: MovementType.Adjustment,
       hint: 'Corrige el stock. Usá positivo para sumar o negativo para restar.',
-    },
-    {
-      label: 'Devolución',
-      value: MovementType.Return,
-      hint: 'Devolución de cliente. Suma stock.',
     },
   ];
 

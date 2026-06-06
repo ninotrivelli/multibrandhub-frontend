@@ -4,10 +4,12 @@ import { TestBed } from '@angular/core/testing';
 
 import { environment } from '../../../../environments/environment';
 import { makeImmobilizedProduct, makeProduct, paged } from '../../../../testing/builders';
+import { SessionStateRegistry } from '../../../core/session/session-state-registry.service';
 import { ProductsService } from './products.service';
 
 describe('ProductsService', () => {
   let service: ProductsService;
+  let sessionState: SessionStateRegistry;
   let http: HttpTestingController;
   const baseUrl = `${environment.apiBaseUrl}/products`;
 
@@ -17,6 +19,7 @@ describe('ProductsService', () => {
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
     service = TestBed.inject(ProductsService);
+    sessionState = TestBed.inject(SessionStateRegistry);
     http = TestBed.inject(HttpTestingController);
   });
 
@@ -65,6 +68,25 @@ describe('ProductsService', () => {
     expect(service.items()).toEqual([product]);
     expect(service.totalCount()).toBe(7);
     expect(service.loading()).toBe(false);
+  });
+
+  it('clears product state and ignores late search responses after session reset', () => {
+    const product = makeProduct();
+
+    service.search({ page: 1, pageSize: 12 }).subscribe();
+    const req = http.expectOne((request) => request.url === `${baseUrl}/search`);
+    expect(service.loading()).toBe(true);
+
+    sessionState.resetAll();
+
+    expect(service.items()).toEqual([]);
+    expect(service.totalCount()).toBe(0);
+    expect(service.loading()).toBe(false);
+
+    req.flush(paged([product], { totalCount: 1 }));
+
+    expect(service.items()).toEqual([]);
+    expect(service.totalCount()).toBe(0);
   });
 
   it('updates list state optimistically after product mutations', () => {
@@ -167,7 +189,9 @@ describe('ProductsService', () => {
     expect(service.immobilizedCount()).toBe(4);
 
     const immobilized = makeImmobilizedProduct();
-    service.searchImmobilized({ days: 60, brandId: 'brand-own', page: 3, pageSize: 12 }).subscribe();
+    service
+      .searchImmobilized({ days: 60, brandId: 'brand-own', page: 3, pageSize: 12 })
+      .subscribe();
     const searchReq = http.expectOne((request) => request.url === `${baseUrl}/immobilized-stock`);
     expect(searchReq.request.params.get('page')).toBe('3');
     expect(searchReq.request.params.get('pageSize')).toBe('12');

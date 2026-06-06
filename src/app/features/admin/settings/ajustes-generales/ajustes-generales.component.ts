@@ -6,8 +6,9 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { SkeletonModule } from 'primeng/skeleton';
-import { LucideAngularModule, Mail, MapPin, Pencil, Phone, Plus, Store } from 'lucide-angular';
+import { LucideAngularModule, Mail, MapPin, Palette, Pencil, Phone, Plus, Store } from 'lucide-angular';
 
+import { ThemeSelectorComponent } from '../../../../shared/components/theme-selector/theme-selector.component';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { StoreProfileService } from '../../../../core/store-profile/store-profile.service';
@@ -34,6 +35,7 @@ function trimOrNull(value: string): string | null {
     MessageModule,
     SkeletonModule,
     LucideAngularModule,
+    ThemeSelectorComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './ajustes-generales.component.html',
@@ -44,7 +46,7 @@ export class AdminAjustesGeneralesComponent {
   private readonly auth = inject(AuthService);
   private readonly notifications = inject(NotificationService);
 
-  protected readonly icons = { Mail, MapPin, Pencil, Phone, Plus, Store };
+  protected readonly icons = { Mail, MapPin, Palette, Pencil, Phone, Plus, Store };
 
   protected readonly profile = this.service.profile;
   protected readonly hasData = this.service.hasData;

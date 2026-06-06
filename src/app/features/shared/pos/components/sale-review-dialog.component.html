@@ -1,0 +1,183 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [closable]="!submitting()"
+  [closeOnEscape]="!submitting()"
+  [dismissableMask]="!submitting()"
+  [draggable]="false"
+  [style]="{ width: '52rem', maxWidth: '95vw' }"
+  header="Revisar venta"
+>
+  @if (cart.isEmpty()) {
+    <p class="py-12 text-center text-sm text-surface-400">No hay productos para revisar.</p>
+  } @else {
+    <div class="max-h-[70vh] overflow-y-auto pr-1">
+      <div class="flex flex-col gap-4">
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div
+            class="flex items-center gap-2 rounded-lg border border-surface-200 px-3 py-2.5 dark:border-surface-700"
+          >
+            <span
+              class="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-100 text-surface-500 dark:bg-surface-700 dark:text-surface-300"
+            >
+              <i-lucide [img]="paymentIcon(cart.paymentMethod())" class="size-4" />
+            </span>
+            <div class="flex min-w-0 flex-col leading-tight">
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-surface-400">
+                Pago
+              </span>
+              <span class="truncate text-sm font-medium text-surface-800 dark:text-surface-100">
+                {{ paymentLabel(cart.paymentMethod()) }}
+                @if (cart.cardBrand(); as brand) {
+                  <span class="text-surface-400">· {{ cardBrandLabel(brand) }}</span>
+                }
+              </span>
+            </div>
+          </div>
+
+          <div
+            class="flex items-center justify-between rounded-lg border border-surface-200 px-3 py-2.5 dark:border-surface-700"
+          >
+            <div class="flex flex-col leading-tight">
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-surface-400">
+                Productos
+              </span>
+              <span class="text-sm font-medium text-surface-800 dark:text-surface-100">
+                {{ cart.itemCount() }} {{ cart.itemCount() === 1 ? 'ítem' : 'ítems' }}
+              </span>
+            </div>
+            <span class="text-xs text-surface-400">
+              {{ cart.brandGroups().length }}
+              {{ cart.brandGroups().length === 1 ? 'marca' : 'marcas' }}
+            </span>
+          </div>
+
+          <div
+            class="flex items-center justify-between rounded-lg bg-primary/10 px-3 py-2.5 ring-1 ring-primary/20 dark:bg-primary/15"
+          >
+            <span class="text-sm font-semibold text-surface-700 dark:text-surface-100">
+              Total
+            </span>
+            <span class="text-xl font-bold text-primary">
+              {{ formatCurrency(cart.total()) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-3">
+          @for (group of cart.brandGroups(); track group.brandId) {
+            <section
+              class="overflow-hidden rounded-lg border border-surface-200 dark:border-surface-700"
+            >
+              <div
+                class="flex items-center justify-between gap-2 border-b border-surface-200 bg-surface-50 px-3 py-2.5 dark:border-surface-700 dark:bg-surface-700/40"
+                [style]="brandGroupHeaderStyle(group.brandId, group.brandName)"
+              >
+                <div class="flex min-w-0 flex-col">
+                  <span class="truncate text-sm font-semibold text-current">
+                    {{ group.brandName }}
+                  </span>
+                  <span class="text-xs text-current opacity-75">
+                    {{ group.itemCount }} {{ group.itemCount === 1 ? 'ítem' : 'ítems' }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="divide-y divide-surface-100 dark:divide-surface-700">
+                @for (line of group.lines; track line.product.id) {
+                  <div class="flex items-center gap-3 px-3 py-2.5">
+                    <app-product-image
+                      [imageUrl]="line.product.imageUrl"
+                      [categoryName]="line.product.categoryName"
+                      [alt]="line.product.name"
+                      size="sm"
+                    />
+                    <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span class="truncate font-medium text-surface-900 dark:text-surface-0">
+                        {{ line.product.name }}
+                      </span>
+                      <div
+                        class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-surface-500 dark:text-surface-400"
+                      >
+                        <span>{{ line.quantity }} × {{ formatCurrency(line.product.price) }}</span>
+                        @if (line.unitDiscount > 0) {
+                          <span class="text-red-600 dark:text-red-300">
+                            {{ discountLabel(line) }}
+                          </span>
+                          <span>Neto {{ formatCurrency(line.unitNet) }} c/u</span>
+                        }
+                        @if (line.product.size || line.product.color) {
+                          <span>
+                            {{ line.product.size }}
+                            @if (line.product.size && line.product.color) {
+                              <span>·</span>
+                            }
+                            {{ line.product.color }}
+                          </span>
+                        }
+                      </div>
+                    </div>
+                    <span class="shrink-0 font-semibold text-surface-900 dark:text-surface-0">
+                      {{ formatCurrency(line.lineSubtotal) }}
+                    </span>
+                  </div>
+                }
+              </div>
+
+              <div
+                class="flex items-center justify-between gap-3 border-t border-primary/20 bg-primary/5 px-3 py-3 dark:border-primary/25 dark:bg-primary/10"
+              >
+                <span class="text-sm font-semibold text-surface-700 dark:text-surface-100">
+                  Total de {{ group.brandName }}
+                </span>
+                <span class="text-lg font-bold text-primary">
+                  {{ formatCurrency(group.total) }}
+                </span>
+              </div>
+            </section>
+          }
+        </div>
+
+        @if (cart.observations().trim().length > 0) {
+          <div class="flex flex-col gap-0.5">
+            <span class="text-[10px] font-semibold uppercase tracking-wide text-surface-400">
+              Notas
+            </span>
+            <p class="text-sm text-surface-600 dark:text-surface-300">
+              {{ cart.observations().trim() }}
+            </p>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <ng-template pTemplate="footer">
+    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <button
+        pButton
+        type="button"
+        severity="secondary"
+        [text]="true"
+        label="Volver al ticket"
+        [disabled]="submitting()"
+        (click)="close()"
+      >
+        <i-lucide [img]="icons.Undo2" class="size-4 mr-2" />
+      </button>
+      <button
+        pButton
+        type="button"
+        label="Confirmar venta"
+        [loading]="submitting()"
+        [disabled]="!cart.canSubmit() || submitting()"
+        (click)="confirmSale()"
+      >
+        @if (!submitting()) {
+          <i-lucide [img]="icons.Check" class="size-4 mr-2" />
+        }
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>

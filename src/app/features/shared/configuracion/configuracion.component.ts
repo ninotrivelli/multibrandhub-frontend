@@ -12,8 +12,9 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AvatarModule } from 'primeng/avatar';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
-import { LucideAngularModule, KeyRound, Settings } from 'lucide-angular';
+import { LucideAngularModule, KeyRound, Palette, Settings } from 'lucide-angular';
 
+import { ThemeSelectorComponent } from '../../../shared/components/theme-selector/theme-selector.component';
 import { AuthService } from '../../../core/auth/auth.service';
 import { UserRole } from '../../../core/auth/auth.types';
 import { BrandsService } from '../../../core/brands/brands.service';
@@ -44,6 +45,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
     TagModule,
     LucideAngularModule,
     ResetPasswordDialogComponent,
+    ThemeSelectorComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './configuracion.component.html',
@@ -54,7 +56,7 @@ export class ConfiguracionComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly user = this.auth.user;
-  protected readonly icons = { KeyRound, Settings };
+  protected readonly icons = { KeyRound, Palette, Settings };
 
   protected readonly resetDialogVisible = signal(false);
   protected readonly resetTarget = signal<ResetPasswordTarget | null>(null);

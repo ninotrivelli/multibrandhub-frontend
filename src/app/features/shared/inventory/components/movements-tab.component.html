@@ -22,9 +22,13 @@
               <span class="font-medium text-sm text-surface-900 dark:text-surface-0 truncate">
                 {{ p.name }}
               </span>
-              <span class="text-xs text-surface-500 dark:text-surface-400 truncate">
-                {{ p.sku }} · {{ p.brandName }} · Stock: {{ p.currentStock }}
-              </span>
+              <div
+                class="flex flex-wrap items-center gap-1.5 text-xs text-surface-500 dark:text-surface-400"
+              >
+                <span>{{ p.sku }}</span>
+                <app-brand-chip [brandId]="p.brandId" [brandName]="p.brandName" size="xs" />
+                <span>Stock: {{ p.currentStock }}</span>
+              </div>
             </div>
           </div>
           <button
@@ -100,9 +104,12 @@
                   <span class="font-medium text-sm text-surface-900 dark:text-surface-0 truncate">
                     {{ p.name }}
                   </span>
-                  <span class="text-xs text-surface-500 dark:text-surface-400 truncate">
-                    {{ p.sku }} · {{ p.brandName }}
-                  </span>
+                  <div
+                    class="flex flex-wrap items-center gap-1.5 text-xs text-surface-500 dark:text-surface-400"
+                  >
+                    <span>{{ p.sku }}</span>
+                    <app-brand-chip [brandId]="p.brandId" [brandName]="p.brandName" size="xs" />
+                  </div>
                 </div>
                 <span
                   class="text-xs text-surface-500 dark:text-surface-400 whitespace-nowrap shrink-0"
@@ -238,9 +245,9 @@
                 {{ row.productName ?? '—' }}
               </span>
               @if (row.brandName) {
-                <span class="text-xs text-surface-500 dark:text-surface-400 truncate md:hidden">
-                  {{ row.brandName }}
-                </span>
+                <div class="mt-1 md:hidden">
+                  <app-brand-chip [brandId]="row.brandId" [brandName]="row.brandName" size="xs" />
+                </div>
               }
               @if (row.type === movementType.PriceChange && row.observations) {
                 <span class="text-xs italic text-surface-600 dark:text-surface-300 xl:hidden">
@@ -251,9 +258,7 @@
           </td>
           @if (showBrandFilter()) {
             <td class="hidden md:table-cell">
-              <span class="text-sm text-surface-600 dark:text-surface-300">
-                {{ row.brandName ?? '—' }}
-              </span>
+              <app-brand-chip [brandId]="row.brandId" [brandName]="row.brandName" />
             </td>
           }
           <td>

@@ -73,7 +73,8 @@ const MOVEMENT_SEVERITY: Record<
 > = {
   [MovementType.StockIn]: 'success',
   [MovementType.Sale]: 'info',
-  [MovementType.Return]: 'success',
+  // Orange to match the "Devolución" tag in the POS recent-sales list.
+  [MovementType.Return]: 'warn',
   [MovementType.Adjustment]: 'warn',
   [MovementType.Loss]: 'danger',
   [MovementType.PriceChange]: 'secondary',
@@ -127,6 +128,28 @@ export function formatMovementDate(iso: string): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
+}
+
+// Full numeric date in Uruguay time: "dd/MM/yyyy".
+export function formatShortDate(iso: string): string {
+  return new Intl.DateTimeFormat('es-UY', {
+    timeZone: URUGUAY_TIME_ZONE,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parseBackendUtcDate(iso));
+}
+
+// Relative day marker in Uruguay time: "Hoy" / "Ayer" / null. Rendered as a
+// small parenthetical next to the full date so the column always shows the date.
+export function relativeDayLabel(iso: string): 'Hoy' | 'Ayer' | null {
+  const target = formatUruguayDate(parseBackendUtcDate(iso));
+  if (target === formatUruguayDate()) return 'Hoy';
+
+  const yesterday = formatUruguayDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  if (target === yesterday) return 'Ayer';
+
+  return null;
 }
 
 export function stripAccents(value: string): string {

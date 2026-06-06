@@ -1,0 +1,99 @@
+<section
+  class="bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-4 flex flex-col gap-4"
+>
+  <div class="flex items-center gap-2">
+    <i-lucide [img]="icons.Filter" class="size-4 text-primary" />
+    <h2 class="text-sm font-semibold text-surface-900 dark:text-surface-0">Filtros del panel</h2>
+  </div>
+
+  <div class="grid grid-cols-1 gap-3 lg:grid-cols-[18rem_1fr]">
+    <div class="flex flex-col gap-1">
+      <label class="text-xs font-medium text-surface-600 dark:text-surface-300">Período</label>
+      <p-select
+        [options]="periodOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="periodPreset()"
+        (ngModelChange)="periodPresetChange.emit($event)"
+        appendTo="body"
+        styleClass="w-full"
+      />
+    </div>
+
+    @if (periodPreset() === 'custom') {
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-medium text-surface-600 dark:text-surface-300">Desde</label>
+          <input
+            pInputText
+            type="date"
+            [max]="endDate()"
+            [ngModel]="startDate()"
+            (ngModelChange)="startDateChange.emit($event)"
+          />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-medium text-surface-600 dark:text-surface-300">Hasta</label>
+          <input
+            pInputText
+            type="date"
+            [min]="startDate()"
+            [ngModel]="endDate()"
+            (ngModelChange)="endDateChange.emit($event)"
+          />
+        </div>
+      </div>
+    } @else {
+      <div
+        class="flex items-end pb-2 text-sm text-surface-500 dark:text-surface-400"
+      >
+        <span>Rango: {{ formatRangeSummary(startDate(), endDate()) }}</span>
+      </div>
+    }
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <span class="text-xs font-semibold uppercase tracking-wide text-surface-400">Marcas</span>
+
+    @if (variant() === 'admin') {
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          [class]="chipClasses(selectedBrandIds().length === 0)"
+          [attr.aria-pressed]="selectedBrandIds().length === 0"
+          (click)="allBrandsSelected.emit()"
+        >
+          Todas las marcas
+        </button>
+        @for (brand of activeBrands(); track brand.id) {
+          <button
+            type="button"
+            [class]="chipClasses(isBrandSelected(brand.id))"
+            [attr.aria-pressed]="isBrandSelected(brand.id)"
+            (click)="brandToggled.emit(brand.id)"
+          >
+            {{ brand.name }}
+          </button>
+        }
+      </div>
+    } @else {
+      <div class="flex items-center gap-2">
+        @if (ownBrand(); as brand) {
+          <app-brand-chip [brandId]="brand.id" [brandName]="brand.name" />
+        } @else {
+          <p-tag severity="secondary" value="Tu marca" />
+        }
+        <span class="inline-flex items-center gap-1 text-xs text-surface-500 dark:text-surface-400">
+          <i-lucide [img]="icons.Lock" class="size-3.5" />
+          Solo ves las ventas de tu marca.
+        </span>
+      </div>
+    }
+  </div>
+
+  <div
+    class="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-surface-700 dark:text-surface-200"
+  >
+    {{ summary() }}
+  </div>
+</section>

@@ -6,6 +6,13 @@ import {
   UserRole,
 } from '../app/core/auth/auth.types';
 import { BrandResponse, ContractType } from '../app/core/brands/brands.types';
+import {
+  SaleDetailResponse,
+  SaleResponse,
+  SaleSearchResponse,
+  SalesDashboardResponse,
+  SalesDashboardSaleResponse,
+} from '../app/core/sales/sales.types';
 import { UserResponse } from '../app/core/users/users.types';
 import {
   ImmobilizedStockProductResponse,
@@ -222,6 +229,139 @@ export function makeMovement(
     userId: 'user-admin',
     userFullName: 'Admin Local',
     createdAt: '2026-05-01T12:00:00Z',
+    ...overrides,
+  };
+}
+
+export function makeSaleDetail(
+  overrides: Partial<SaleDetailResponse> = {},
+): SaleDetailResponse {
+  return {
+    id: 'detail-1',
+    productId: 'product-1',
+    brandId: 'brand-own',
+    originalSaleDetailId: null,
+    productName: 'Buzo Oversize',
+    brandName: 'Zendra',
+    quantity: 2,
+    unitPrice: 1850,
+    discountType: 'None',
+    discountValue: null,
+    unitDiscountAmount: 0,
+    unitNetPrice: 1850,
+    subTotal: 3700,
+    ...overrides,
+  };
+}
+
+export function makeSale(overrides: Partial<SaleResponse> = {}): SaleResponse {
+  return {
+    id: 'sale-1',
+    ticketId: 'TCK-20260603-120000-AB12',
+    date: '2026-06-03T12:00:00Z',
+    type: 'Sale',
+    totalAmount: 3700,
+    paymentMethod: 'Cash',
+    cardBrand: null,
+    status: 'Completed',
+    sellerId: 'user-seller',
+    sellerName: 'Venta Mostrador',
+    originalSaleId: null,
+    details: [makeSaleDetail()],
+    createdAt: '2026-06-03T12:00:00Z',
+    observations: null,
+    ...overrides,
+  };
+}
+
+export function makeSaleSearch(
+  overrides: Partial<SaleSearchResponse> = {},
+): SaleSearchResponse {
+  return {
+    id: 'sale-1',
+    ticketId: 'TCK-20260603-120000-AB12',
+    date: '2026-06-03T12:00:00Z',
+    type: 'Sale',
+    totalAmount: 3700,
+    paymentMethod: 'Cash',
+    cardBrand: null,
+    status: 'Completed',
+    sellerId: 'user-seller',
+    sellerName: 'Venta Mostrador',
+    createdAt: '2026-06-03T12:00:00Z',
+    observations: null,
+    brands: [{ brandId: 'brand-own', brandName: 'Zendra' }],
+    ...overrides,
+  };
+}
+
+export function makeSalesDashboardSale(
+  overrides: Partial<SalesDashboardSaleResponse> = {},
+): SalesDashboardSaleResponse {
+  return {
+    id: 'sale-1',
+    ticketId: 'TCK-20260603-120000-AB12',
+    date: '2026-06-03T12:00:00Z',
+    type: 'Sale',
+    totalAmount: 3700,
+    paymentMethod: 'Cash',
+    cardBrand: null,
+    status: 'Completed',
+    sellerId: 'user-seller',
+    sellerName: 'Venta Mostrador',
+    createdAt: '2026-06-03T12:00:00Z',
+    observations: null,
+    matchingAmount: 3700,
+    ticketTotalAmount: 3700,
+    brands: [{ brandId: 'brand-own', brandName: 'Zendra' }],
+    ...overrides,
+  };
+}
+
+export function makeSalesDashboard(
+  overrides: Partial<SalesDashboardResponse> = {},
+): SalesDashboardResponse {
+  return {
+    from: '2026-06-01',
+    to: '2026-06-05',
+    brandIds: ['brand-own'],
+    chartWeekStart: '2026-06-01',
+    kpis: {
+      grossSalesAmount: 5000,
+      returnsAmount: 500,
+      netSalesAmount: 4500,
+      saleTicketCount: 2,
+      returnTicketCount: 1,
+      unitsSold: 5,
+      unitsReturned: 1,
+      netUnits: 4,
+      averageGrossTicketAmount: 2500,
+      averageNetTicketAmount: 2250,
+    },
+    dailySales: [
+      {
+        date: '2026-06-01',
+        grossSalesAmount: 3700,
+        returnsAmount: 0,
+        netSalesAmount: 3700,
+      },
+      {
+        date: '2026-06-02',
+        grossSalesAmount: 1300,
+        returnsAmount: 500,
+        netSalesAmount: 800,
+      },
+    ],
+    brandDistribution: [
+      {
+        brandId: 'brand-own',
+        brandName: 'Zendra',
+        grossSalesAmount: 5000,
+        returnsAmount: 500,
+        netSalesAmount: 4500,
+      },
+    ],
+    sales: paged([makeSalesDashboardSale()], { totalCount: 1, page: 1, pageSize: 10 }),
     ...overrides,
   };
 }

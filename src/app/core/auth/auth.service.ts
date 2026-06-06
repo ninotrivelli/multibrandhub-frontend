@@ -5,6 +5,7 @@ import { Observable, map, tap } from 'rxjs';
 import { jwtDecode } from 'jwt-decode';
 
 import { environment } from '../../../environments/environment';
+import { SessionStateRegistry } from '../session/session-state-registry.service';
 import {
   AuthResponse,
   AuthSession,
@@ -15,7 +16,7 @@ import {
   NAMEID_CLAIM_URI,
   ROLE_CLAIM_URI,
   RoleWire,
-  UserRole
+  UserRole,
 } from './auth.types';
 
 const STORAGE_KEY = 'mbh.token';
@@ -24,7 +25,7 @@ const ROLE_BY_INT: Record<number, UserRole> = {
   1: 'SuperAdmin',
   2: 'Admin',
   3: 'BrandManager',
-  4: 'Seller'
+  4: 'Seller',
 };
 
 function normalizeRole(r: RoleWire): UserRole {
@@ -82,6 +83,7 @@ function tenantIdFromToken(token: string): string {
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly sessionState = inject(SessionStateRegistry);
 
   private readonly _session = signal<AuthSession | null>(null);
 
@@ -100,7 +102,7 @@ export class AuthService {
     try {
       parsed = JSON.parse(raw) as AuthSession;
     } catch {
-      localStorage.removeItem(STORAGE_KEY);
+      this.clearSession();
       return;
     }
 
@@ -108,7 +110,7 @@ export class AuthService {
     try {
       claims = jwtDecode<JwtClaims>(parsed.token);
     } catch {
-      localStorage.removeItem(STORAGE_KEY);
+      this.clearSession();
       return;
     }
 
@@ -116,45 +118,50 @@ export class AuthService {
     // separately-stored expiresAtUtc (which a tamperer could rewrite).
     const expMs = typeof claims.exp === 'number' ? claims.exp * 1000 : 0;
     if (expMs <= Date.now()) {
-      localStorage.removeItem(STORAGE_KEY);
+      this.clearSession();
       return;
     }
 
     if (!claimsMatchSession(claims, parsed)) {
-      localStorage.removeItem(STORAGE_KEY);
+      this.clearSession();
       return;
     }
 
+    this.sessionState.resetAll();
     this._session.set(parsed);
   }
 
   login(req: LoginRequest): Observable<AuthSession> {
-    return this.http
-      .post<AuthResponse>(`${environment.apiBaseUrl}/auth/login`, req)
-      .pipe(
-        map<AuthResponse, AuthSession>((res) => ({
-          user: {
-            userId: res.userId,
-            fullName: res.fullName,
-            email: res.email,
-            role: normalizeRole(res.role),
-            brandId: res.brandId
-          },
-          tenantId: tenantIdFromToken(res.token),
-          token: res.token,
-          expiresAtUtc: res.expiresAtUtc
-        })),
-        tap((session) => {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-          this._session.set(session);
-        })
-      );
+    return this.http.post<AuthResponse>(`${environment.apiBaseUrl}/auth/login`, req).pipe(
+      map<AuthResponse, AuthSession>((res) => ({
+        user: {
+          userId: res.userId,
+          fullName: res.fullName,
+          email: res.email,
+          role: normalizeRole(res.role),
+          brandId: res.brandId,
+        },
+        tenantId: tenantIdFromToken(res.token),
+        token: res.token,
+        expiresAtUtc: res.expiresAtUtc,
+      })),
+      tap((session) => {
+        this.sessionState.resetAll();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+        this._session.set(session);
+      }),
+    );
   }
 
   logout(): void {
+    this.clearSession();
+    this.router.navigate(['/login']);
+  }
+
+  private clearSession(): void {
     localStorage.removeItem(STORAGE_KEY);
     this._session.set(null);
-    this.router.navigate(['/login']);
+    this.sessionState.resetAll();
   }
 
   homePathFor(role: UserRole): string {

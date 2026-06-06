@@ -1,0 +1,187 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: '48rem', maxWidth: '95vw' }"
+  header="Detalle de la venta"
+>
+  @if (loading()) {
+    <p class="py-12 text-center text-sm text-surface-400">Cargando detalle…</p>
+  } @else if (error()) {
+    <div
+      class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+    >
+      {{ error() }}
+    </div>
+  } @else if (sale(); as sale) {
+    <div class="flex flex-col gap-4">
+      <!-- Encabezado: una sola línea en desktop -->
+      <div
+        class="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg bg-surface-50 dark:bg-surface-700/40 px-3 py-2.5"
+      >
+        @if (sale.type === 'Return') {
+          <p-tag severity="warn" value="Devolución" />
+        } @else {
+          <p-tag severity="info" value="Venta" />
+        }
+        <div class="flex flex-col leading-tight">
+          <span class="text-[10px] font-semibold uppercase tracking-wide text-surface-400">
+            Ticket
+          </span>
+          <span class="font-mono text-sm font-medium text-surface-800 dark:text-surface-100">
+            {{ sale.ticketId ?? '—' }}
+          </span>
+        </div>
+        <div class="flex flex-col leading-tight">
+          <span class="text-[10px] font-semibold uppercase tracking-wide text-surface-400">
+            Fecha
+          </span>
+          <span class="whitespace-nowrap text-sm text-surface-700 dark:text-surface-200">
+            {{ formatDate(sale.date) }}
+          </span>
+        </div>
+        <div class="flex flex-col leading-tight">
+          <span class="text-[10px] font-semibold uppercase tracking-wide text-surface-400">
+            Vendedor
+          </span>
+          <span class="whitespace-nowrap text-sm text-surface-700 dark:text-surface-200">
+            {{ sale.sellerName ?? '—' }}
+          </span>
+        </div>
+        @if (sale.type === 'Sale') {
+          <div class="flex flex-col leading-tight">
+            <span class="text-[10px] font-semibold uppercase tracking-wide text-surface-400">
+              Pago
+            </span>
+            <span
+              class="flex items-center gap-1.5 whitespace-nowrap text-sm text-surface-700 dark:text-surface-200"
+            >
+              <i-lucide [img]="paymentIcon(sale.paymentMethod)" class="size-4 text-surface-400" />
+              {{ paymentLabel(sale.paymentMethod) }}
+              @if (sale.cardBrand) {
+                <span class="text-surface-400 dark:text-surface-500">
+                  · {{ cardBrand(sale.cardBrand) }}
+                </span>
+              }
+            </span>
+          </div>
+        }
+      </div>
+
+      <!-- Detalle agrupado por marca -->
+      <div class="flex flex-col gap-3">
+        @for (group of brandGroups(); track group.brandId) {
+          <div class="overflow-hidden rounded-lg border border-surface-200 dark:border-surface-700">
+            <!-- Marca -->
+            <div
+              class="flex items-center justify-between gap-2 border-b border-surface-200 bg-surface-50 px-3 py-2 dark:border-surface-700 dark:bg-surface-700/40"
+              [style]="brandGroupHeaderStyle(group.brandId, group.brandName)"
+            >
+              <span class="text-sm font-semibold text-current">
+                {{ group.brandName }}
+              </span>
+              <span class="text-xs text-current opacity-75">
+                {{ group.items.length }} {{ group.items.length === 1 ? 'ítem' : 'ítems' }}
+              </span>
+            </div>
+
+            <!-- Ítems de la marca -->
+            <div class="divide-y divide-surface-100 dark:divide-surface-700">
+              @for (line of group.items; track line.id) {
+                <div class="flex items-center gap-3 px-3 py-2.5">
+                  <app-product-image
+                    [imageUrl]="line.imageUrl"
+                    [categoryName]="line.categoryName"
+                    [alt]="line.productName ?? 'Producto'"
+                    size="sm"
+                  />
+                  <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span class="truncate font-medium text-surface-900 dark:text-surface-0">
+                      {{ line.productName ?? 'Producto' }}
+                    </span>
+                    <div
+                      class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-surface-500 dark:text-surface-400"
+                    >
+                      <span>{{ line.quantity }} × {{ formatCurrency(line.unitPrice) }}</span>
+                      @if (line.unitDiscountAmount > 0) {
+                        <span class="text-red-600 dark:text-red-300">
+                          @if (line.discountType === 'Percentage') {
+                            Desc. {{ line.discountValue }}%
+                          } @else {
+                            Desc. {{ formatCurrency(line.discountValue ?? 0) }} c/u
+                          }
+                        </span>
+                        <span>Neto {{ formatCurrency(line.unitNetPrice) }} c/u</span>
+                      }
+                    </div>
+                  </div>
+                  <span
+                    class="shrink-0 font-semibold"
+                    [class.text-red-600]="line.subTotal < 0"
+                    [class.dark:text-red-300]="line.subTotal < 0"
+                    [class.text-surface-900]="line.subTotal >= 0"
+                    [class.dark:text-surface-0]="line.subTotal >= 0"
+                  >
+                    {{ formatCurrency(line.subTotal) }}
+                  </span>
+                </div>
+              }
+            </div>
+
+            <!-- Total de la marca -->
+            <div
+              class="flex items-center justify-between border-t border-surface-200 px-3 py-2 dark:border-surface-700"
+            >
+              <span class="text-sm font-medium text-surface-600 dark:text-surface-300">
+                Total {{ group.brandName }}
+              </span>
+              <span
+                class="font-semibold"
+                [class.text-red-600]="group.total < 0"
+                [class.dark:text-red-300]="group.total < 0"
+                [class.text-surface-800]="group.total >= 0"
+                [class.dark:text-surface-100]="group.total >= 0"
+              >
+                {{ formatCurrency(group.total) }}
+              </span>
+            </div>
+          </div>
+        } @empty {
+          <div
+            class="rounded-lg border border-dashed border-surface-200 p-6 text-center text-sm text-surface-500 dark:border-surface-700 dark:text-surface-400"
+          >
+            No hay ítems visibles para tu marca en esta venta.
+          </div>
+        }
+      </div>
+
+      @if (sale.observations) {
+        <div class="flex flex-col gap-0.5">
+          <span class="text-[10px] font-semibold uppercase tracking-wide text-surface-400">
+            Notas
+          </span>
+          <p class="text-sm text-surface-600 dark:text-surface-300">{{ sale.observations }}</p>
+        </div>
+      }
+
+      <!-- Total general -->
+      <div
+        class="flex items-center justify-between rounded-lg bg-surface-100 px-3 py-3 dark:bg-surface-700/60"
+      >
+        <span class="text-base font-semibold text-surface-900 dark:text-surface-0">
+          {{ brandScopeId() ? 'Total de tu marca' : 'Total general' }}
+        </span>
+        <span
+          class="text-xl font-bold"
+          [class.text-red-600]="visibleTotal() < 0"
+          [class.dark:text-red-300]="visibleTotal() < 0"
+          [class.text-surface-900]="visibleTotal() >= 0"
+          [class.dark:text-surface-0]="visibleTotal() >= 0"
+        >
+          {{ formatCurrency(visibleTotal()) }}
+        </span>
+      </div>
+    </div>
+  }
+</p-dialog>

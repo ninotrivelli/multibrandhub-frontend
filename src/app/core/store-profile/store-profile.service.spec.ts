@@ -7,10 +7,12 @@ import { environment } from '../../../environments/environment';
 import { makeAuthSession } from '../../../testing/builders';
 import { AuthSession } from '../auth/auth.types';
 import { AuthService } from '../auth/auth.service';
+import { SessionStateRegistry } from '../session/session-state-registry.service';
 import { StoreProfileService } from './store-profile.service';
 
 describe('StoreProfileService', () => {
   let service: StoreProfileService;
+  let sessionState: SessionStateRegistry;
   let http: HttpTestingController;
   const session = signal<AuthSession | null>(makeAuthSession());
   const baseUrl = `${environment.apiBaseUrl}/store-profile`;
@@ -26,6 +28,7 @@ describe('StoreProfileService', () => {
       ],
     });
     service = TestBed.inject(StoreProfileService);
+    sessionState = TestBed.inject(SessionStateRegistry);
     http = TestBed.inject(HttpTestingController);
   });
 
@@ -89,6 +92,27 @@ describe('StoreProfileService', () => {
 
     session.set(null);
     TestBed.flushEffects();
+
+    expect(service.profile()).toBeNull();
+    expect(service.storeName()).toBe('');
+  });
+
+  it('ignores late profile responses after session reset', () => {
+    service.load().subscribe();
+    const req = http.expectOne(baseUrl);
+    expect(service.loading()).toBe(true);
+
+    sessionState.resetAll();
+
+    expect(service.loading()).toBe(false);
+    req.flush({
+      storeName: 'MultiBrandHub Centro',
+      address: null,
+      primaryPhone: null,
+      secondaryPhone: null,
+      contactEmail: null,
+      updatedAt: '2026-05-01T00:00:00Z',
+    });
 
     expect(service.profile()).toBeNull();
     expect(service.storeName()).toBe('');

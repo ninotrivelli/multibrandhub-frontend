@@ -1,0 +1,355 @@
+<div
+  class="bg-surface-0 dark:bg-surface-800 border-2 border-primary/15 dark:border-primary/25 rounded-2xl shadow-lg flex flex-col h-full overflow-hidden"
+>
+  <!-- Header -->
+  <div
+    class="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-surface-200 dark:border-surface-700 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent"
+  >
+    <div class="flex items-center gap-2.5 min-w-0">
+      <span
+        class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary"
+      >
+        <i-lucide [img]="icons.ShoppingCart" class="size-5" />
+      </span>
+      <div class="flex flex-col leading-tight min-w-0">
+        <h2 class="text-base font-semibold text-surface-900 dark:text-surface-0">
+          Registro de Venta
+        </h2>
+        @if (cart.isEmpty()) {
+          <span class="text-xs text-surface-500 dark:text-surface-400">Sin productos aún</span>
+        } @else {
+          <span class="text-xs font-medium text-surface-500 dark:text-surface-400">
+            {{ cart.itemCount() }} {{ cart.itemCount() === 1 ? 'ítem' : 'ítems' }} en el ticket
+          </span>
+        }
+      </div>
+    </div>
+    <button
+      type="button"
+      class="flex items-center gap-1 text-xs font-medium text-surface-500 hover:text-red-600 dark:text-surface-400 dark:hover:text-red-300 transition-colors disabled:opacity-40 disabled:pointer-events-none cursor-pointer shrink-0"
+      [disabled]="cart.isEmpty()"
+      (click)="cart.clear()"
+    >
+      <i-lucide [img]="icons.Trash2" class="size-4" />
+      Vaciar
+    </button>
+  </div>
+
+  <!-- Line items -->
+  <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-32">
+    @if (cart.isEmpty()) {
+      <div
+        class="flex flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-surface-300 dark:border-surface-600 py-12 text-center"
+      >
+        <span
+          class="flex size-12 items-center justify-center rounded-full bg-surface-100 dark:bg-surface-700 text-surface-400"
+        >
+          <i-lucide [img]="icons.ShoppingCart" class="size-6" />
+        </span>
+        <div class="flex flex-col gap-0.5 px-4">
+          <p class="text-sm font-medium text-surface-600 dark:text-surface-300">
+            Todavía no agregaste productos
+          </p>
+          <p class="text-xs text-surface-400">
+            Buscá un producto y tocá + para sumarlo a la venta.
+          </p>
+        </div>
+      </div>
+    } @else {
+      @for (line of cart.pricedLines(); track line.product.id) {
+        <div
+          class="rounded-lg border border-surface-200 dark:border-surface-700 p-3 flex flex-col gap-2.5 transition-colors hover:border-primary/40"
+        >
+          <!-- Producto: miniatura + datos + subtotal -->
+          <div class="flex items-start gap-3">
+            <app-product-image
+              [imageUrl]="line.product.imageUrl"
+              [categoryName]="line.product.categoryName"
+              [alt]="line.product.name"
+              size="sm"
+            />
+
+            <div class="flex flex-col min-w-0 flex-1 gap-1">
+              <span class="font-medium text-surface-900 dark:text-surface-0 truncate">
+                {{ line.product.name }}
+              </span>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <app-brand-chip
+                  [brandId]="line.product.brandId"
+                  [brandName]="line.product.brandName"
+                  size="xs"
+                />
+                @if (line.product.size || line.product.color) {
+                  <span class="text-[11px] text-surface-400">
+                    {{ line.product.size }}
+                    @if (line.product.size && line.product.color) {
+                      <span> · </span>
+                    }
+                    {{ line.product.color }}
+                  </span>
+                }
+              </div>
+              <div class="flex items-center gap-1.5 text-xs">
+                @if (line.unitDiscount > 0) {
+                  <span class="text-surface-400 line-through">
+                    {{ formatCurrency(line.product.price) }}
+                  </span>
+                }
+                <span class="text-surface-600 dark:text-surface-300">
+                  {{ formatCurrency(line.unitNet) }} c/u
+                </span>
+              </div>
+            </div>
+
+            <div class="flex flex-col items-end gap-1.5 shrink-0">
+              <button
+                type="button"
+                class="rounded-md p-1 text-surface-400 hover:bg-surface-100 hover:text-red-600 dark:hover:bg-surface-700 dark:hover:text-red-300 transition-colors cursor-pointer"
+                aria-label="Quitar producto"
+                (click)="cart.remove(line.product.id)"
+              >
+                <i-lucide [img]="icons.X" class="size-4" />
+              </button>
+              <div class="flex flex-col items-end leading-tight">
+                @if (line.unitDiscount > 0) {
+                  <span class="text-xs text-surface-400 line-through">
+                    {{ formatCurrency(line.product.price * line.quantity) }}
+                  </span>
+                }
+                <span class="font-semibold text-surface-900 dark:text-surface-0">
+                  {{ formatCurrency(line.lineSubtotal) }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cantidad + acceso a descuento -->
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div class="flex items-center gap-2">
+              <button
+                pButton
+                type="button"
+                severity="secondary"
+                [outlined]="true"
+                size="small"
+                [rounded]="true"
+                aria-label="Restar unidad"
+                [disabled]="line.quantity <= 1"
+                (click)="cart.decrement(line.product.id)"
+              >
+                <i-lucide [img]="icons.Minus" class="size-4 !text-red-500" />
+              </button>
+              <span
+                class="w-8 text-center text-sm font-semibold text-surface-900 dark:text-surface-0"
+              >
+                {{ line.quantity }}
+              </span>
+              <button
+                pButton
+                type="button"
+                severity="secondary"
+                [outlined]="true"
+                size="small"
+                [rounded]="true"
+                aria-label="Sumar unidad"
+                [disabled]="line.quantity >= line.product.currentStock"
+                (click)="cart.increment(line.product.id)"
+              >
+                <i-lucide [img]="icons.Plus" class="size-4 !text-emerald-600" />
+              </button>
+              @if (line.quantity >= line.product.currentStock) {
+                <span class="text-[11px] text-surface-400">Máx. en stock</span>
+              }
+            </div>
+
+            @if (editingDiscountFor() !== line.product.id) {
+              @if (line.discountType !== 'None' && line.valid) {
+                <div class="flex items-center gap-1">
+                  <span
+                    class="inline-flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950 px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
+                  >
+                    <i-lucide [img]="icons.Percent" class="size-3" />
+                    {{ discountChipLabel(line) }}
+                  </span>
+                  <button
+                    type="button"
+                    class="rounded-md p-1 text-surface-400 hover:bg-surface-100 hover:text-surface-700 dark:hover:bg-surface-700 dark:hover:text-surface-100 transition-colors cursor-pointer"
+                    aria-label="Editar descuento"
+                    (click)="openDiscountEditor(line)"
+                  >
+                    <i-lucide [img]="icons.Pencil" class="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-md p-1 text-surface-400 hover:bg-surface-100 hover:text-red-600 dark:hover:bg-surface-700 dark:hover:text-red-300 transition-colors cursor-pointer"
+                    aria-label="Quitar descuento"
+                    (click)="clearLineDiscount(line.product.id)"
+                  >
+                    <i-lucide [img]="icons.X" class="size-3.5" />
+                  </button>
+                </div>
+              } @else {
+                <button
+                  type="button"
+                  class="flex items-center gap-1 text-xs font-medium text-primary hover:opacity-80 transition-opacity cursor-pointer"
+                  (click)="openDiscountEditor(line)"
+                >
+                  <i-lucide [img]="icons.Plus" class="size-3.5" />
+                  Agregar descuento
+                </button>
+              }
+            }
+          </div>
+
+          <!-- Editor de descuento (inline) -->
+          @if (editingDiscountFor() === line.product.id) {
+            <div
+              class="flex flex-col gap-2 rounded-md border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/40 p-2.5"
+            >
+              <div class="flex items-center gap-2">
+                <p-selectbutton
+                  [options]="discountModeOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  [allowEmpty]="false"
+                  [ngModel]="line.discountType"
+                  (ngModelChange)="setDiscountMode(line.product.id, $event)"
+                  styleClass="shrink-0"
+                />
+                <div class="flex-1 min-w-0">
+                  @if (line.discountType === 'Percentage') {
+                    <p-inputnumber
+                      [ngModel]="line.discountValue"
+                      (ngModelChange)="cart.setLineDiscountValue(line.product.id, $event)"
+                      suffix=" %"
+                      [min]="0"
+                      [max]="100"
+                      [maxFractionDigits]="0"
+                      [invalid]="!line.valid"
+                      placeholder="0 %"
+                      [fluid]="true"
+                    />
+                  } @else {
+                    <p-inputnumber
+                      [ngModel]="line.discountValue"
+                      (ngModelChange)="cart.setLineDiscountValue(line.product.id, $event)"
+                      mode="currency"
+                      currency="UYU"
+                      locale="es-UY"
+                      [maxFractionDigits]="0"
+                      [min]="0"
+                      [invalid]="!line.valid"
+                      placeholder="$ 0"
+                      [fluid]="true"
+                    />
+                  }
+                </div>
+              </div>
+
+              @if (line.discountType === 'FixedAmount') {
+                <span class="text-[11px] text-surface-400">Descuento por unidad</span>
+              }
+              @if (!line.valid) {
+                <span class="text-xs text-red-600 dark:text-red-300">
+                  @if (line.discountType === 'Percentage') {
+                    Ingresá un porcentaje entre 1 y 100.
+                  } @else {
+                    El descuento por unidad debe ser mayor a 0 y no superar
+                    {{ formatCurrency(line.product.price) }}.
+                  }
+                </span>
+              } @else if (lineSavings(line) > 0) {
+                <span class="text-[11px] text-surface-500 dark:text-surface-400">
+                  Ahorrás {{ formatCurrency(lineSavings(line)) }} en esta línea.
+                </span>
+              }
+
+              <div class="flex items-center justify-between gap-2 pt-0.5">
+                <button
+                  type="button"
+                  class="text-xs font-medium text-surface-500 hover:text-red-600 dark:text-surface-400 dark:hover:text-red-300 transition-colors"
+                  (click)="clearLineDiscount(line.product.id)"
+                >
+                  Quitar descuento
+                </button>
+                <button
+                  pButton
+                  type="button"
+                  size="small"
+                  label="Aplicar"
+                  [disabled]="!line.valid"
+                  (click)="closeDiscountEditor()"
+                ></button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Footer: payment, discount, notes, totals, submit -->
+  @if (!cart.isEmpty()) {
+    <div class="border-t border-surface-200 dark:border-surface-700 p-4 flex flex-col gap-4">
+      <app-pos-payment-method-selector />
+
+      <div class="flex flex-col gap-1">
+        <label for="notes" class="text-xs font-medium text-surface-700 dark:text-surface-200">
+          Notas (opcional)
+        </label>
+        <textarea
+          pTextarea
+          id="notes"
+          rows="2"
+          [maxlength]="maxObservations"
+          [ngModel]="cart.observations()"
+          (ngModelChange)="cart.setObservations($event)"
+          placeholder="Ej: Cliente pidió factura, descuento por promo, etc."
+          [autoResize]="false"
+        ></textarea>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-1.5 text-sm">
+          <div class="flex items-center justify-between text-surface-600 dark:text-surface-300">
+            <span>Subtotal ({{ cart.itemCount() }} ítems)</span>
+            <span>{{ formatCurrency(cart.subtotal()) }}</span>
+          </div>
+          @if (cart.discountTotal() > 0) {
+            <div class="flex items-center justify-between text-surface-600 dark:text-surface-300">
+              <span>Descuentos</span>
+              <span class="text-red-600 dark:text-red-300">
+                - {{ formatCurrency(cart.discountTotal()) }}
+              </span>
+            </div>
+          }
+        </div>
+        <div
+          class="flex items-center justify-between rounded-xl bg-primary/5 dark:bg-primary/10 px-3.5 py-3 ring-1 ring-primary/15 dark:ring-primary/25"
+        >
+          <span class="text-sm font-semibold text-surface-700 dark:text-surface-200">
+            Total a Ingresar
+          </span>
+          <span class="text-2xl font-bold text-primary">
+            {{ formatCurrency(cart.total()) }}
+          </span>
+        </div>
+      </div>
+
+      <button
+        pButton
+        type="button"
+        size="large"
+        label="Ingresar Venta"
+        [loading]="submitting()"
+        [disabled]="!cart.canSubmit() || submitting()"
+        (click)="onSubmit()"
+        fluid
+      >
+        @if (!submitting()) {
+          <i-lucide [img]="icons.Check" class="size-5 mr-2" />
+        }
+      </button>
+    </div>
+  }
+</div>

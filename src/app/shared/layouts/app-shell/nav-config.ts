@@ -23,6 +23,7 @@ export interface RoleNavConfig {
 
 const ADMIN_NAV: ReadonlyArray<NavItem> = [
   { path: '/admin/dashboard', label: 'Inicio', icon: lucide(Home) },
+  { path: '/admin/pos', label: 'Ingresar Venta / Devolución', icon: lucide(CirclePlus) },
   { path: '/admin/sales', label: 'Ventas', icon: lucide(Tag) },
   { path: '/admin/settlements', label: 'Liquidaciones', icon: fa(faHandHoldingDollar) },
   { path: '/admin/inventory', label: 'Inventario', icon: lucide(Package) },
@@ -40,7 +41,7 @@ const BRAND_MANAGER_NAV: ReadonlyArray<NavItem> = [
 ];
 
 const SELLER_NAV: ReadonlyArray<NavItem> = [
-  { path: '/seller/pos', label: 'Ingresar Venta', icon: lucide(CirclePlus) },
+  { path: '/seller/pos', label: 'Ingresar Venta / Devolución', icon: lucide(CirclePlus) },
   { path: '/seller/inventory', label: 'Inventario', icon: lucide(Package) },
   { path: '/seller/cash-register', label: 'Cierre de Caja', icon: lucide(Receipt) },
   { path: '/seller/tasks', label: 'Tareas Diarias', icon: lucide(ListChecks) },
