@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { providePrimeNG } from 'primeng/config';
 
 import { brandChipColors } from '../../../core/brands/brand-colors';
+import { DEFAULT_PRESET } from '../../../core/theme/theme.presets';
 import { BrandChipComponent } from './brand-chip.component';
 
 describe('BrandChipComponent', () => {
@@ -10,6 +12,13 @@ describe('BrandChipComponent', () => {
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [BrandChipComponent],
+      providers: [
+        providePrimeNG({
+          theme: {
+            preset: DEFAULT_PRESET,
+          },
+        }),
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(BrandChipComponent);
