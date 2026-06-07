@@ -130,7 +130,7 @@
         <th class="min-w-44 hidden lg:table-cell">MARCAS</th>
         <th class="min-w-36 hidden md:table-cell">PAGO</th>
         <th class="hidden xl:table-cell">VENDEDOR</th>
-        <th class="text-right">TOTAL</th>
+        <th class="min-w-40 whitespace-nowrap">TOTAL</th>
       </tr>
     </ng-template>
 
@@ -219,7 +219,7 @@
         </td>
 
         <!-- Total -->
-        <td class="text-right whitespace-nowrap">
+        <td class="min-w-40 whitespace-nowrap">
           <span
             class="font-semibold"
             [class.text-red-600]="row.totalAmount < 0"
