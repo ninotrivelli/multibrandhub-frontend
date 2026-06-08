@@ -7,7 +7,7 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { AuthUser, UserRole } from '../../../../core/auth/auth.types';
 import { BrandsService } from '../../../../core/brands/brands.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
-import { ProductCategoriesService } from '../product-categories.service';
+import { ProductCategoriesService } from '../../../../core/product-categories/product-categories.service';
 import { ProductsService } from '../products.service';
 import { ProductFormDialogComponent } from './product-form-dialog.component';
 

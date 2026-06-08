@@ -6,7 +6,7 @@ import { makeProduct, makeSale, paged } from '../../../../testing/builders';
 import { BrandsService } from '../../../core/brands/brands.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { SalesService } from '../../../core/sales/sales.service';
-import { ProductCategoriesService } from '../inventory/product-categories.service';
+import { ProductCategoriesService } from '../../../core/product-categories/product-categories.service';
 import { PosCartStore } from './pos-cart.store';
 import { PosShellComponent } from './pos-shell.component';
 

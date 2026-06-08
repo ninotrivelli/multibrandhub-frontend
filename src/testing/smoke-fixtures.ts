@@ -2,9 +2,9 @@ import type { AuthSession, AuthUser, JwtClaims, UserRole } from '../app/core/aut
 import type { BrandResponse } from '../app/core/brands/brands.types';
 import type { UserResponse } from '../app/core/users/users.types';
 import type { StoreProfileResponse } from '../app/core/store-profile/store-profile.types';
+import type { ProductCategoryResponse } from '../app/core/product-categories/product-categories.types';
 import type {
   PagedResult,
-  ProductCategoryResponse,
   ProductResponse,
   StockMovementResponse,
 } from '../app/features/shared/inventory/inventory.types';

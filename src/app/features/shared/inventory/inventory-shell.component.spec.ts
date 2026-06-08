@@ -7,7 +7,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { AuthUser, UserRole } from '../../../core/auth/auth.types';
 import { BrandsService } from '../../../core/brands/brands.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
-import { ProductCategoriesService } from './product-categories.service';
+import { ProductCategoriesService } from '../../../core/product-categories/product-categories.service';
 import { ProductsService } from './products.service';
 import { InventoryShellComponent } from './inventory-shell.component';
 
@@ -57,6 +57,7 @@ describe('InventoryShellComponent', () => {
     expect((component as any).canArchiveProduct()).toBe(true);
     expect((component as any).canRegisterMovement()).toBe(true);
     expect((component as any).canImportProducts()).toBe(true);
+    expect((component as any).canManageCategories()).toBe(true);
 
     role.set('Seller');
     user.set(makeAuthUser({ role: 'Seller', brandId: null }));
@@ -66,6 +67,7 @@ describe('InventoryShellComponent', () => {
     expect((component as any).canArchiveProduct()).toBe(true);
     expect((component as any).canRegisterMovement()).toBe(true);
     expect((component as any).canImportProducts()).toBe(true);
+    expect((component as any).canManageCategories()).toBe(true);
   });
 
   it('limits BrandManager to scoped metadata editing without stock-changing actions', () => {
@@ -78,6 +80,15 @@ describe('InventoryShellComponent', () => {
     expect((component as any).canArchiveProduct()).toBe(false);
     expect((component as any).canRegisterMovement()).toBe(false);
     expect((component as any).canImportProducts()).toBe(false);
+    expect((component as any).canManageCategories()).toBe(false);
     expect((component as any).canSeeArchived()).toBe(false);
+  });
+
+  it('opens the category manager dialog from inventory actions', () => {
+    expect((component as any).categoryDialogVisible()).toBe(false);
+
+    (component as any).openCategoryManager();
+
+    expect((component as any).categoryDialogVisible()).toBe(true);
   });
 });

@@ -26,7 +26,7 @@ import { ImageUp, LucideAngularModule, Minus, Plus, RotateCcw, Wand2 } from 'luc
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { BrandsService } from '../../../../core/brands/brands.service';
-import { ProductCategoriesService } from '../product-categories.service';
+import { ProductCategoriesService } from '../../../../core/product-categories/product-categories.service';
 import { ProductsService } from '../products.service';
 import { CreateProductRequest, ProductResponse, UpdateProductRequest } from '../inventory.types';
 import { buildSkuCandidate } from '../inventory.utils';

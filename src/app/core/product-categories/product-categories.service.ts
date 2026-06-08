@@ -2,9 +2,9 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 
-import { environment } from '../../../../environments/environment';
-import { SessionStateRegistry } from '../../../core/session/session-state-registry.service';
-import { ProductCategoryResponse } from './inventory.types';
+import { environment } from '../../../environments/environment';
+import { SessionStateRegistry } from '../session/session-state-registry.service';
+import { CreateProductCategoryRequest, ProductCategoryResponse } from './product-categories.types';
 
 @Injectable({ providedIn: 'root' })
 export class ProductCategoriesService {
@@ -24,7 +24,7 @@ export class ProductCategoriesService {
     this.sessionState.registerResetter(() => this.resetSessionState());
   }
 
-  // Cache once per session — categories are seeded and rarely change.
+  // Cache once per session: categories are seeded and rarely change.
   list(force = false): Observable<ProductCategoryResponse[]> {
     if (this._loaded() && !force) {
       return new Observable<ProductCategoryResponse[]>((sub) => {
@@ -38,7 +38,7 @@ export class ProductCategoriesService {
       tap({
         next: (res) => {
           if (!this.sessionState.isCurrentGeneration(generation)) return;
-          this._items.set(res);
+          this._items.set(sortCategories(res));
           this._loaded.set(true);
           this._loading.set(false);
         },
@@ -49,9 +49,27 @@ export class ProductCategoriesService {
     );
   }
 
+  create(request: CreateProductCategoryRequest): Observable<ProductCategoryResponse> {
+    const generation = this.sessionState.captureGeneration();
+    const body: CreateProductCategoryRequest = { name: request.name.trim() };
+
+    return this.http.post<ProductCategoryResponse>(this.baseUrl, body).pipe(
+      tap((created) => {
+        if (!this.sessionState.isCurrentGeneration(generation)) return;
+        this._items.update((curr) =>
+          sortCategories([...curr.filter((category) => category.id !== created.id), created]),
+        );
+      }),
+    );
+  }
+
   private resetSessionState(): void {
     this._items.set([]);
     this._loading.set(false);
     this._loaded.set(false);
   }
+}
+
+function sortCategories(items: ProductCategoryResponse[]): ProductCategoryResponse[] {
+  return [...items].sort((a, b) => a.name.localeCompare(b.name, 'es-UY', { sensitivity: 'base' }));
 }

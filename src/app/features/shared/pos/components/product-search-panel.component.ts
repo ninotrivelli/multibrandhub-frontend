@@ -33,7 +33,7 @@ import { LucideAngularModule, Plus, Search, X } from 'lucide-angular';
 
 import { BrandsService } from '../../../../core/brands/brands.service';
 import { BrandResponse } from '../../../../core/brands/brands.types';
-import { ProductCategoriesService } from '../../inventory/product-categories.service';
+import { ProductCategoriesService } from '../../../../core/product-categories/product-categories.service';
 import { ProductsService } from '../../inventory/products.service';
 import { ProductResponse } from '../../inventory/inventory.types';
 import { formatCurrencyUYU, formatNumber } from '../../inventory/inventory.utils';

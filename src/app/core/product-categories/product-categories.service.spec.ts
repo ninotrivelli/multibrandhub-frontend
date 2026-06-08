@@ -2,10 +2,10 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
-import { environment } from '../../../../environments/environment';
-import { makeCategory } from '../../../../testing/builders';
-import { SessionStateRegistry } from '../../../core/session/session-state-registry.service';
-import { ProductCategoryResponse } from './inventory.types';
+import { environment } from '../../../environments/environment';
+import { makeCategory } from '../../../testing/builders';
+import { SessionStateRegistry } from '../session/session-state-registry.service';
+import { ProductCategoryResponse } from './product-categories.types';
 import { ProductCategoriesService } from './product-categories.service';
 
 describe('ProductCategoriesService', () => {
@@ -48,6 +48,24 @@ describe('ProductCategoriesService', () => {
     service.list(true).subscribe();
     http.expectOne(baseUrl).flush([makeCategory({ id: 'cat-dresses', name: 'Vestidos' })]);
     expect(service.items().map((category) => category.id)).toEqual(['cat-dresses']);
+  });
+
+  it('creates categories and updates the cache sorted by name', () => {
+    service.list().subscribe();
+    http.expectOne(baseUrl).flush([makeCategory({ id: 'cat-tops', name: 'Tops' })]);
+
+    let created: ProductCategoryResponse | undefined;
+    service.create({ name: ' Abrigos ' }).subscribe((category) => {
+      created = category;
+    });
+
+    const req = http.expectOne(baseUrl);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ name: 'Abrigos' });
+    req.flush(makeCategory({ id: 'cat-coats', name: 'Abrigos' }));
+
+    expect(created!.name).toBe('Abrigos');
+    expect(service.items().map((category) => category.name)).toEqual(['Abrigos', 'Tops']);
   });
 
   it('drops the per-session category cache on session reset', () => {
