@@ -13,19 +13,22 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
+import { PopoverModule } from 'primeng/popover';
 import {
   ArrowRightLeft,
   ListOrdered,
   LucideAngularModule,
   Plus,
   Search,
+  SlidersHorizontal,
+  Tag,
   Upload,
 } from 'lucide-angular';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { BrandsService } from '../../../core/brands/brands.service';
-import { ProductCategoriesService } from './product-categories.service';
+import { ProductCategoriesService } from '../../../core/product-categories/product-categories.service';
 import { ProductImportResponse, ProductsService } from './products.service';
 import { KpiFilter, ProductResponse, StockMovementResponse } from './inventory.types';
 import { InventoryKpisComponent } from './components/inventory-kpis.component';
@@ -33,6 +36,7 @@ import { MovementsTabComponent } from './components/movements-tab.component';
 import { StockSearchTabComponent } from './components/stock-search-tab.component';
 import { ProductFormDialogComponent } from './product-form-dialog/product-form-dialog.component';
 import { ProductImportDialogComponent } from './product-import-dialog/product-import-dialog.component';
+import { ProductCategoryManagerDialogComponent } from './product-category-manager-dialog/product-category-manager-dialog.component';
 import { MovementFormDialogComponent } from './movement-form-dialog/movement-form-dialog.component';
 
 type TabId = 'stock' | 'movements';
@@ -44,12 +48,14 @@ type TabId = 'stock' | 'movements';
     ButtonModule,
     DialogModule,
     InputTextModule,
+    PopoverModule,
     LucideAngularModule,
     InventoryKpisComponent,
     StockSearchTabComponent,
     MovementsTabComponent,
     ProductFormDialogComponent,
     ProductImportDialogComponent,
+    ProductCategoryManagerDialogComponent,
     MovementFormDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -62,7 +68,15 @@ export class InventoryShellComponent implements OnInit {
   private readonly categories = inject(ProductCategoriesService);
   private readonly notifications = inject(NotificationService);
 
-  protected readonly icons = { Plus, ArrowRightLeft, Search, ListOrdered, Upload };
+  protected readonly icons = {
+    Plus,
+    ArrowRightLeft,
+    Search,
+    ListOrdered,
+    Upload,
+    SlidersHorizontal,
+    Tag,
+  };
 
   protected readonly role = this.auth.role;
   protected readonly currentUser = this.auth.user;
@@ -86,6 +100,10 @@ export class InventoryShellComponent implements OnInit {
   // is blocked). Same role set as create today; kept as its own computed so
   // future divergence stays explicit.
   protected readonly canImportProducts = computed(() => {
+    const r = this.role();
+    return r === 'Admin' || r === 'SuperAdmin' || r === 'Seller';
+  });
+  protected readonly canManageCategories = computed(() => {
     const r = this.role();
     return r === 'Admin' || r === 'SuperAdmin' || r === 'Seller';
   });
@@ -135,6 +153,10 @@ export class InventoryShellComponent implements OnInit {
 
   // Import dialog state
   protected readonly importDialogVisible = signal(false);
+
+  // Category manager dialog state
+  protected readonly categoryDialogVisible = signal(false);
+
   // Optional ref to the stock search tab; only present while activeTab === 'stock'.
   // We use it to refresh the list after a bulk import (no optimistic update path).
   private readonly stockTab = viewChild<StockSearchTabComponent>('stockTab');
@@ -200,6 +222,10 @@ export class InventoryShellComponent implements OnInit {
 
   protected openImportProducts(): void {
     this.importDialogVisible.set(true);
+  }
+
+  protected openCategoryManager(): void {
+    this.categoryDialogVisible.set(true);
   }
 
   protected onProductsImported(res: ProductImportResponse): void {

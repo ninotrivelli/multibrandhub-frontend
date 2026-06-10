@@ -8,7 +8,7 @@ import { BrandsService } from '../../../core/brands/brands.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { SalesService } from '../../../core/sales/sales.service';
 import { SaleResponse } from '../../../core/sales/sales.types';
-import { ProductCategoriesService } from '../inventory/product-categories.service';
+import { ProductCategoriesService } from '../../../core/product-categories/product-categories.service';
 import { PosCartStore } from './pos-cart.store';
 import { CartPanelComponent } from './components/cart-panel.component';
 import { ProductSearchPanelComponent } from './components/product-search-panel.component';

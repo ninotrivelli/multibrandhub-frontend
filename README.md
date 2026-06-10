@@ -72,6 +72,32 @@ For a single non-watch run, use:
 npm run test:ci
 ```
 
+Mocked browser smoke tests run the Angular app in Chromium, inject a valid fake session,
+mock the backend at the browser boundary, and fail on uncaught runtime errors,
+`console.error`, blank routed screens, or unexpected API calls:
+
+First-time local setup:
+
+```bash
+npx playwright install chromium
+```
+
+```bash
+npm run smoke
+```
+
+For CI-style smoke tests:
+
+```bash
+npm run smoke:ci
+```
+
+To run both layers locally:
+
+```bash
+npm run test:all
+```
+
 ## Folder structure
 
 ```

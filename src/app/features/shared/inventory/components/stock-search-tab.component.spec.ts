@@ -4,7 +4,7 @@ import { of } from 'rxjs';
 
 import { makeBrand, makeCategory } from '../../../../../testing/builders';
 import { BrandsService } from '../../../../core/brands/brands.service';
-import { ProductCategoriesService } from '../product-categories.service';
+import { ProductCategoriesService } from '../../../../core/product-categories/product-categories.service';
 import { ProductsService } from '../products.service';
 import { StockSearchTabComponent } from './stock-search-tab.component';
 

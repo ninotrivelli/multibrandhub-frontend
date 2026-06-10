@@ -14,11 +14,11 @@ import {
   SalesDashboardSaleResponse,
 } from '../app/core/sales/sales.types';
 import { UserResponse } from '../app/core/users/users.types';
+import { ProductCategoryResponse } from '../app/core/product-categories/product-categories.types';
 import {
   ImmobilizedStockProductResponse,
   MovementType,
   PagedResult,
-  ProductCategoryResponse,
   ProductResponse,
   StockMovementResponse,
 } from '../app/features/shared/inventory/inventory.types';

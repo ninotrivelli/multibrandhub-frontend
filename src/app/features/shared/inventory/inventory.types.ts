@@ -178,9 +178,3 @@ export interface StockMovementTodaySummary {
   outboundUnits: number;
 }
 
-export interface ProductCategoryResponse {
-  id: string;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-}

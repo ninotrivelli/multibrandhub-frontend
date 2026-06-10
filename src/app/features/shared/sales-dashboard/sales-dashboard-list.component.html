@@ -43,7 +43,7 @@
         <th class="min-w-44 hidden lg:table-cell">MARCAS</th>
         <th class="min-w-36 hidden md:table-cell">PAGO</th>
         <th class="hidden xl:table-cell">VENDEDOR</th>
-        <th class="text-right">TOTAL FILTRADO</th>
+        <th class="min-w-40 whitespace-nowrap">TOTAL FILTRADO</th>
       </tr>
     </ng-template>
 
@@ -125,8 +125,8 @@
           </span>
         </td>
 
-        <td class="text-right whitespace-nowrap">
-          <div class="flex flex-col items-end leading-tight">
+        <td class="min-w-40 whitespace-nowrap">
+          <div class="flex flex-col items-start leading-tight">
             <span
               class="font-semibold"
               [class.text-red-600]="row.matchingAmount < 0"
