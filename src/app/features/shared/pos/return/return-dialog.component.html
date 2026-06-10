@@ -118,6 +118,11 @@
               >
                 <app-brand-chip [brandId]="line.brandId" [brandName]="line.brandName" size="xs" />
                 <span>vendidas: {{ line.quantity }}</span>
+                @if (line.alreadyReturnedQuantity > 0) {
+                  <span class="text-amber-600 dark:text-amber-300">
+                    ya devueltas: {{ line.alreadyReturnedQuantity }}
+                  </span>
+                }
               </div>
               <div
                 class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-surface-500 dark:text-surface-400"
@@ -136,6 +141,11 @@
                 <span>Subtotal {{ formatCurrency(line.subTotal) }}</span>
               </div>
             </div>
+            @if (line.remainingReturnableQuantity <= 0) {
+              <span class="shrink-0 text-xs font-medium text-amber-600 dark:text-amber-300">
+                Ya se devolvió todo
+              </span>
+            } @else {
             <div class="flex items-center gap-2 shrink-0">
               <label class="text-xs text-surface-500 dark:text-surface-400">Devolver</label>
               <button
@@ -147,7 +157,7 @@
                 [rounded]="true"
                 aria-label="Restar unidad a devolver"
                 [disabled]="returnQty(line.id) <= 0"
-                (click)="setReturnQty(line.id, returnQty(line.id) - 1, line.quantity)"
+                (click)="setReturnQty(line.id, returnQty(line.id) - 1, line.remainingReturnableQuantity)"
               >
                 <i-lucide [img]="icons.Minus" class="size-4" />
               </button>
@@ -164,12 +174,13 @@
                 size="small"
                 [rounded]="true"
                 aria-label="Sumar unidad a devolver"
-                [disabled]="returnQty(line.id) >= line.quantity"
-                (click)="setReturnQty(line.id, returnQty(line.id) + 1, line.quantity)"
+                [disabled]="returnQty(line.id) >= line.remainingReturnableQuantity"
+                (click)="setReturnQty(line.id, returnQty(line.id) + 1, line.remainingReturnableQuantity)"
               >
                 <i-lucide [img]="icons.Plus" class="size-4" />
               </button>
             </div>
+            }
           </div>
         }
       </div>

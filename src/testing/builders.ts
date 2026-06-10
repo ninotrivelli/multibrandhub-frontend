@@ -250,6 +250,8 @@ export function makeSaleDetail(
     unitDiscountAmount: 0,
     unitNetPrice: 1850,
     subTotal: 3700,
+    alreadyReturnedQuantity: 0,
+    remainingReturnableQuantity: 2,
     ...overrides,
   };
 }

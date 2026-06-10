@@ -1,7 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   computed,
   effect,
   inject,
@@ -11,6 +10,7 @@ import {
   untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { EMPTY, Subject, catchError, switchMap, tap } from 'rxjs';
 
 import { DialogModule } from 'primeng/dialog';
 import { TagModule } from 'primeng/tag';
@@ -44,7 +44,6 @@ import { ProductImageComponent } from '../../inventory/components/product-image.
 })
 export class SaleDetailDialogComponent {
   private readonly sales = inject(SalesService);
-  private readonly destroyRef = inject(DestroyRef);
 
   readonly visible = input.required<boolean>();
   readonly visibleChange = output<boolean>();
@@ -86,37 +85,47 @@ export class SaleDetailDialogComponent {
     this.brandGroups().reduce((acc, group) => acc + group.total, 0),
   );
 
+  // Funnel every fetch through switchMap so opening a different sale cancels
+  // the in-flight request — otherwise a slow earlier response could land last
+  // and show the wrong sale's data.
+  private readonly loadTrigger$ = new Subject<string>();
+
   constructor() {
+    this.loadTrigger$
+      .pipe(
+        switchMap((id) => {
+          this.sale.set(null);
+          this.error.set(null);
+          this.loading.set(true);
+          return this.sales.getById(id).pipe(
+            tap({
+              next: (s) => {
+                this.sale.set(s);
+                this.loading.set(false);
+              },
+              error: () => {
+                this.error.set('No se pudo cargar el detalle de la venta.');
+                this.loading.set(false);
+              },
+            }),
+            catchError(() => EMPTY),
+          );
+        }),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
+
     // Fetch the full detail each time the dialog opens for a sale. untracked()
     // so re-renders that don't change visible()/saleId() never refetch.
     effect(() => {
       const open = this.visible();
       const id = this.saleId();
-      if (open && id) untracked(() => this.load(id));
+      if (open && id) untracked(() => this.loadTrigger$.next(id));
     });
   }
 
   protected onVisibleChange(value: boolean): void {
     this.visibleChange.emit(value);
-  }
-
-  private load(id: string): void {
-    this.sale.set(null);
-    this.error.set(null);
-    this.loading.set(true);
-    this.sales
-      .getById(id)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (s) => {
-          this.sale.set(s);
-          this.loading.set(false);
-        },
-        error: () => {
-          this.error.set('No se pudo cargar el detalle de la venta.');
-          this.loading.set(false);
-        },
-      });
   }
 
   protected formatCurrency(value: number): string {
