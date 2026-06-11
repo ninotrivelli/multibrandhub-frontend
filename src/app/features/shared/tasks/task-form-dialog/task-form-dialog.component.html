@@ -1,0 +1,114 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [closable]="!submitting()"
+  [closeOnEscape]="!submitting()"
+  [dismissableMask]="!submitting()"
+  [draggable]="false"
+  [style]="{ width: '32rem', maxWidth: '95vw' }"
+  header="Nueva tarea"
+>
+  <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4">
+    @if (canCreatePersonal()) {
+      <div class="flex flex-col gap-1">
+        <label class="text-sm font-medium text-surface-700 dark:text-surface-200">Tipo</label>
+        <p-selectbutton
+          formControlName="scope"
+          [options]="scopeOptions"
+          optionLabel="label"
+          optionValue="value"
+          [allowEmpty]="false"
+        >
+          <ng-template #item let-option>
+            <span class="inline-flex items-center gap-2">
+              <i-lucide [img]="option.icon" class="size-4" />
+              <span>{{ option.label }}</span>
+            </span>
+          </ng-template>
+        </p-selectbutton>
+        <span class="text-xs text-surface-500 dark:text-surface-400">
+          @if (form.controls.scope.value === 'Personal') {
+            Solo vos vas a ver esta tarea.
+          } @else {
+            Visible para todo el equipo del local.
+          }
+        </span>
+      </div>
+    }
+
+    <div class="flex flex-col gap-1">
+      <label for="description" class="text-sm font-medium text-surface-700 dark:text-surface-200">
+        Descripción
+      </label>
+      <textarea
+        pTextarea
+        id="description"
+        rows="3"
+        formControlName="description"
+        [maxlength]="maxDescriptionLength"
+        [invalid]="isDescriptionInvalid()"
+        placeholder="Ej: Reponer perchas del mostrador principal"
+        fluid
+      ></textarea>
+      <div class="flex items-center justify-between gap-2">
+        <div>
+          @if (isDescriptionInvalid()) {
+            @if (form.controls.description.hasError('required')) {
+              <p-message severity="error" size="small" variant="simple">
+                La descripción es obligatoria.
+              </p-message>
+            } @else if (form.controls.description.hasError('maxlength')) {
+              <p-message severity="error" size="small" variant="simple">
+                Máximo 500 caracteres.
+              </p-message>
+            }
+          }
+        </div>
+        <span class="text-xs text-surface-400 dark:text-surface-500 shrink-0">
+          {{ descriptionLength }}/{{ maxDescriptionLength }}
+        </span>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label for="priority" class="text-sm font-medium text-surface-700 dark:text-surface-200">
+        Prioridad
+      </label>
+      <p-select
+        inputId="priority"
+        formControlName="priority"
+        [options]="priorityOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        fluid
+      />
+    </div>
+
+    @if (submitError()) {
+      <p-message severity="error" variant="outlined" closable="false">
+        {{ submitError() }}
+      </p-message>
+    }
+
+    <div class="flex justify-end gap-2 pt-2">
+      <button
+        pButton
+        type="button"
+        severity="secondary"
+        [text]="true"
+        label="Cancelar"
+        [disabled]="submitting()"
+        (click)="cancel()"
+      ></button>
+      <button
+        pButton
+        type="submit"
+        label="Crear tarea"
+        [loading]="submitting()"
+        [disabled]="submitting()"
+      ></button>
+    </div>
+  </form>
+</p-dialog>

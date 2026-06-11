@@ -13,6 +13,7 @@ import {
   SalesDashboardResponse,
   SalesDashboardSaleResponse,
 } from '../app/core/sales/sales.types';
+import { StoreTaskResponse } from '../app/core/tasks/tasks.types';
 import { UserResponse } from '../app/core/users/users.types';
 import { ProductCategoryResponse } from '../app/core/product-categories/product-categories.types';
 import {
@@ -23,10 +24,7 @@ import {
   StockMovementResponse,
 } from '../app/features/shared/inventory/inventory.types';
 
-export function paged<T>(
-  items: T[],
-  overrides: Partial<PagedResult<T>> = {},
-): PagedResult<T> {
+export function paged<T>(items: T[], overrides: Partial<PagedResult<T>> = {}): PagedResult<T> {
   return {
     items,
     totalCount: items.length,
@@ -150,6 +148,23 @@ export function makeUser(overrides: Partial<UserResponse> = {}): UserResponse {
   };
 }
 
+export function makeStoreTask(overrides: Partial<StoreTaskResponse> = {}): StoreTaskResponse {
+  return {
+    id: 'task-1',
+    description: 'Reponer perchas del mostrador',
+    priority: 'Medium',
+    status: 'Pending',
+    scope: 'General',
+    createdAt: '2026-06-01T10:00:00Z',
+    createdByUserId: 'user-admin',
+    createdByName: 'Admin Local',
+    completedByUserId: null,
+    completedByName: null,
+    completedAtUtc: null,
+    ...overrides,
+  };
+}
+
 export function makeCategory(
   overrides: Partial<ProductCategoryResponse> = {},
 ): ProductCategoryResponse {
@@ -233,9 +248,7 @@ export function makeMovement(
   };
 }
 
-export function makeSaleDetail(
-  overrides: Partial<SaleDetailResponse> = {},
-): SaleDetailResponse {
+export function makeSaleDetail(overrides: Partial<SaleDetailResponse> = {}): SaleDetailResponse {
   return {
     id: 'detail-1',
     productId: 'product-1',
@@ -276,9 +289,7 @@ export function makeSale(overrides: Partial<SaleResponse> = {}): SaleResponse {
   };
 }
 
-export function makeSaleSearch(
-  overrides: Partial<SaleSearchResponse> = {},
-): SaleSearchResponse {
+export function makeSaleSearch(overrides: Partial<SaleSearchResponse> = {}): SaleSearchResponse {
   return {
     id: 'sale-1',
     ticketId: 'TCK-20260603-120000-AB12',

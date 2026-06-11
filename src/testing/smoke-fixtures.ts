@@ -3,6 +3,7 @@ import type { BrandResponse } from '../app/core/brands/brands.types';
 import type { UserResponse } from '../app/core/users/users.types';
 import type { StoreProfileResponse } from '../app/core/store-profile/store-profile.types';
 import type { ProductCategoryResponse } from '../app/core/product-categories/product-categories.types';
+import type { CreateStoreTaskRequest, StoreTaskResponse } from '../app/core/tasks/tasks.types';
 import type {
   PagedResult,
   ProductResponse,
@@ -20,6 +21,7 @@ import {
   makeSaleSearch,
   makeSalesDashboard,
   makeSalesDashboardSale,
+  makeStoreTask,
   makeUser,
   paged,
 } from './builders';
@@ -187,6 +189,35 @@ export const smokeMovements: StockMovementResponse[] = [
   }),
 ];
 
+export const smokeTasks: StoreTaskResponse[] = [
+  makeStoreTask({
+    id: 'task-general-high',
+    description: 'Reponer bolsas del mostrador',
+    priority: 'High',
+    scope: 'General',
+    createdByUserId: 'user-admin',
+    createdByName: 'Admin Local',
+  }),
+  makeStoreTask({
+    id: 'task-personal-admin',
+    description: 'Revisar liquidaciones de la semana',
+    priority: 'Medium',
+    scope: 'Personal',
+    createdByUserId: 'user-admin',
+    createdByName: 'Admin Local',
+  }),
+  makeStoreTask({
+    id: 'task-completed',
+    description: 'Ordenar percheros del frente',
+    priority: 'Low',
+    status: 'Completed',
+    scope: 'General',
+    completedByUserId: 'user-seller',
+    completedByName: 'Venta Mostrador',
+    completedAtUtc: NOW,
+  }),
+];
+
 export const smokeRecentSales: SaleSearchResponse[] = [
   makeSaleSearch({
     id: 'sale-smoke',
@@ -272,6 +303,25 @@ export function resolveSmokeApiResponse(request: SmokeApiRequest): SmokeApiRespo
   if (method === 'GET' && path === '/api/stock-movements') {
     return { status: 200, body: page(smokeMovements, url) };
   }
+  if (method === 'GET' && path === '/api/StoreTasks') {
+    return { status: 200, body: page(filterTasks(url), url) };
+  }
+  if (method === 'POST' && path === '/api/StoreTasks') {
+    const payload = parseJson<CreateStoreTaskRequest>(request.postData);
+    return {
+      status: 201,
+      body: makeStoreTask({
+        id: 'task-created-smoke',
+        description: payload.description,
+        priority: payload.priority,
+        scope: payload.scope,
+        createdAt: NOW,
+      }),
+    };
+  }
+  if (method === 'PATCH' && path.match(/^\/api\/StoreTasks\/[^/]+\/complete$/)) {
+    return { status: 204 };
+  }
   if (method === 'GET' && path === '/api/sales/search') {
     return { status: 200, body: page(smokeRecentSales, url) };
   }
@@ -339,6 +389,17 @@ function matchesStockStatus(product: ProductResponse, status: string): boolean {
   return true;
 }
 
+function filterTasks(url: URL): StoreTaskResponse[] {
+  const status = url.searchParams.get('status') ?? url.searchParams.get('Status');
+  const scope = url.searchParams.get('scope') ?? url.searchParams.get('Scope');
+
+  return smokeTasks.filter((task) => {
+    if (status && task.status !== status) return false;
+    if (scope && task.scope !== scope) return false;
+    return true;
+  });
+}
+
 function page<T>(items: T[], url: URL): PagedResult<T> {
   const requestedPage = Number(url.searchParams.get('page') ?? 1);
   const pageSize = Number(url.searchParams.get('pageSize') ?? Math.max(items.length, 1));
@@ -350,4 +411,8 @@ function page<T>(items: T[], url: URL): PagedResult<T> {
     page: requestedPage,
     pageSize,
   });
+}
+
+function parseJson<T>(value: string | null | undefined): T {
+  return JSON.parse(value ?? '{}') as T;
 }
