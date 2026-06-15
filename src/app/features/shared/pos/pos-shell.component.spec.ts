@@ -3,7 +3,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { makeProduct, makeSale, paged } from '../../../../testing/builders';
+import { AuthService } from '../../../core/auth/auth.service';
 import { BrandsService } from '../../../core/brands/brands.service';
+import { CashRegisterService } from '../../../core/cash-register/cash-register.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { SalesService } from '../../../core/sales/sales.service';
 import { ProductCategoriesService } from '../../../core/product-categories/product-categories.service';
@@ -16,15 +18,29 @@ describe('PosShellComponent', () => {
   let cart: PosCartStore;
   let sales: { create: ReturnType<typeof vi.fn> };
   let notifications: { success: ReturnType<typeof vi.fn> };
+  let cashRegister: any;
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
     sales = { create: vi.fn(() => of(makeSale())) };
     notifications = { success: vi.fn() };
+    cashRegister = {
+      current: signal(null),
+      currentLoaded: signal(true),
+      currentLoading: signal(false),
+      currentError: signal(null),
+      loadCurrent: vi.fn(() => of(null)),
+    };
 
     TestBed.configureTestingModule({
       imports: [PosShellComponent],
       providers: [
+        {
+          provide: AuthService,
+          useValue: {
+            role: signal('Seller').asReadonly(),
+          },
+        },
         {
           provide: SalesService,
           useValue: {
@@ -44,6 +60,7 @@ describe('PosShellComponent', () => {
             list: vi.fn(() => of([])),
           },
         },
+        { provide: CashRegisterService, useValue: cashRegister },
         { provide: NotificationService, useValue: notifications },
       ],
     });
@@ -85,6 +102,7 @@ describe('PosShellComponent', () => {
       'Venta registrada · Ticket TCK-1',
       'Venta ingresada',
     );
+    expect(cashRegister.loadCurrent).toHaveBeenCalled();
   });
 
   it('keeps the review dialog open when saving fails', () => {
@@ -97,5 +115,17 @@ describe('PosShellComponent', () => {
     expect((component as any).saleReviewVisible()).toBe(true);
     expect((component as any).submitting()).toBe(false);
     expect(cart.isEmpty()).toBe(false);
+  });
+
+  it('does not block sale review when no register is open', () => {
+    cashRegister.current.set(null);
+    cashRegister.currentLoaded.set(true);
+    cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+
+    expect((component as any).noCashRegisterOpen()).toBe(true);
+
+    (component as any).openSaleReview();
+
+    expect((component as any).saleReviewVisible()).toBe(true);
   });
 });

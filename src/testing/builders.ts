@@ -7,6 +7,13 @@ import {
 } from '../app/core/auth/auth.types';
 import { BrandResponse, ContractType } from '../app/core/brands/brands.types';
 import {
+  CashRegisterBrandTotalResponse,
+  CashRegisterPaymentTotalResponse,
+  CashRegisterReconciliationLineResponse,
+  CashRegisterSessionResponse,
+  CashRegisterSessionSummaryResponse,
+} from '../app/core/cash-register/cash-register.types';
+import {
   SaleDetailResponse,
   SaleResponse,
   SaleSearchResponse,
@@ -304,6 +311,253 @@ export function makeSaleSearch(overrides: Partial<SaleSearchResponse> = {}): Sal
     createdAt: '2026-06-03T12:00:00Z',
     observations: null,
     brands: [{ brandId: 'brand-own', brandName: 'Zendra' }],
+    ...overrides,
+  };
+}
+
+export function makeCashRegisterLine(
+  overrides: Partial<CashRegisterReconciliationLineResponse> = {},
+): CashRegisterReconciliationLineResponse {
+  return {
+    id: null,
+    brandId: 'brand-own',
+    brandName: 'Zendra',
+    paymentMethod: 'Cash',
+    systemGrossSalesAmount: 3700,
+    systemReturnsAmount: 500,
+    systemNetAmount: 3200,
+    saleCount: 2,
+    returnCount: 1,
+    unitsSold: 3,
+    unitsReturned: 1,
+    netUnits: 2,
+    reportedAmount: null,
+    varianceAmount: null,
+    ...overrides,
+  };
+}
+
+export function makeCashRegisterPaymentTotal(
+  overrides: Partial<CashRegisterPaymentTotalResponse> = {},
+): CashRegisterPaymentTotalResponse {
+  return {
+    paymentMethod: 'Cash',
+    grossSalesAmount: 3700,
+    returnsAmount: 500,
+    netAmount: 3200,
+    reportedAmount: null,
+    varianceAmount: null,
+    ...overrides,
+  };
+}
+
+export function makeCashRegisterBrandTotal(
+  overrides: Partial<CashRegisterBrandTotalResponse> = {},
+): CashRegisterBrandTotalResponse {
+  return {
+    brandId: 'brand-own',
+    brandName: 'Zendra',
+    grossSalesAmount: 3700,
+    returnsAmount: 500,
+    netAmount: 3200,
+    saleCount: 2,
+    returnCount: 1,
+    unitsSold: 3,
+    unitsReturned: 1,
+    netUnits: 2,
+    ...overrides,
+  };
+}
+
+export function makeCashRegisterSession(
+  overrides: Partial<CashRegisterSessionResponse> = {},
+): CashRegisterSessionResponse {
+  const lines = overrides.reconciliationLines ?? [
+    makeCashRegisterLine(),
+    makeCashRegisterLine({
+      brandId: 'brand-a',
+      brandName: 'Lumina',
+      paymentMethod: 'DebitCard',
+      systemGrossSalesAmount: 1800,
+      systemReturnsAmount: 0,
+      systemNetAmount: 1800,
+      saleCount: 1,
+      returnCount: 0,
+      unitsSold: 1,
+      unitsReturned: 0,
+      netUnits: 1,
+    }),
+  ];
+  const paymentTotals = overrides.paymentTotals ?? [
+    makeCashRegisterPaymentTotal(),
+    makeCashRegisterPaymentTotal({
+      paymentMethod: 'CreditCard',
+      grossSalesAmount: 0,
+      returnsAmount: 0,
+      netAmount: 0,
+    }),
+    makeCashRegisterPaymentTotal({
+      paymentMethod: 'DebitCard',
+      grossSalesAmount: 1800,
+      returnsAmount: 0,
+      netAmount: 1800,
+    }),
+    makeCashRegisterPaymentTotal({
+      paymentMethod: 'Transfer',
+      grossSalesAmount: 0,
+      returnsAmount: 0,
+      netAmount: 0,
+    }),
+    makeCashRegisterPaymentTotal({
+      paymentMethod: 'MercadoPago',
+      grossSalesAmount: 0,
+      returnsAmount: 0,
+      netAmount: 0,
+    }),
+  ];
+  const brandTotals = overrides.brandTotals ?? [
+    makeCashRegisterBrandTotal(),
+    makeCashRegisterBrandTotal({
+      brandId: 'brand-a',
+      brandName: 'Lumina',
+      grossSalesAmount: 1800,
+      returnsAmount: 0,
+      netAmount: 1800,
+      saleCount: 1,
+      returnCount: 0,
+      unitsSold: 1,
+      unitsReturned: 0,
+      netUnits: 1,
+    }),
+  ];
+
+  return {
+    id: 'cash-session-1',
+    status: 'Open',
+    openedAtUtc: '2026-06-03T11:00:00Z',
+    openedByUserId: 'user-seller',
+    openedByUserName: 'Venta Mostrador',
+    openingCashAmount: 1000,
+    openingNotes: null,
+    closedAtUtc: null,
+    closedByUserId: null,
+    closedByUserName: null,
+    actualCashAmount: null,
+    expectedCashAmount: 4200,
+    cashVarianceAmount: null,
+    closingNotes: null,
+    grossSalesAmount: 5500,
+    returnsAmount: 500,
+    netSalesAmount: 5000,
+    saleCount: 3,
+    returnCount: 1,
+    paymentTotals,
+    brandTotals,
+    reconciliationLines: lines,
+    createdAt: '2026-06-03T11:00:00Z',
+    ...overrides,
+  };
+}
+
+export function makeClosedCashRegisterSession(
+  overrides: Partial<CashRegisterSessionResponse> = {},
+): CashRegisterSessionResponse {
+  const reconciliationLines = overrides.reconciliationLines ?? [
+    makeCashRegisterLine({
+      id: 'line-cash-zendra',
+      reportedAmount: 3300,
+      varianceAmount: 100,
+    }),
+    makeCashRegisterLine({
+      id: 'line-debit-lumina',
+      brandId: 'brand-a',
+      brandName: 'Lumina',
+      paymentMethod: 'DebitCard',
+      systemGrossSalesAmount: 1800,
+      systemReturnsAmount: 0,
+      systemNetAmount: 1800,
+      saleCount: 1,
+      returnCount: 0,
+      unitsSold: 1,
+      unitsReturned: 0,
+      netUnits: 1,
+      reportedAmount: 1800,
+      varianceAmount: 0,
+    }),
+  ];
+
+  return makeCashRegisterSession({
+    status: 'Closed',
+    closedAtUtc: '2026-06-03T22:00:00Z',
+    closedByUserId: 'user-admin',
+    closedByUserName: 'Admin Local',
+    actualCashAmount: 4300,
+    expectedCashAmount: 4200,
+    cashVarianceAmount: 100,
+    closingNotes: 'Cierre sin diferencias grandes',
+    reconciliationLines,
+    paymentTotals: [
+      makeCashRegisterPaymentTotal({
+        paymentMethod: 'Cash',
+        grossSalesAmount: 3700,
+        returnsAmount: 500,
+        netAmount: 3200,
+        reportedAmount: 3300,
+        varianceAmount: 100,
+      }),
+      makeCashRegisterPaymentTotal({
+        paymentMethod: 'CreditCard',
+        netAmount: 0,
+        reportedAmount: 0,
+        varianceAmount: 0,
+      }),
+      makeCashRegisterPaymentTotal({
+        paymentMethod: 'DebitCard',
+        grossSalesAmount: 1800,
+        returnsAmount: 0,
+        netAmount: 1800,
+        reportedAmount: 1800,
+        varianceAmount: 0,
+      }),
+      makeCashRegisterPaymentTotal({
+        paymentMethod: 'Transfer',
+        netAmount: 0,
+        reportedAmount: 0,
+        varianceAmount: 0,
+      }),
+      makeCashRegisterPaymentTotal({
+        paymentMethod: 'MercadoPago',
+        netAmount: 0,
+        reportedAmount: 0,
+        varianceAmount: 0,
+      }),
+    ],
+    ...overrides,
+  });
+}
+
+export function makeCashRegisterSummary(
+  overrides: Partial<CashRegisterSessionSummaryResponse> = {},
+): CashRegisterSessionSummaryResponse {
+  return {
+    id: 'cash-session-closed',
+    status: 'Closed',
+    openedAtUtc: '2026-06-03T11:00:00Z',
+    openedByUserId: 'user-seller',
+    openedByUserName: 'Venta Mostrador',
+    closedAtUtc: '2026-06-03T22:00:00Z',
+    closedByUserId: 'user-admin',
+    closedByUserName: 'Admin Local',
+    openingCashAmount: 1000,
+    actualCashAmount: 4300,
+    expectedCashAmount: 4200,
+    cashVarianceAmount: 100,
+    grossSalesAmount: 5500,
+    returnsAmount: 500,
+    netSalesAmount: 5000,
+    saleCount: 3,
+    returnCount: 1,
+    createdAt: '2026-06-03T11:00:00Z',
     ...overrides,
   };
 }

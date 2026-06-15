@@ -66,7 +66,7 @@ test.describe('route sweep', () => {
     Seller: [
       { path: '/seller/pos', heading: 'Ingresar Venta' },
       { path: '/seller/inventory', heading: 'Control de Inventario' },
-      { path: '/seller/cash-register', heading: 'Cierre de Caja' },
+      { path: '/seller/cash-register', heading: 'Caja' },
       { path: '/seller/tasks', heading: 'Tareas Diarias' },
       { path: '/seller/configuracion', heading: 'Configuración' },
     ],

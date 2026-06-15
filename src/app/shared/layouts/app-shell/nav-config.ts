@@ -43,7 +43,7 @@ const BRAND_MANAGER_NAV: ReadonlyArray<NavItem> = [
 const SELLER_NAV: ReadonlyArray<NavItem> = [
   { path: '/seller/pos', label: 'Ingresar Venta / Devolución', icon: lucide(CirclePlus) },
   { path: '/seller/inventory', label: 'Inventario', icon: lucide(Package) },
-  { path: '/seller/cash-register', label: 'Cierre de Caja', icon: lucide(Receipt) },
+  { path: '/seller/cash-register', label: 'Caja', icon: lucide(Receipt) },
   { path: '/seller/tasks', label: 'Tareas Diarias', icon: lucide(ListChecks) },
   { path: '/seller/configuracion', label: 'Configuración', icon: lucide(Settings) }
 ];

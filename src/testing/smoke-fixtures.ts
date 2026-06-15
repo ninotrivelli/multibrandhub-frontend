@@ -3,6 +3,10 @@ import type { BrandResponse } from '../app/core/brands/brands.types';
 import type { UserResponse } from '../app/core/users/users.types';
 import type { StoreProfileResponse } from '../app/core/store-profile/store-profile.types';
 import type { ProductCategoryResponse } from '../app/core/product-categories/product-categories.types';
+import type {
+  CloseCashRegisterRequest,
+  OpenCashRegisterRequest,
+} from '../app/core/cash-register/cash-register.types';
 import type { CreateStoreTaskRequest, StoreTaskResponse } from '../app/core/tasks/tasks.types';
 import type {
   PagedResult,
@@ -13,6 +17,9 @@ import type { SaleResponse, SaleSearchResponse } from '../app/core/sales/sales.t
 import {
   makeAuthSession,
   makeBrand,
+  makeCashRegisterSession,
+  makeCashRegisterSummary,
+  makeClosedCashRegisterSession,
   makeCategory,
   makeImmobilizedProduct,
   makeMovement,
@@ -251,6 +258,33 @@ export const smokeSale: SaleResponse = makeSale({
   sellerName: 'Venta Mostrador',
 });
 
+export const smokeClosedCashRegister = makeClosedCashRegisterSession({
+  id: 'cash-smoke-closed',
+  openedByUserId: 'user-seller',
+  openedByUserName: 'Venta Mostrador',
+  closedByUserId: 'user-admin',
+  closedByUserName: 'Admin Local',
+});
+
+export const smokeCashRegisterSummary = makeCashRegisterSummary({
+  id: smokeClosedCashRegister.id,
+  openedByUserId: smokeClosedCashRegister.openedByUserId,
+  openedByUserName: smokeClosedCashRegister.openedByUserName,
+  closedByUserId: smokeClosedCashRegister.closedByUserId,
+  closedByUserName: smokeClosedCashRegister.closedByUserName,
+  openedAtUtc: smokeClosedCashRegister.openedAtUtc,
+  closedAtUtc: smokeClosedCashRegister.closedAtUtc,
+  openingCashAmount: smokeClosedCashRegister.openingCashAmount,
+  actualCashAmount: smokeClosedCashRegister.actualCashAmount,
+  expectedCashAmount: smokeClosedCashRegister.expectedCashAmount,
+  cashVarianceAmount: smokeClosedCashRegister.cashVarianceAmount,
+  grossSalesAmount: smokeClosedCashRegister.grossSalesAmount,
+  returnsAmount: smokeClosedCashRegister.returnsAmount,
+  netSalesAmount: smokeClosedCashRegister.netSalesAmount,
+  saleCount: smokeClosedCashRegister.saleCount,
+  returnCount: smokeClosedCashRegister.returnCount,
+});
+
 export function makeSmokeSession(role: SmokeRole): AuthSession {
   const user = SMOKE_USERS_BY_ROLE[role];
   return makeAuthSession({
@@ -339,6 +373,39 @@ export function resolveSmokeApiResponse(request: SmokeApiRequest): SmokeApiRespo
   }
   if (method === 'POST' && path === '/api/sales') {
     return { status: 200, body: smokeSale };
+  }
+  if (method === 'GET' && path === '/api/cash-register/current') {
+    return { status: 200, body: null };
+  }
+  if (method === 'GET' && path === '/api/cash-register/history') {
+    return { status: 200, body: page([smokeCashRegisterSummary], url) };
+  }
+  if (method === 'GET' && path === `/api/cash-register/${smokeClosedCashRegister.id}`) {
+    return { status: 200, body: smokeClosedCashRegister };
+  }
+  if (method === 'POST' && path === '/api/cash-register/open') {
+    const payload = parseJson<OpenCashRegisterRequest>(request.postData);
+    return {
+      status: 201,
+      body: makeCashRegisterSession({
+        id: 'cash-smoke-open',
+        openedByUserId: 'user-seller',
+        openedByUserName: 'Venta Mostrador',
+        openingCashAmount: payload.openingCashAmount,
+        openingNotes: payload.notes ?? null,
+      }),
+    };
+  }
+  if (method === 'POST' && path.match(/^\/api\/cash-register\/[^/]+\/close$/)) {
+    const payload = parseJson<CloseCashRegisterRequest>(request.postData);
+    return {
+      status: 200,
+      body: makeClosedCashRegisterSession({
+        id: path.split('/')[3],
+        actualCashAmount: payload.actualCashAmount,
+        closingNotes: payload.notes ?? null,
+      }),
+    };
   }
   if (method === 'PATCH' && path.match(/^\/api\/users\/[^/]+\/password$/)) {
     return { status: 204 };

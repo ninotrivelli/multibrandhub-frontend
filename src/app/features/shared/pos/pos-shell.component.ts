@@ -1,10 +1,19 @@
-import { ChangeDetectionStrategy, Component, inject, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { ButtonModule } from 'primeng/button';
-import { LucideAngularModule, Undo2 } from 'lucide-angular';
+import { AlertTriangle, LucideAngularModule, Receipt, Undo2 } from 'lucide-angular';
 
+import { AuthService } from '../../../core/auth/auth.service';
 import { BrandsService } from '../../../core/brands/brands.service';
+import { CashRegisterService } from '../../../core/cash-register/cash-register.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { SalesService } from '../../../core/sales/sales.service';
 import { SaleResponse } from '../../../core/sales/sales.types';
@@ -32,17 +41,27 @@ import { ReturnDialogComponent } from './return/return-dialog.component';
   templateUrl: './pos-shell.component.html',
 })
 export class PosShellComponent {
+  private readonly auth = inject(AuthService);
   private readonly sales = inject(SalesService);
   private readonly brands = inject(BrandsService);
+  private readonly cashRegister = inject(CashRegisterService);
   private readonly categories = inject(ProductCategoriesService);
   private readonly notifications = inject(NotificationService);
   protected readonly cart = inject(PosCartStore);
 
-  protected readonly icons = { Undo2 };
+  protected readonly icons = { AlertTriangle, Receipt, Undo2 };
 
   protected readonly submitting = signal(false);
   protected readonly saleReviewVisible = signal(false);
   protected readonly returnDialogVisible = signal(false);
+  protected readonly noCashRegisterOpen = computed(
+    () =>
+      this.cashRegister.currentLoaded() &&
+      !this.cashRegister.currentLoading() &&
+      !this.cashRegister.currentError() &&
+      this.cashRegister.current() === null,
+  );
+  protected readonly canOpenCashRegister = computed(() => this.auth.role() === 'Seller');
 
   private readonly searchPanel = viewChild(ProductSearchPanelComponent);
   private readonly recentList = viewChild(RecentSalesListComponent);
@@ -54,6 +73,14 @@ export class PosShellComponent {
       this.brands.list().pipe(takeUntilDestroyed()).subscribe();
     }
     this.categories.list().pipe(takeUntilDestroyed()).subscribe();
+    this.cashRegister
+      .loadCurrent()
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        error: () => {
+          // error.interceptor already shows a toast.
+        },
+      });
   }
 
   protected openSaleReview(): void {
