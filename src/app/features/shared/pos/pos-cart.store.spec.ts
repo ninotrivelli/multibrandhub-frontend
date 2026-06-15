@@ -12,6 +12,18 @@ describe('PosCartStore', () => {
     store = TestBed.inject(PosCartStore);
   });
 
+  it('defaults to debit card without preselecting a card brand', () => {
+    store.add(makeProduct({ id: 'p1', currentStock: 5 }));
+
+    expect(store.paymentMethod()).toBe('DebitCard');
+    expect(store.isCardPayment()).toBe(true);
+    expect(store.cardBrand()).toBeNull();
+    expect(store.canSubmit()).toBe(false);
+
+    store.setCardBrand('Visa');
+    expect(store.canSubmit()).toBe(true);
+  });
+
   it('adds products and increments quantity on re-add, capped at stock', () => {
     const product = makeProduct({ id: 'p1', price: 1000, currentStock: 2 });
 
@@ -185,6 +197,7 @@ describe('PosCartStore', () => {
 
   it('flags invalid line discounts and blocks submit', () => {
     store.add(makeProduct({ id: 'p1', price: 1000, currentStock: 5 }));
+    store.setCardBrand('Visa');
 
     // Percentage over 100 is invalid.
     store.setLineDiscountType('p1', 'Percentage');
@@ -278,7 +291,7 @@ describe('PosCartStore', () => {
     store.clear();
 
     expect(store.isEmpty()).toBe(true);
-    expect(store.paymentMethod()).toBe('Cash');
+    expect(store.paymentMethod()).toBe('DebitCard');
     expect(store.cardBrand()).toBeNull();
     expect(store.observations()).toBe('');
   });

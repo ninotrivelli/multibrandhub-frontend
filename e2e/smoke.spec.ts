@@ -201,6 +201,8 @@ async function smokePosSaleReview(page: Page, role: SmokeRole): Promise<void> {
   await expect(page.getByText('Buzo Oversize')).toBeVisible();
   await page.getByRole('button', { name: 'Agregar a la venta' }).first().click();
   await expect(page.getByText('1 ítem en el ticket')).toBeVisible();
+  await page.getByRole('combobox', { name: 'Seleccioná la tarjeta' }).click();
+  await page.getByRole('option', { name: 'Visa' }).click();
   await page.getByRole('button', { name: 'Ingresar Venta' }).click();
   await expect(page.getByRole('dialog', { name: 'Revisar venta' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Confirmar venta' })).toBeVisible();

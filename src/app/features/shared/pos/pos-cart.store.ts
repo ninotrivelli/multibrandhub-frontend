@@ -34,6 +34,8 @@ export interface CartBrandGroup {
   total: number;
 }
 
+const DEFAULT_PAYMENT_METHOD: PaymentMethod = 'DebitCard';
+
 // Screen-scoped state for the POS sale being built. Provided at the
 // `pos-shell` level (NOT providedIn: 'root') so the search panel and the cart
 // panel share one instance without prop-drilling, while staying local to the
@@ -42,7 +44,7 @@ export interface CartBrandGroup {
 @Injectable()
 export class PosCartStore {
   private readonly _lines = signal<CartLine[]>([]);
-  private readonly _paymentMethod = signal<PaymentMethod>('Cash');
+  private readonly _paymentMethod = signal<PaymentMethod>(DEFAULT_PAYMENT_METHOD);
   private readonly _cardBrand = signal<CardBrand | null>(null);
   private readonly _observations = signal('');
 
@@ -204,7 +206,7 @@ export class PosCartStore {
 
   clear(): void {
     this._lines.set([]);
-    this._paymentMethod.set('Cash');
+    this._paymentMethod.set(DEFAULT_PAYMENT_METHOD);
     this._cardBrand.set(null);
     this._observations.set('');
   }

@@ -35,6 +35,10 @@ describe('SaleReviewDialogComponent', () => {
 
     cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
     (component as any).confirmSale();
+    expect(confirmed).not.toHaveBeenCalled();
+
+    cart.setCardBrand('Visa');
+    (component as any).confirmSale();
     expect(confirmed).toHaveBeenCalledTimes(1);
 
     fixture.componentRef.setInput('submitting', true);

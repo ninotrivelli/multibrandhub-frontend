@@ -75,6 +75,7 @@ describe('PosShellComponent', () => {
 
   it('opens the sale review instead of saving immediately', () => {
     cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+    cart.setCardBrand('Visa');
 
     (component as any).openSaleReview();
 
@@ -85,13 +86,14 @@ describe('PosShellComponent', () => {
   it('confirms the sale from the review dialog and resets the POS state', () => {
     sales.create.mockReturnValueOnce(of(makeSale({ ticketId: 'TCK-1' })));
     cart.add(makeProduct({ id: 'p1', price: 1000, currentStock: 5 }));
+    cart.setCardBrand('Visa');
     (component as any).saleReviewVisible.set(true);
 
     (component as any).confirmSale();
 
     expect(sales.create).toHaveBeenCalledWith({
-      paymentMethod: 'Cash',
-      cardBrand: null,
+      paymentMethod: 'DebitCard',
+      cardBrand: 'Visa',
       details: [{ productId: 'p1', quantity: 1 }],
       observations: null,
     });
@@ -108,6 +110,7 @@ describe('PosShellComponent', () => {
   it('keeps the review dialog open when saving fails', () => {
     sales.create.mockReturnValueOnce(throwError(() => new Error('save failed')));
     cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+    cart.setCardBrand('Visa');
     (component as any).saleReviewVisible.set(true);
 
     (component as any).confirmSale();
@@ -121,6 +124,7 @@ describe('PosShellComponent', () => {
     cashRegister.current.set(null);
     cashRegister.currentLoaded.set(true);
     cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+    cart.setCardBrand('Visa');
 
     expect((component as any).noCashRegisterOpen()).toBe(true);
 
