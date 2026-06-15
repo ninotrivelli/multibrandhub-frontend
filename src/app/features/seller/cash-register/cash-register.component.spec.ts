@@ -96,6 +96,28 @@ describe('SellerCashRegisterComponent', () => {
     expect(text).toContain('Lumina');
     expect(text).toContain('+');
   });
+
+  it('toggles the selected report when pressing the history action twice', () => {
+    const report = makeClosedCashRegisterSession();
+    cashRegister.currentLoaded.set(true);
+    cashRegister.current.set(null);
+
+    create();
+    const component = fixture.componentInstance as unknown as {
+      viewReport(id: string): void;
+    };
+
+    // First press loads the report.
+    component.viewReport(report.id);
+    expect(cashRegister.getById).toHaveBeenCalledWith(report.id);
+    expect(cashRegister.clearSelectedReport).not.toHaveBeenCalled();
+
+    // While it is shown, pressing again hides it instead of reloading.
+    cashRegister.selectedReport.set(report);
+    component.viewReport(report.id);
+    expect(cashRegister.clearSelectedReport).toHaveBeenCalled();
+    expect(cashRegister.getById).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('CashRegisterCloseDialogComponent', () => {
@@ -182,5 +204,6 @@ function cashRegisterServiceMock() {
     close: vi.fn(() => of(makeClosedCashRegisterSession())),
     getById: vi.fn(() => of(makeClosedCashRegisterSession())),
     loadHistory: vi.fn(() => of(paged(historyItems()))),
+    clearSelectedReport: vi.fn(() => selectedReport.set(null)),
   };
 }

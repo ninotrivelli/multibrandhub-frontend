@@ -1,10 +1,13 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   OnInit,
   computed,
+  effect,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
@@ -16,15 +19,24 @@ import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import {
   AlertTriangle,
+  Banknote,
   CheckCircle2,
   Eye,
+  EyeOff,
   FileText,
   History,
   LucideAngularModule,
+  LucideIconData,
+  Receipt,
   RefreshCw,
+  TrendingUp,
+  Undo2,
+  Wallet,
+  X,
   XCircle,
 } from 'lucide-angular';
 
+import { BrandColorInput, brandChipColors } from '../../../core/brands/brand-colors';
 import {
   CASH_REGISTER_HISTORY_DEFAULT_PAGE_SIZE,
   CashRegisterService,
@@ -36,7 +48,8 @@ import {
 } from '../../../core/cash-register/cash-register.types';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { PaymentMethod } from '../../../core/sales/sales.types';
-import { paymentMethodLabel } from '../../../core/sales/sales.utils';
+import { paymentMethodIcon, paymentMethodLabel } from '../../../core/sales/sales.utils';
+import { BrandChipComponent } from '../../../shared/components/brand-chip/brand-chip.component';
 import {
   formatCurrencyUYU,
   formatShortDate,
@@ -50,6 +63,15 @@ interface CashRegisterKpi {
   value: number;
   kind: 'currency' | 'count';
   caption?: string;
+  icon: LucideIconData;
+  iconWrapClass: string;
+}
+
+interface PaymentBreakdownRow {
+  method: PaymentMethod;
+  label: string;
+  icon: LucideIconData;
+  net: number;
 }
 
 const PAYMENT_METHODS: PaymentMethod[] = [
@@ -71,6 +93,7 @@ const PAYMENT_METHODS: PaymentMethod[] = [
     TagModule,
     TextareaModule,
     LucideAngularModule,
+    BrandChipComponent,
     CashRegisterCloseDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -82,13 +105,23 @@ export class SellerCashRegisterComponent implements OnInit {
 
   protected readonly icons = {
     AlertTriangle,
+    Banknote,
     CheckCircle2,
     Eye,
+    EyeOff,
     FileText,
     History,
+    Receipt,
     RefreshCw,
+    TrendingUp,
+    Undo2,
+    Wallet,
+    X,
     XCircle,
   };
+
+  private readonly reportAnchor = viewChild<ElementRef<HTMLElement>>('reportAnchor');
+  private scrollToReportPending = false;
 
   protected readonly current = this.cashRegister.current;
   protected readonly currentLoaded = this.cashRegister.currentLoaded;
@@ -122,34 +155,68 @@ export class SellerCashRegisterComponent implements OnInit {
 
   protected readonly maxNotesLength = 500;
 
-  protected readonly kpis = computed<CashRegisterKpi[]>(() => {
+  protected readonly summaryKpis = computed<CashRegisterKpi[]>(() => {
     const session = this.current();
     if (!session) return [];
 
     return [
       {
+        label: 'Recaudación total',
+        value: session.netSalesAmount,
+        kind: 'currency',
+        caption: `Bruto ${this.formatCurrency(session.grossSalesAmount)} · Devol ${this.formatCurrency(session.returnsAmount)}`,
+        icon: TrendingUp,
+        iconWrapClass: 'bg-primary/10 dark:bg-primary/20 text-primary',
+      },
+      {
         label: 'Caja efectivo',
         value: this.expectedCash(session),
         kind: 'currency',
-        caption: 'Esperado',
-      },
-      { label: 'Crédito', value: this.paymentTotal(session, 'CreditCard'), kind: 'currency' },
-      { label: 'Débito', value: this.paymentTotal(session, 'DebitCard'), kind: 'currency' },
-      {
-        label: 'Transferencias',
-        value: this.paymentTotal(session, 'Transfer'),
-        kind: 'currency',
+        caption: `Esperado · inicial ${this.formatCurrency(session.openingCashAmount)}`,
+        icon: Banknote,
+        iconWrapClass: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300',
       },
       {
-        label: 'MercadoPago',
-        value: this.paymentTotal(session, 'MercadoPago'),
-        kind: 'currency',
+        label: 'Ventas',
+        value: session.saleCount,
+        kind: 'count',
+        icon: Receipt,
+        iconWrapClass: 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-300',
       },
-      { label: 'Recaudación total', value: session.netSalesAmount, kind: 'currency' },
-      { label: 'Ventas', value: session.saleCount, kind: 'count' },
-      { label: 'Devoluciones', value: session.returnCount, kind: 'count' },
+      {
+        label: 'Devoluciones',
+        value: session.returnCount,
+        kind: 'count',
+        icon: Undo2,
+        iconWrapClass: 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300',
+      },
     ];
   });
+
+  protected readonly paymentBreakdown = computed<PaymentBreakdownRow[]>(() => {
+    const session = this.current();
+    if (!session) return [];
+
+    return PAYMENT_METHODS.map((method) => ({
+      method,
+      label: paymentMethodLabel(method),
+      icon: paymentMethodIcon(method),
+      net: this.paymentTotal(session, method),
+    }));
+  });
+
+  constructor() {
+    effect(() => {
+      const report = this.selectedReport();
+      const anchor = this.reportAnchor();
+      if (!report || !anchor || !this.scrollToReportPending) return;
+      this.scrollToReportPending = false;
+      const el = anchor.nativeElement;
+      if (typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.refreshCurrent();
@@ -221,11 +288,27 @@ export class SellerCashRegisterComponent implements OnInit {
   }
 
   protected viewReport(id: string): void {
+    if (this.isReportShown(id)) {
+      this.hideReport();
+      return;
+    }
+
+    this.scrollToReportPending = true;
     this.cashRegister.getById(id).subscribe({
       error: () => {
+        this.scrollToReportPending = false;
         // error.interceptor already shows a toast.
       },
     });
+  }
+
+  protected hideReport(): void {
+    this.scrollToReportPending = false;
+    this.cashRegister.clearSelectedReport();
+  }
+
+  protected isReportShown(id: string): boolean {
+    return this.selectedReport()?.id === id;
   }
 
   protected onHistoryLazyLoad(event: TableLazyLoadEvent): void {
@@ -258,6 +341,14 @@ export class SellerCashRegisterComponent implements OnInit {
 
   protected paymentLabel(method: PaymentMethod): string {
     return paymentMethodLabel(method);
+  }
+
+  protected paymentIcon(method: PaymentMethod): LucideIconData {
+    return paymentMethodIcon(method);
+  }
+
+  protected brandAccentStyle(brand: BrandColorInput): Record<string, string> {
+    return { 'border-left-color': brandChipColors(brand).border };
   }
 
   protected paymentMethods(): PaymentMethod[] {

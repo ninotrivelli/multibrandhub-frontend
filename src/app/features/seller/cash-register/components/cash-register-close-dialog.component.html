@@ -93,10 +93,18 @@
             </ng-template>
             <ng-template pTemplate="body" let-row let-rowIndex="rowIndex">
               <tr [formGroupName]="rowIndex">
-                <td class="font-medium text-surface-800 dark:text-surface-100">
-                  {{ row.brandName }}
+                <td>
+                  <app-brand-chip [brandId]="row.brandId" [brandName]="row.brandName" />
                 </td>
-                <td>{{ paymentLabel(row.paymentMethod) }}</td>
+                <td>
+                  <span class="flex items-center gap-2">
+                    <i-lucide
+                      [img]="paymentIcon(row.paymentMethod)"
+                      class="size-4 text-surface-400"
+                    />
+                    {{ paymentLabel(row.paymentMethod) }}
+                  </span>
+                </td>
                 <td class="text-right font-semibold">{{ formatCurrency(row.systemNetAmount) }}</td>
                 <td class="text-right">
                   <p-inputnumber

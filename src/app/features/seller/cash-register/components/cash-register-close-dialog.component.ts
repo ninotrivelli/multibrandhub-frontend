@@ -14,14 +14,15 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { MessageModule } from 'primeng/message';
 import { TableModule } from 'primeng/table';
 import { TextareaModule } from 'primeng/textarea';
-import { Check, LucideAngularModule, X } from 'lucide-angular';
+import { Check, LucideAngularModule, LucideIconData, X } from 'lucide-angular';
 
 import {
   CashRegisterSessionResponse,
   CloseCashRegisterRequest,
 } from '../../../../core/cash-register/cash-register.types';
 import { PaymentMethod } from '../../../../core/sales/sales.types';
-import { paymentMethodLabel } from '../../../../core/sales/sales.utils';
+import { paymentMethodIcon, paymentMethodLabel } from '../../../../core/sales/sales.utils';
+import { BrandChipComponent } from '../../../../shared/components/brand-chip/brand-chip.component';
 import { formatCurrencyUYU } from '../../../shared/inventory/inventory.utils';
 
 type ReportedTotalForm = FormGroup<{
@@ -41,6 +42,7 @@ type ReportedTotalForm = FormGroup<{
     TableModule,
     TextareaModule,
     LucideAngularModule,
+    BrandChipComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './cash-register-close-dialog.component.html',
@@ -134,6 +136,10 @@ export class CashRegisterCloseDialogComponent {
 
   protected paymentLabel(method: PaymentMethod): string {
     return paymentMethodLabel(method);
+  }
+
+  protected paymentIcon(method: PaymentMethod): LucideIconData {
+    return paymentMethodIcon(method);
   }
 
   protected formatCurrency(value: number | null | undefined): string {
