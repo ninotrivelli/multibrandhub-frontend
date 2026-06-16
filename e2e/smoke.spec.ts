@@ -204,6 +204,9 @@ async function smokePosSaleReview(page: Page, role: SmokeRole): Promise<void> {
   await page.getByRole('combobox', { name: 'Seleccioná la tarjeta' }).click();
   await page.getByRole('option', { name: 'Visa' }).click();
   await page.getByRole('button', { name: 'Ingresar Venta' }).click();
+  // The smoke fixture has no open cash register, so the POS warns before the
+  // review (sales aren't blocked, just flagged) — continue past the prompt.
+  await page.getByRole('button', { name: 'Continuar igualmente' }).click();
   await expect(page.getByRole('dialog', { name: 'Revisar venta' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Confirmar venta' })).toBeVisible();
 }
