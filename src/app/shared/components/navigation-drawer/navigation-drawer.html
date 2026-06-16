@@ -28,27 +28,67 @@
   </ng-template>
 
   <nav class="drawer-nav" aria-label="Navegación principal">
-    @for (link of links(); track link.path) {
-      <a
-        class="drawer-link"
-        [class.drawer-link-collapsed]="!isMobile() && collapsed()"
-        [routerLink]="link.path"
-        routerLinkActive="drawer-link-active"
-        [attr.title]="!isMobile() && collapsed() ? link.label : null"
-        (click)="onLinkClick()"
-      >
-        @switch (link.icon.kind) {
-          @case ('lucide') {
-            <i-lucide [img]="link.icon.data" class="size-5 shrink-0" aria-hidden="true" />
+    @for (section of sections(); track $index) {
+      @if (section.title && (isMobile() || !collapsed())) {
+        <p class="drawer-section-title">{{ section.title }}</p>
+      }
+      @for (link of section.items; track link.path) {
+        <a
+          class="drawer-link"
+          [class.drawer-link-collapsed]="!isMobile() && collapsed()"
+          [routerLink]="link.path"
+          routerLinkActive="drawer-link-active"
+          [attr.title]="!isMobile() && collapsed() ? link.label : null"
+          (click)="onLinkClick()"
+        >
+          @switch (link.icon.kind) {
+            @case ('lucide') {
+              <i-lucide [img]="link.icon.data" class="size-5 shrink-0" aria-hidden="true" />
+            }
+            @case ('fa') {
+              <fa-icon
+                [icon]="link.icon.def"
+                class="drawer-link-icon shrink-0"
+                aria-hidden="true"
+              />
+            }
           }
-          @case ('fa') {
-            <fa-icon [icon]="link.icon.def" class="drawer-link-icon shrink-0" aria-hidden="true" />
+          @if (isMobile() || !collapsed()) {
+            <span>{{ link.label }}</span>
           }
-        }
-        @if (isMobile() || !collapsed()) {
-          <span>{{ link.label }}</span>
-        }
-      </a>
+        </a>
+      }
     }
   </nav>
+
+  @if (footerItems().length) {
+    <div class="drawer-footer">
+      @for (link of footerItems(); track link.path) {
+        <a
+          class="drawer-link"
+          [class.drawer-link-collapsed]="!isMobile() && collapsed()"
+          [routerLink]="link.path"
+          routerLinkActive="drawer-link-active"
+          [attr.title]="!isMobile() && collapsed() ? link.label : null"
+          (click)="onLinkClick()"
+        >
+          @switch (link.icon.kind) {
+            @case ('lucide') {
+              <i-lucide [img]="link.icon.data" class="size-5 shrink-0" aria-hidden="true" />
+            }
+            @case ('fa') {
+              <fa-icon
+                [icon]="link.icon.def"
+                class="drawer-link-icon shrink-0"
+                aria-hidden="true"
+              />
+            }
+          }
+          @if (isMobile() || !collapsed()) {
+            <span>{{ link.label }}</span>
+          }
+        </a>
+      }
+    </div>
+  }
 </p-drawer>

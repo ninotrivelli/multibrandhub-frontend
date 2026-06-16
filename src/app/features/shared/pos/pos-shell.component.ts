@@ -64,7 +64,14 @@ export class PosShellComponent {
       !this.cashRegister.currentError() &&
       this.cashRegister.current() === null,
   );
-  protected readonly canOpenCashRegister = computed(() => this.auth.role() === 'Seller');
+  protected readonly canOpenCashRegister = computed(() => {
+    const r = this.auth.role();
+    return r === 'Seller' || r === 'Admin' || r === 'SuperAdmin';
+  });
+  // Each role opens/closes the register under its own route.
+  protected readonly cashRegisterPath = computed(() =>
+    this.auth.role() === 'Seller' ? '/seller/cash-register' : '/admin/cash-register',
+  );
 
   private readonly searchPanel = viewChild(ProductSearchPanelComponent);
   private readonly recentList = viewChild(RecentSalesListComponent);

@@ -40,7 +40,7 @@
       @if (canOpenCashRegister()) {
         <a
           pButton
-          href="/seller/cash-register"
+          [href]="cashRegisterPath()"
           severity="warn"
           [outlined]="true"
           class="self-start md:self-auto"
@@ -98,7 +98,7 @@
       (click)="proceedWithoutCashRegister()"
     ></button>
     @if (canOpenCashRegister()) {
-      <a pButton href="/seller/cash-register" class="justify-center">
+      <a pButton [href]="cashRegisterPath()" class="justify-center">
         <i-lucide [img]="icons.Receipt" class="size-4 mr-2" />
         <span>Ir a abrir caja</span>
       </a>

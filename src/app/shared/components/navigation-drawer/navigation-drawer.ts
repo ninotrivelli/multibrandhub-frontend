@@ -36,6 +36,12 @@ export interface NavItem {
   icon: IconRef;
 }
 
+export interface NavSection {
+  // Omit the title for a group with no header (e.g. the top-level "Inicio").
+  readonly title?: string;
+  readonly items: ReadonlyArray<NavItem>;
+}
+
 @Component({
   selector: 'app-navigation-drawer',
   imports: [
@@ -55,7 +61,8 @@ export class NavigationDrawerComponent implements OnInit, OnDestroy {
 
   readonly collapsed = input(false);
   readonly mobileOpen = input(false);
-  readonly links = input.required<ReadonlyArray<NavItem>>();
+  readonly sections = input.required<ReadonlyArray<NavSection>>();
+  readonly footerItems = input<ReadonlyArray<NavItem>>([]);
 
   readonly toggleCollapse = output<void>();
   readonly closeMobile = output<void>();

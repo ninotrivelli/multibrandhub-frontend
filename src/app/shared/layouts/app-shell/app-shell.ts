@@ -43,7 +43,8 @@ export class AppShell {
     return r ? NAV_CONFIG[r] : null;
   });
 
-  protected readonly navItems = computed(() => this.config()?.navItems ?? []);
+  protected readonly sections = computed(() => this.config()?.sections ?? []);
+  protected readonly footerItems = computed(() => this.config()?.footerItems ?? []);
 
   protected readonly showCashStatus = computed(() => !!this.config()?.showCashRegisterStatus);
   protected readonly cashLoaded = this.cashRegister.currentLoaded;
@@ -74,7 +75,7 @@ export class AppShell {
       });
 
     // Keep the top-bar cash register badge accurate from any screen.
-    // Only the Seller can access the store-wide register endpoint.
+    // Admin/SuperAdmin and Seller can access the store-wide register endpoint.
     if (this.showCashStatus()) {
       this.cashRegister
         .loadCurrent()
