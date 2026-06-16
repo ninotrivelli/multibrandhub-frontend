@@ -47,8 +47,15 @@ import {
   CloseCashRegisterRequest,
 } from '../../../core/cash-register/cash-register.types';
 import { NotificationService } from '../../../core/notifications/notification.service';
-import { PaymentMethod } from '../../../core/sales/sales.types';
-import { paymentMethodIcon, paymentMethodLabel } from '../../../core/sales/sales.utils';
+import {
+  CashPaymentGroup,
+  GroupedReconciliationLine,
+  groupPaymentTotals,
+  groupReconciliationLines,
+  groupReconciliationLinesForBrand,
+  paymentGroupIcon,
+  paymentGroupLabel,
+} from '../../../core/cash-register/cash-register.utils';
 import { BrandChipComponent } from '../../../shared/components/brand-chip/brand-chip.component';
 import {
   formatCurrencyUYU,
@@ -68,19 +75,11 @@ interface CashRegisterKpi {
 }
 
 interface PaymentBreakdownRow {
-  method: PaymentMethod;
+  group: CashPaymentGroup;
   label: string;
   icon: LucideIconData;
   net: number;
 }
-
-const PAYMENT_METHODS: PaymentMethod[] = [
-  'Cash',
-  'CreditCard',
-  'DebitCard',
-  'Transfer',
-  'MercadoPago',
-];
 
 @Component({
   selector: 'app-seller-cash-register',
@@ -197,11 +196,11 @@ export class SellerCashRegisterComponent implements OnInit {
     const session = this.current();
     if (!session) return [];
 
-    return PAYMENT_METHODS.map((method) => ({
-      method,
-      label: paymentMethodLabel(method),
-      icon: paymentMethodIcon(method),
-      net: this.paymentTotal(session, method),
+    return groupPaymentTotals(session.paymentTotals).map((total) => ({
+      group: total.group,
+      label: paymentGroupLabel(total.group),
+      icon: paymentGroupIcon(total.group),
+      net: total.netAmount,
     }));
   });
 
@@ -339,28 +338,31 @@ export class SellerCashRegisterComponent implements OnInit {
     return this.openForm.controls.notes.value.length;
   }
 
-  protected paymentLabel(method: PaymentMethod): string {
-    return paymentMethodLabel(method);
+  protected groupLabel(group: CashPaymentGroup): string {
+    return paymentGroupLabel(group);
   }
 
-  protected paymentIcon(method: PaymentMethod): LucideIconData {
-    return paymentMethodIcon(method);
+  protected groupIcon(group: CashPaymentGroup): LucideIconData {
+    return paymentGroupIcon(group);
   }
 
   protected brandAccentStyle(brand: BrandColorInput): Record<string, string> {
     return { 'border-left-color': brandChipColors(brand).border };
   }
 
-  protected paymentMethods(): PaymentMethod[] {
-    return PAYMENT_METHODS;
+  protected groupedPaymentTotals(session: CashRegisterSessionResponse) {
+    return groupPaymentTotals(session.paymentTotals);
   }
 
-  protected paymentTotal(session: CashRegisterSessionResponse, method: PaymentMethod): number {
-    return session.paymentTotals.find((total) => total.paymentMethod === method)?.netAmount ?? 0;
+  protected groupedReconciliation(session: CashRegisterSessionResponse): GroupedReconciliationLine[] {
+    return groupReconciliationLines(session.reconciliationLines);
   }
 
-  protected paymentLinesForBrand(session: CashRegisterSessionResponse, brandId: string) {
-    return session.reconciliationLines.filter((line) => line.brandId === brandId);
+  protected groupedLinesForBrand(
+    session: CashRegisterSessionResponse,
+    brandId: string,
+  ): GroupedReconciliationLine[] {
+    return groupReconciliationLinesForBrand(session.reconciliationLines, brandId);
   }
 
   protected expectedCash(session: CashRegisterSessionResponse): number {

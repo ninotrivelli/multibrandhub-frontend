@@ -3,9 +3,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterOutlet } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { AvatarModule } from 'primeng/avatar';
+import { TagModule } from 'primeng/tag';
 import { LogOut, LucideAngularModule, Menu, Store } from 'lucide-angular';
 
 import { AuthService } from '../../../core/auth/auth.service';
+import { CashRegisterService } from '../../../core/cash-register/cash-register.service';
 import { StoreProfileService } from '../../../core/store-profile/store-profile.service';
 import { NavigationDrawerComponent } from '../../components/navigation-drawer/navigation-drawer';
 import { NAV_CONFIG } from './nav-config';
@@ -16,6 +18,7 @@ import { NAV_CONFIG } from './nav-config';
     RouterOutlet,
     ButtonModule,
     AvatarModule,
+    TagModule,
     LucideAngularModule,
     NavigationDrawerComponent
   ],
@@ -26,6 +29,7 @@ import { NAV_CONFIG } from './nav-config';
 export class AppShell {
   private readonly auth = inject(AuthService);
   private readonly storeProfile = inject(StoreProfileService);
+  private readonly cashRegister = inject(CashRegisterService);
 
   protected readonly collapsed = signal(false);
   protected readonly mobileOpen = signal(false);
@@ -40,6 +44,10 @@ export class AppShell {
   });
 
   protected readonly navItems = computed(() => this.config()?.navItems ?? []);
+
+  protected readonly showCashStatus = computed(() => !!this.config()?.showCashRegisterStatus);
+  protected readonly cashLoaded = this.cashRegister.currentLoaded;
+  protected readonly cashOpen = this.cashRegister.hasOpenRegister;
 
   protected readonly initials = computed((): string => {
     const name = this.user()?.fullName ?? '';
@@ -64,6 +72,19 @@ export class AppShell {
           // error.interceptor already shows a toast
         },
       });
+
+    // Keep the top-bar cash register badge accurate from any screen.
+    // Only the Seller can access the store-wide register endpoint.
+    if (this.showCashStatus()) {
+      this.cashRegister
+        .loadCurrent()
+        .pipe(takeUntilDestroyed())
+        .subscribe({
+          error: () => {
+            // error.interceptor already shows a toast
+          },
+        });
+    }
   }
 
   protected toggleCollapse(): void {

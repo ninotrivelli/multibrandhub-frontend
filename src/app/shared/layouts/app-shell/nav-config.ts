@@ -18,6 +18,8 @@ import { fa, lucide, type NavItem } from '../../components/navigation-drawer/nav
 export interface RoleNavConfig {
   readonly label: string;
   readonly showRoleBadge: boolean;
+  // When true, the top bar shows the store-wide cash register status (open/closed).
+  readonly showCashRegisterStatus: boolean;
   readonly navItems: ReadonlyArray<NavItem>;
 }
 
@@ -52,21 +54,25 @@ export const NAV_CONFIG: Record<UserRole, RoleNavConfig> = {
   Admin: {
     label: 'Admin',
     showRoleBadge: false,
+    showCashRegisterStatus: false,
     navItems: ADMIN_NAV
   },
   SuperAdmin: {
     label: 'Admin',
     showRoleBadge: false,
+    showCashRegisterStatus: false,
     navItems: ADMIN_NAV
   },
   BrandManager: {
     label: '',
     showRoleBadge: false,
+    showCashRegisterStatus: false,
     navItems: BRAND_MANAGER_NAV
   },
   Seller: {
     label: 'Vendedora',
     showRoleBadge: true,
+    showCashRegisterStatus: true,
     navItems: SELLER_NAV
   }
 };

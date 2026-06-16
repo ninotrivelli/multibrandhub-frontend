@@ -9,6 +9,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
 import { AlertTriangle, LucideAngularModule, Receipt, Undo2 } from 'lucide-angular';
 
 import { AuthService } from '../../../core/auth/auth.service';
@@ -29,6 +30,7 @@ import { ReturnDialogComponent } from './return/return-dialog.component';
   selector: 'app-pos-shell',
   imports: [
     ButtonModule,
+    DialogModule,
     LucideAngularModule,
     ProductSearchPanelComponent,
     CartPanelComponent,
@@ -54,6 +56,7 @@ export class PosShellComponent {
   protected readonly submitting = signal(false);
   protected readonly saleReviewVisible = signal(false);
   protected readonly returnDialogVisible = signal(false);
+  protected readonly cashClosedPromptVisible = signal(false);
   protected readonly noCashRegisterOpen = computed(
     () =>
       this.cashRegister.currentLoaded() &&
@@ -81,6 +84,22 @@ export class PosShellComponent {
           // error.interceptor already shows a toast.
         },
       });
+  }
+
+  protected onSubmitSale(): void {
+    if (this.submitting() || !this.cart.canSubmit()) return;
+    // Sales aren't blocked without an open register, but warn first so the
+    // ticket isn't accidentally left out of a cash register session.
+    if (this.noCashRegisterOpen()) {
+      this.cashClosedPromptVisible.set(true);
+      return;
+    }
+    this.openSaleReview();
+  }
+
+  protected proceedWithoutCashRegister(): void {
+    this.cashClosedPromptVisible.set(false);
+    this.openSaleReview();
   }
 
   protected openSaleReview(): void {

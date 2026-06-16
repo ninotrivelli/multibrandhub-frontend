@@ -58,13 +58,53 @@
       <app-pos-product-search-panel />
     </div>
     <div class="lg:col-span-1 lg:sticky lg:top-4">
-      <app-pos-cart-panel [submitting]="submitting()" (submitSale)="openSaleReview()" />
+      <app-pos-cart-panel [submitting]="submitting()" (submitSale)="onSubmitSale()" />
     </div>
   </div>
 
   <!-- Recent sales -->
   <app-pos-recent-sales-list />
 </div>
+
+<!-- Caja cerrada · confirmación intermedia -->
+<p-dialog
+  [visible]="cashClosedPromptVisible()"
+  (visibleChange)="cashClosedPromptVisible.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [dismissableMask]="true"
+  [style]="{ width: '32rem', maxWidth: '94vw' }"
+  header="La caja está cerrada"
+>
+  <div class="flex items-start gap-3">
+    <span
+      class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200"
+    >
+      <i-lucide [img]="icons.AlertTriangle" class="size-5" />
+    </span>
+    <p class="text-sm text-surface-600 dark:text-surface-300">
+      No hay una caja abierta. Si continuás, la venta se va a registrar igual, pero va a quedar
+      fuera de una caja.
+    </p>
+  </div>
+
+  <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+    <button
+      pButton
+      type="button"
+      severity="secondary"
+      [text]="true"
+      label="Continuar igualmente"
+      (click)="proceedWithoutCashRegister()"
+    ></button>
+    @if (canOpenCashRegister()) {
+      <a pButton href="/seller/cash-register" class="justify-center">
+        <i-lucide [img]="icons.Receipt" class="size-4 mr-2" />
+        <span>Ir a abrir caja</span>
+      </a>
+    }
+  </div>
+</p-dialog>
 
 <!-- Sale review / confirmación -->
 <app-pos-sale-review-dialog

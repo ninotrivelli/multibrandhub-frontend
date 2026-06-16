@@ -132,4 +132,41 @@ describe('PosShellComponent', () => {
 
     expect((component as any).saleReviewVisible()).toBe(true);
   });
+
+  it('warns before the sale review when the register is closed', () => {
+    cashRegister.current.set(null);
+    cashRegister.currentLoaded.set(true);
+    cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+    cart.setCardBrand('Visa');
+
+    (component as any).onSubmitSale();
+
+    expect((component as any).cashClosedPromptVisible()).toBe(true);
+    expect((component as any).saleReviewVisible()).toBe(false);
+  });
+
+  it('opens the sale review directly when the register is open', () => {
+    cashRegister.current.set({ status: 'Open' });
+    cashRegister.currentLoaded.set(true);
+    cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+    cart.setCardBrand('Visa');
+
+    (component as any).onSubmitSale();
+
+    expect((component as any).cashClosedPromptVisible()).toBe(false);
+    expect((component as any).saleReviewVisible()).toBe(true);
+  });
+
+  it('continues to the sale review after confirming the closed-register prompt', () => {
+    cashRegister.current.set(null);
+    cashRegister.currentLoaded.set(true);
+    cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+    cart.setCardBrand('Visa');
+    (component as any).cashClosedPromptVisible.set(true);
+
+    (component as any).proceedWithoutCashRegister();
+
+    expect((component as any).cashClosedPromptVisible()).toBe(false);
+    expect((component as any).saleReviewVisible()).toBe(true);
+  });
 });
