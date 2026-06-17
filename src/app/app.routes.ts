@@ -28,6 +28,13 @@ export const routes: Routes = [
           import('./features/admin/pos/pos.component').then((m) => m.AdminPosComponent)
       },
       {
+        path: 'cash-register',
+        loadComponent: () =>
+          import('./features/seller/cash-register/cash-register.component').then(
+            (m) => m.SellerCashRegisterComponent
+          )
+      },
+      {
         path: 'sales',
         loadComponent: () =>
           import('./features/admin/sales/sales.component').then((m) => m.AdminSalesComponent)

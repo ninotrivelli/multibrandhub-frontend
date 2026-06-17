@@ -36,6 +36,11 @@ describe('smoke-fixtures', () => {
       ['GET', '/sales/search'],
       ['GET', '/reports/sales/dashboard'],
       ['POST', '/sales'],
+      ['GET', '/cash-register/current'],
+      ['GET', '/cash-register/history'],
+      ['GET', '/cash-register/cash-smoke-closed'],
+      ['POST', '/cash-register/open'],
+      ['POST', '/cash-register/cash-smoke-open/close'],
       ['PATCH', '/users/user-admin/password'],
     ] as const;
 

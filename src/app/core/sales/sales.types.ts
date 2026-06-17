@@ -65,6 +65,11 @@ export interface SaleDetailResponse {
   unitDiscountAmount: number;
   unitNetPrice: number;
   subTotal: number;
+  // Cumulative-return tracking computed by the backend per original detail
+  // line. Only meaningful on completed original sales; return-type sales and
+  // non-completed sales always carry 0 / 0.
+  alreadyReturnedQuantity: number;
+  remainingReturnableQuantity: number;
   // TODO: confirm with user — the backend SaleDetailResponse does NOT return
   // these yet. Needed to render the product thumbnail in the sale-detail modal
   // (falls back to the category placeholder, then a generic one). Optional until

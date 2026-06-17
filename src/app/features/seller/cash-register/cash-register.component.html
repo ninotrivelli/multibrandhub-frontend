@@ -1,0 +1,704 @@
+<div class="flex flex-col gap-5">
+  <header class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-surface-900 dark:text-surface-0">Caja</h1>
+      <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
+        Apertura, cierre y conciliación diaria del local.
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        pButton
+        type="button"
+        severity="secondary"
+        [text]="true"
+        label="Actualizar"
+        [disabled]="currentLoading() || historyLoading()"
+        (click)="refreshAll()"
+      >
+        <i-lucide [img]="icons.RefreshCw" class="size-4 mr-2" />
+      </button>
+      @if (current(); as session) {
+        <button
+          pButton
+          type="button"
+          label="Cerrar Caja"
+          [disabled]="submittingClose()"
+          (click)="openCloseDialog()"
+        >
+          <i-lucide [img]="icons.FileText" class="size-4 mr-2" />
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (currentLoading() && !currentLoaded()) {
+    <section
+      class="rounded-lg border border-surface-200 bg-surface-0 p-6 dark:border-surface-700 dark:bg-surface-800"
+    >
+      <p class="text-sm text-surface-500 dark:text-surface-400">Cargando estado de caja…</p>
+    </section>
+  } @else if (currentError()) {
+    <section
+      class="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/30"
+    >
+      <div class="flex items-start gap-2">
+        <i-lucide [img]="icons.XCircle" class="mt-0.5 size-5 text-red-600 dark:text-red-300" />
+        <div>
+          <h2 class="text-sm font-semibold text-red-800 dark:text-red-200">
+            No se pudo cargar la caja
+          </h2>
+          <p class="text-sm text-red-700 dark:text-red-300">{{ currentError() }}</p>
+        </div>
+      </div>
+      <button
+        pButton
+        type="button"
+        severity="danger"
+        [outlined]="true"
+        label="Reintentar"
+        class="self-start"
+        (click)="refreshCurrent()"
+      ></button>
+    </section>
+  } @else if (current(); as session) {
+    <section class="flex flex-col gap-4">
+      <div
+        class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30"
+      >
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div class="flex items-start gap-3">
+            <span
+              class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200"
+            >
+              <i-lucide [img]="icons.CheckCircle2" class="size-5" />
+            </span>
+            <div>
+              <div class="mb-1 flex flex-wrap items-center gap-2">
+                <h2 class="text-lg font-semibold text-surface-900 dark:text-surface-0">
+                  Caja abierta
+                </h2>
+                <p-tag
+                  [value]="statusLabel(session.status)"
+                  [severity]="statusSeverity(session.status)"
+                />
+              </div>
+              <p class="text-sm text-surface-600 dark:text-surface-300">
+                Abierta por {{ session.openedByUserName ?? '—' }} ·
+                {{ formatDateTime(session.openedAtUtc) }}
+              </p>
+            </div>
+          </div>
+
+          <div class="text-left md:text-right">
+            <span class="text-xs font-medium uppercase text-surface-500 dark:text-surface-400">
+              Efectivo inicial
+            </span>
+            <p class="text-xl font-semibold text-surface-900 dark:text-surface-0">
+              {{ formatCurrency(session.openingCashAmount) }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        @for (kpi of summaryKpis(); track kpi.label) {
+          <article
+            class="flex items-start gap-4 rounded-xl border border-surface-200 bg-surface-0 p-5 dark:border-surface-700 dark:bg-surface-800"
+          >
+            <div
+              class="flex size-12 shrink-0 items-center justify-center rounded-xl"
+              [class]="kpi.iconWrapClass"
+            >
+              <i-lucide [img]="kpi.icon" class="size-6" />
+            </div>
+            <div class="flex min-w-0 flex-1 flex-col gap-1">
+              <span class="text-sm text-surface-500 dark:text-surface-400">{{ kpi.label }}</span>
+              <span
+                class="truncate text-2xl font-bold leading-tight text-surface-900 dark:text-surface-0"
+              >
+                {{ formatKpi(kpi) }}
+              </span>
+              @if (kpi.caption) {
+                <span class="text-xs text-surface-500 dark:text-surface-400">{{ kpi.caption }}</span>
+              }
+            </div>
+          </article>
+        }
+      </div>
+
+      <section
+        class="rounded-lg border border-surface-200 bg-surface-0 dark:border-surface-700 dark:bg-surface-800"
+      >
+        <div class="border-b border-surface-200 px-4 py-3 dark:border-surface-700">
+          <h2 class="text-base font-semibold text-surface-900 dark:text-surface-0">
+            Por método de pago
+          </h2>
+        </div>
+        <div class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+          @for (row of paymentBreakdown(); track row.group) {
+            <div
+              class="flex items-center gap-3 rounded-lg border border-surface-200 bg-surface-50 p-3 dark:border-surface-700 dark:bg-surface-900/40"
+            >
+              <span
+                class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-0 text-surface-600 dark:bg-surface-800 dark:text-surface-300"
+              >
+                <i-lucide [img]="row.icon" class="size-5" />
+              </span>
+              <div class="flex min-w-0 flex-1 flex-col leading-tight">
+                <span class="text-xs text-surface-500 dark:text-surface-400">{{ row.label }}</span>
+                <span class="truncate text-lg font-semibold text-surface-900 dark:text-surface-0">
+                  {{ formatCurrency(row.net) }}
+                </span>
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+
+      <section
+        class="rounded-lg border border-surface-200 bg-surface-0 dark:border-surface-700 dark:bg-surface-800"
+      >
+        <div
+          class="flex items-center justify-between gap-3 border-b border-surface-200 px-4 py-3 dark:border-surface-700"
+        >
+          <h2 class="text-base font-semibold text-surface-900 dark:text-surface-0">
+            Desglose por marca
+          </h2>
+        </div>
+
+        @if (session.brandTotals.length === 0) {
+          <p class="px-4 py-8 text-center text-sm text-surface-500 dark:text-surface-400">
+            Todavía no hay movimientos asociados a esta caja.
+          </p>
+        } @else {
+          <div class="flex flex-col gap-4 p-4">
+            @for (brand of session.brandTotals; track brand.brandId) {
+              <article
+                class="rounded-lg border border-l-4 border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-800"
+                [style]="brandAccentStyle(brand)"
+              >
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div class="flex flex-col items-start gap-1.5">
+                    <app-brand-chip [brandId]="brand.brandId" [brandName]="brand.brandName" />
+                    <p class="text-sm text-surface-500 dark:text-surface-400">
+                      {{ brandLineCountLabel(brand) }}
+                    </p>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[34rem]">
+                    <div>
+                      <span class="text-xs text-surface-500 dark:text-surface-400">Ventas</span>
+                      <p class="font-semibold text-surface-900 dark:text-surface-0">
+                        {{ formatCurrency(brand.grossSalesAmount) }}
+                      </p>
+                    </div>
+                    <div>
+                      <span class="text-xs text-surface-500 dark:text-surface-400">
+                        Devoluciones
+                      </span>
+                      <p class="font-semibold text-red-600 dark:text-red-300">
+                        {{ formatCurrency(brand.returnsAmount) }}
+                      </p>
+                    </div>
+                    <div>
+                      <span class="text-xs text-surface-500 dark:text-surface-400">Neto</span>
+                      <p class="font-semibold text-primary">
+                        {{ formatCurrency(brand.netAmount) }}
+                      </p>
+                    </div>
+                    <div>
+                      <span class="text-xs text-surface-500 dark:text-surface-400">Unidades</span>
+                      <p class="font-semibold text-surface-900 dark:text-surface-0">
+                        {{ formatNumber(brand.unitsSold) }} / -{{
+                          formatNumber(brand.unitsReturned)
+                        }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mt-4 overflow-x-auto">
+                  <table class="w-full min-w-[36rem] text-left text-sm">
+                    <thead class="text-xs uppercase text-surface-500 dark:text-surface-400">
+                      <tr>
+                        <th class="py-2 pr-3">Método</th>
+                        <th class="py-2 pr-3 text-right">Ventas</th>
+                        <th class="py-2 pr-3 text-right">Devoluciones</th>
+                        <th class="py-2 pr-3 text-right">Neto</th>
+                        <th class="py-2 text-right">Unidades</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (
+                        line of groupedLinesForBrand(session, brand.brandId);
+                        track line.key
+                      ) {
+                        <tr class="border-t border-surface-100 dark:border-surface-700">
+                          <td class="py-2 pr-3 font-medium text-surface-800 dark:text-surface-100">
+                            <span class="flex items-center gap-2">
+                              <i-lucide
+                                [img]="groupIcon(line.group)"
+                                class="size-4 text-surface-400"
+                              />
+                              {{ groupLabel(line.group) }}
+                            </span>
+                          </td>
+                          <td class="py-2 pr-3 text-right text-surface-700 dark:text-surface-200">
+                            {{ formatCurrency(line.systemGrossSalesAmount) }}
+                          </td>
+                          <td class="py-2 pr-3 text-right text-red-600 dark:text-red-300">
+                            {{ formatCurrency(line.systemReturnsAmount) }}
+                          </td>
+                          <td
+                            class="py-2 pr-3 text-right font-semibold text-surface-900 dark:text-surface-0"
+                          >
+                            {{ formatCurrency(line.systemNetAmount) }}
+                          </td>
+                          <td class="py-2 text-right text-surface-700 dark:text-surface-200">
+                            {{ formatNumber(line.unitsSold) }} / -{{
+                              formatNumber(line.unitsReturned)
+                            }}
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+    </section>
+  } @else {
+    <section
+      class="rounded-lg border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-800 md:p-6"
+    >
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_28rem] lg:items-start">
+        <div class="flex items-start gap-3">
+          <span
+            class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+          >
+            <i-lucide [img]="icons.History" class="size-5" />
+          </span>
+          <div>
+            <h2 class="text-lg font-semibold text-surface-900 dark:text-surface-0">
+              Lista para abrir
+            </h2>
+            <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
+              No hay una caja abierta en este momento.
+            </p>
+          </div>
+        </div>
+
+        <form [formGroup]="openForm" (ngSubmit)="submitOpen()" class="flex flex-col gap-4">
+          <div class="flex flex-col gap-1">
+            <label
+              for="openingCashAmount"
+              class="text-sm font-medium text-surface-700 dark:text-surface-200"
+            >
+              Efectivo inicial
+            </label>
+            <p-inputnumber
+              inputId="openingCashAmount"
+              formControlName="openingCashAmount"
+              mode="currency"
+              currency="UYU"
+              locale="es-UY"
+              [min]="0"
+              [minFractionDigits]="0"
+              [maxFractionDigits]="0"
+              [invalid]="isOpeningCashInvalid()"
+              inputStyleClass="w-full"
+              fluid
+            />
+            @if (isOpeningCashInvalid()) {
+              <p-message severity="error" size="small" variant="simple">
+                Ingresá un monto inicial válido.
+              </p-message>
+            }
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label
+              for="openingNotes"
+              class="text-sm font-medium text-surface-700 dark:text-surface-200"
+            >
+              Notas
+            </label>
+            <textarea
+              pTextarea
+              id="openingNotes"
+              rows="3"
+              formControlName="notes"
+              [maxlength]="maxNotesLength"
+              [invalid]="isOpeningNotesInvalid()"
+              placeholder="Opcional"
+              fluid
+            ></textarea>
+            <div class="flex justify-end">
+              <span class="text-xs text-surface-400 dark:text-surface-500">
+                {{ openingNotesLength }}/{{ maxNotesLength }}
+              </span>
+            </div>
+            @if (isOpeningNotesInvalid()) {
+              <p-message severity="error" size="small" variant="simple">
+                Máximo 500 caracteres.
+              </p-message>
+            }
+          </div>
+
+          @if (openSubmitError()) {
+            <p-message severity="error" variant="outlined" [closable]="false">
+              {{ openSubmitError() }}
+            </p-message>
+          }
+
+          <button
+            pButton
+            type="submit"
+            label="Abrir Caja"
+            [loading]="submittingOpen()"
+            [disabled]="submittingOpen()"
+          ></button>
+        </form>
+      </div>
+    </section>
+  }
+
+  @if (reportLoading()) {
+    <section
+      class="rounded-lg border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-800"
+    >
+      <p class="text-sm text-surface-500 dark:text-surface-400">Cargando reporte…</p>
+    </section>
+  }
+
+  @if (reportError()) {
+    <p-message severity="error" variant="outlined" [closable]="false">
+      {{ reportError() }}
+    </p-message>
+  }
+
+  @if (selectedReport(); as report) {
+    <section
+      #reportAnchor
+      class="scroll-mt-4 rounded-lg border-2 border-primary/40 bg-surface-0 ring-1 ring-primary/10 dark:bg-surface-800"
+    >
+      <div
+        class="flex flex-col gap-3 border-b border-surface-200 px-4 py-4 dark:border-surface-700 md:flex-row md:items-start md:justify-between"
+      >
+        <div>
+          <span
+            class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary"
+          >
+            <i-lucide [img]="icons.Eye" class="size-3.5" />
+            Mostrando reporte
+          </span>
+          <div class="mb-1 mt-1 flex flex-wrap items-center gap-2">
+            <h2 class="text-lg font-semibold text-surface-900 dark:text-surface-0">
+              Reporte de caja
+            </h2>
+            <p-tag
+              [value]="statusLabel(report.status)"
+              [severity]="statusSeverity(report.status)"
+            />
+          </div>
+          <p class="text-sm text-surface-500 dark:text-surface-400">
+            Abrió {{ report.openedByUserName ?? '—' }} · {{ formatDateTime(report.openedAtUtc) }}
+          </p>
+          <p class="text-sm text-surface-500 dark:text-surface-400">
+            Cerró {{ report.closedByUserName ?? '—' }} · {{ formatDateTime(report.closedAtUtc) }}
+          </p>
+        </div>
+
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          [text]="true"
+          label="Ocultar reporte"
+          class="self-start"
+          (click)="hideReport()"
+        >
+          <i-lucide [img]="icons.X" class="size-4 mr-2" />
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 gap-3 p-4 md:grid-cols-3">
+        <div class="rounded-lg bg-surface-50 p-4 dark:bg-surface-900/40">
+          <span
+            class="flex items-center gap-2 text-xs font-semibold uppercase text-surface-500 dark:text-surface-400"
+          >
+            <i-lucide [img]="icons.Banknote" class="size-4" />
+            Efectivo esperado
+          </span>
+          <p class="mt-2 text-xl font-semibold text-surface-900 dark:text-surface-0">
+            {{ formatCurrency(report.expectedCashAmount) }}
+          </p>
+        </div>
+        <div class="rounded-lg bg-surface-50 p-4 dark:bg-surface-900/40">
+          <span
+            class="flex items-center gap-2 text-xs font-semibold uppercase text-surface-500 dark:text-surface-400"
+          >
+            <i-lucide [img]="icons.Wallet" class="size-4" />
+            Efectivo contado
+          </span>
+          <p class="mt-2 text-xl font-semibold text-surface-900 dark:text-surface-0">
+            {{ formatCurrency(report.actualCashAmount) }}
+          </p>
+        </div>
+        <div class="rounded-lg bg-surface-50 p-4 dark:bg-surface-900/40">
+          <span class="text-xs font-semibold uppercase text-surface-500 dark:text-surface-400">
+            Diferencia efectivo
+          </span>
+          <p
+            class="mt-2 flex items-center gap-2 text-xl font-semibold"
+            [class]="varianceClass(report.cashVarianceAmount)"
+          >
+            <i-lucide [img]="varianceIcon(report.cashVarianceAmount)" class="size-5" />
+            {{ formatSignedCurrency(report.cashVarianceAmount) }}
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-6 p-4">
+        <div class="overflow-x-auto">
+          <h3 class="mb-2 text-sm font-semibold text-surface-900 dark:text-surface-0">
+            Totales por método
+          </h3>
+          <table class="w-full min-w-[34rem] text-sm">
+            <thead class="text-xs uppercase text-surface-500 dark:text-surface-400">
+              <tr>
+                <th class="py-2 pr-3 text-left">Método</th>
+                <th class="py-2 pr-3 text-right">Neto sistema</th>
+                <th class="py-2 pr-3 text-right">Informado</th>
+                <th class="py-2 text-right">Diferencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (total of groupedPaymentTotals(report); track total.group) {
+                <tr class="border-t border-surface-100 dark:border-surface-700">
+                  <td
+                    class="py-2 pr-3 text-left font-medium text-surface-800 dark:text-surface-100"
+                  >
+                    <span class="flex items-center gap-2">
+                      <i-lucide
+                        [img]="groupIcon(total.group)"
+                        class="size-4 text-surface-400"
+                      />
+                      {{ groupLabel(total.group) }}
+                    </span>
+                  </td>
+                  <td class="py-2 pr-3 text-right">{{ formatCurrency(total.netAmount) }}</td>
+                  <td class="py-2 pr-3 text-right">{{ formatCurrency(total.reportedAmount) }}</td>
+                  <td
+                    class="py-2 text-right font-semibold"
+                    [class]="varianceClass(total.varianceAmount)"
+                  >
+                    {{ formatSignedCurrency(total.varianceAmount) }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="overflow-x-auto">
+          <h3 class="mb-2 text-sm font-semibold text-surface-900 dark:text-surface-0">
+            Totales por marca
+          </h3>
+          <table class="w-full min-w-[34rem] text-sm">
+            <thead class="text-xs uppercase text-surface-500 dark:text-surface-400">
+              <tr>
+                <th class="py-2 pr-3 text-left">Marca</th>
+                <th class="py-2 pr-3 text-right">Ventas</th>
+                <th class="py-2 pr-3 text-right">Devoluciones</th>
+                <th class="py-2 text-right">Neto</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (brand of report.brandTotals; track brand.brandId) {
+                <tr class="border-t border-surface-100 dark:border-surface-700">
+                  <td class="py-2 pr-3 text-left">
+                    <app-brand-chip [brandId]="brand.brandId" [brandName]="brand.brandName" />
+                  </td>
+                  <td class="py-2 pr-3 text-right">{{ formatCurrency(brand.grossSalesAmount) }}</td>
+                  <td class="py-2 pr-3 text-right text-red-600 dark:text-red-300">
+                    {{ formatCurrency(brand.returnsAmount) }}
+                  </td>
+                  <td class="py-2 text-right font-semibold">
+                    {{ formatCurrency(brand.netAmount) }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="border-t border-surface-200 p-4 dark:border-surface-700">
+        <h3 class="mb-2 text-sm font-semibold text-surface-900 dark:text-surface-0">
+          Conciliación
+        </h3>
+        <p-table
+          [value]="groupedReconciliation(report)"
+          dataKey="key"
+          styleClass="p-datatable-sm"
+          responsiveLayout="scroll"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th class="min-w-40">MARCA</th>
+              <th class="min-w-36">MÉTODO</th>
+              <th class="min-w-32 text-right">VENTAS</th>
+              <th class="min-w-32 text-right">DEVOL.</th>
+              <th class="min-w-32 text-right">NETO</th>
+              <th class="min-w-36 text-right">INFORMADO</th>
+              <th class="min-w-36 text-right">DIF.</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-row>
+            <tr>
+              <td>
+                <app-brand-chip [brandId]="row.brandId" [brandName]="row.brandName" />
+              </td>
+              <td>
+                <span class="flex items-center gap-2">
+                  <i-lucide [img]="groupIcon(row.group)" class="size-4 text-surface-400" />
+                  {{ groupLabel(row.group) }}
+                </span>
+              </td>
+              <td class="text-right">{{ formatCurrency(row.systemGrossSalesAmount) }}</td>
+              <td class="text-right text-red-600 dark:text-red-300">
+                {{ formatCurrency(row.systemReturnsAmount) }}
+              </td>
+              <td class="text-right font-semibold">{{ formatCurrency(row.systemNetAmount) }}</td>
+              <td class="text-right">{{ formatCurrency(row.reportedAmount) }}</td>
+              <td class="text-right font-semibold" [class]="varianceClass(row.varianceAmount)">
+                {{ formatSignedCurrency(row.varianceAmount) }}
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </section>
+  }
+
+  <section
+    class="rounded-lg border border-surface-200 bg-surface-0 dark:border-surface-700 dark:bg-surface-800"
+  >
+    <div
+      class="flex items-center justify-between gap-3 border-b border-surface-200 px-4 py-3 dark:border-surface-700"
+    >
+      <h2
+        class="flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-0"
+      >
+        <i-lucide [img]="icons.History" class="size-4 text-surface-400" />
+        Historial
+      </h2>
+    </div>
+
+    @if (historyError()) {
+      <div class="p-4">
+        <p-message severity="error" variant="outlined" [closable]="false">
+          {{ historyError() }}
+        </p-message>
+      </div>
+    }
+
+    <p-table
+      [value]="historyItems()"
+      [lazy]="true"
+      [paginator]="true"
+      [rows]="historyPageSize()"
+      [first]="(historyPage() - 1) * historyPageSize()"
+      [totalRecords]="historyTotalCount()"
+      [rowsPerPageOptions]="[10, 20, 50]"
+      paginatorDropdownAppendTo="body"
+      [loading]="historyLoading()"
+      (onLazyLoad)="onHistoryLazyLoad($event)"
+      dataKey="id"
+      styleClass="p-datatable-sm px-2 pb-3 md:px-4 md:pb-4"
+      responsiveLayout="scroll"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} cierres"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th class="min-w-36">FECHA</th>
+          <th class="min-w-28">ESTADO</th>
+          <th class="min-w-36 text-right">MOVIMIENTOS</th>
+          <th class="min-w-32 text-right">NETO</th>
+          <th class="min-w-36 text-right">DIF. EFECTIVO</th>
+          <th class="min-w-32 text-center">REPORTE</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-row>
+        <tr
+          [style.background-color]="
+            isReportShown(row.id)
+              ? 'color-mix(in srgb, var(--p-primary-color) 8%, transparent)'
+              : null
+          "
+        >
+          <td>
+            <div class="flex flex-col leading-tight">
+              <span class="font-medium text-surface-800 dark:text-surface-100">
+                {{ formatDate(row.closedAtUtc ?? row.openedAtUtc) }}
+              </span>
+              <span class="text-xs text-surface-500 dark:text-surface-400">
+                {{ row.closedByUserName ?? '—' }}
+              </span>
+            </div>
+          </td>
+          <td>
+            <p-tag [value]="statusLabel(row.status)" [severity]="statusSeverity(row.status)" />
+          </td>
+          <td class="text-right">
+            {{ formatNumber(row.saleCount) }} ventas · {{ formatNumber(row.returnCount) }} dev.
+          </td>
+          <td class="text-right font-semibold">{{ formatCurrency(row.netSalesAmount) }}</td>
+          <td class="text-right font-semibold" [class]="varianceClass(row.cashVarianceAmount)">
+            {{ formatSignedCurrency(row.cashVarianceAmount) }}
+          </td>
+          <td class="text-center">
+            <button
+              pButton
+              type="button"
+              size="small"
+              [severity]="isReportShown(row.id) ? 'primary' : 'secondary'"
+              [text]="!isReportShown(row.id)"
+              [outlined]="isReportShown(row.id)"
+              [label]="isReportShown(row.id) ? 'Ocultar' : 'Ver Reporte'"
+              (click)="viewReport(row.id)"
+            >
+              <i-lucide
+                [img]="isReportShown(row.id) ? icons.EyeOff : icons.Eye"
+                class="size-4 mr-2"
+              />
+            </button>
+          </td>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="6" class="py-8 text-center text-surface-500 dark:text-surface-400">
+            Todavía no hay cierres registrados.
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </section>
+</div>
+
+<app-cash-register-close-dialog
+  [visible]="closeDialogVisible()"
+  [session]="current()"
+  [submitting]="submittingClose()"
+  [submitError]="closeSubmitError()"
+  (visibleChange)="closeDialogVisible.set($event)"
+  (closeRegister)="closeCurrent($event)"
+/>

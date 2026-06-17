@@ -1,0 +1,47 @@
+@if (loading() && tasks().length === 0) {
+  <div class="flex flex-col gap-2">
+    @for (i of [1, 2, 3]; track i) {
+      <p-skeleton height="3.25rem" />
+    }
+  </div>
+} @else if (tasks().length === 0) {
+  <p class="text-sm text-surface-500 dark:text-surface-400 text-center py-6">
+    {{ emptyMessage() }}
+  </p>
+} @else {
+  <ul class="flex flex-col divide-y divide-surface-200 dark:divide-surface-700">
+    @for (task of tasks(); track task.id) {
+      <li class="flex items-start gap-3 py-3">
+        <p-checkbox
+          [binary]="true"
+          [ngModel]="isCompleting(task)"
+          [disabled]="isCompleting(task)"
+          (onChange)="onToggle(task)"
+          [inputId]="'task-' + task.id"
+          ariaLabel="Marcar como completada"
+          styleClass="mt-0.5"
+        />
+        <div class="flex-1 min-w-0 flex flex-col gap-1">
+          <span
+            class="text-sm text-surface-900 dark:text-surface-0 break-words"
+            [class.line-through]="isCompleting(task)"
+            [class.text-surface-400]="isCompleting(task)"
+          >
+            {{ task.description }}
+          </span>
+          <span class="text-xs text-surface-500 dark:text-surface-400">
+            @if (task.createdByName) {
+              Creada por {{ task.createdByName }} ·
+            }
+            {{ task.createdAt | date: 'dd/MM, HH:mm' }}
+          </span>
+        </div>
+        <p-tag
+          [value]="priorityLabels[task.priority]"
+          [severity]="prioritySeverity[task.priority]"
+          styleClass="!text-xs shrink-0"
+        />
+      </li>
+    }
+  </ul>
+}

@@ -18,7 +18,7 @@ interface PaymentOption {
   icon: LucideIconData;
 }
 
-const SELECTABLE_METHODS: PaymentMethod[] = ['Cash', 'DebitCard', 'CreditCard', 'Transfer'];
+const SELECTABLE_METHODS: PaymentMethod[] = ['DebitCard', 'CreditCard', 'Transfer', 'Cash'];
 const SELECTABLE_CARD_BRANDS: CardBrand[] = ['Visa', 'MasterCard', 'Oca', 'Other'];
 
 @Component({

@@ -83,7 +83,22 @@ describe('errorInterceptor', () => {
     expect(notifications.error).toHaveBeenCalledWith('Servidor no disponible');
   });
 
-  it('logs out and warns when a 403 means the session is no longer valid for the tenant', () => {
+  it('logs out and warns when a 403 carries the session_invalid code', () => {
+    http.get('/api/products').subscribe({ error: () => {} });
+
+    // Message intentionally NOT in the legacy string set: the code alone
+    // must trigger the session clear, regardless of backend copy.
+    httpTesting.expectOne('/api/products').flush(
+      { message: 'Cualquier texto que el backend quiera mostrar.', code: 'session_invalid' },
+      { status: 403, statusText: 'Forbidden' },
+    );
+
+    expect(notifications.warn).toHaveBeenCalledWith('Volvé a ingresar', 'Sesión no vigente');
+    expect(auth.logout).toHaveBeenCalled();
+    expect(notifications.error).not.toHaveBeenCalled();
+  });
+
+  it('still logs out on legacy session-invalid 403s that only carry the known message', () => {
     http.get('/api/products').subscribe({ error: () => {} });
 
     httpTesting.expectOne('/api/products').flush(

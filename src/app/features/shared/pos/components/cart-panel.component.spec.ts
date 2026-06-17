@@ -34,6 +34,10 @@ describe('CartPanelComponent', () => {
 
     cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
     (component as any).onSubmit();
+    expect(submitted).not.toHaveBeenCalled();
+
+    cart.setCardBrand('Visa');
+    (component as any).onSubmit();
     expect(submitted).toHaveBeenCalledTimes(1);
 
     fixture.componentRef.setInput('submitting', true);
@@ -44,6 +48,7 @@ describe('CartPanelComponent', () => {
     fixture.componentRef.setInput('submitting', false);
     fixture.detectChanges();
     cart.setPaymentMethod('CreditCard');
+    cart.setCardBrand(null);
     (component as any).onSubmit();
     expect(submitted).toHaveBeenCalledTimes(1);
 

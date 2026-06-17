@@ -34,6 +34,8 @@ export interface CartBrandGroup {
   total: number;
 }
 
+const DEFAULT_PAYMENT_METHOD: PaymentMethod = 'DebitCard';
+
 // Screen-scoped state for the POS sale being built. Provided at the
 // `pos-shell` level (NOT providedIn: 'root') so the search panel and the cart
 // panel share one instance without prop-drilling, while staying local to the
@@ -42,7 +44,7 @@ export interface CartBrandGroup {
 @Injectable()
 export class PosCartStore {
   private readonly _lines = signal<CartLine[]>([]);
-  private readonly _paymentMethod = signal<PaymentMethod>('Cash');
+  private readonly _paymentMethod = signal<PaymentMethod>(DEFAULT_PAYMENT_METHOD);
   private readonly _cardBrand = signal<CardBrand | null>(null);
   private readonly _observations = signal('');
 
@@ -55,15 +57,18 @@ export class PosCartStore {
   readonly itemCount = computed(() => this._lines().reduce((sum, l) => sum + l.quantity, 0));
 
   // Each line with its discount math resolved the same way the backend does.
+  // Every intermediate figure is rounded to 2 decimals so binary floating
+  // point dust (e.g. 9.09 * 3 = 27.269999...) never reaches the templates or
+  // drifts from the backend's decimal arithmetic.
   readonly pricedLines = computed<PricedCartLine[]>(() =>
     this._lines().map((line) => {
       const unitDiscount = lineUnitDiscount(line);
-      const unitNet = line.product.price - unitDiscount;
+      const unitNet = round2(line.product.price - unitDiscount);
       return {
         ...line,
         unitDiscount,
         unitNet,
-        lineSubtotal: unitNet * line.quantity,
+        lineSubtotal: round2(unitNet * line.quantity),
         valid: isLineDiscountValid(line),
       };
     }),
@@ -71,13 +76,15 @@ export class PosCartStore {
 
   // Gross (pre-discount) subtotal.
   readonly subtotal = computed(() =>
-    this._lines().reduce((sum, l) => sum + l.product.price * l.quantity, 0),
+    round2(this._lines().reduce((sum, l) => sum + l.product.price * l.quantity, 0)),
   );
   readonly discountTotal = computed(() =>
-    this.pricedLines().reduce((sum, l) => sum + l.unitDiscount * l.quantity, 0),
+    round2(this.pricedLines().reduce((sum, l) => sum + l.unitDiscount * l.quantity, 0)),
   );
   // Net total = sum of net line subtotals (= subtotal - discountTotal).
-  readonly total = computed(() => this.pricedLines().reduce((sum, l) => sum + l.lineSubtotal, 0));
+  readonly total = computed(() =>
+    round2(this.pricedLines().reduce((sum, l) => sum + l.lineSubtotal, 0)),
+  );
 
   readonly brandGroups = computed<CartBrandGroup[]>(() => {
     const groups = new Map<string, CartBrandGroup>();
@@ -101,7 +108,7 @@ export class PosCartStore {
       group.total += line.lineSubtotal;
     }
 
-    return [...groups.values()];
+    return [...groups.values()].map((group) => ({ ...group, total: round2(group.total) }));
   });
 
   readonly allLinesValid = computed(() => this.pricedLines().every((l) => l.valid));
@@ -199,7 +206,7 @@ export class PosCartStore {
 
   clear(): void {
     this._lines.set([]);
-    this._paymentMethod.set('Cash');
+    this._paymentMethod.set(DEFAULT_PAYMENT_METHOD);
     this._cardBrand.set(null);
     this._observations.set('');
   }

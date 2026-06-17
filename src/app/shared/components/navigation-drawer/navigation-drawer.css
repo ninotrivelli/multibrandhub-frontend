@@ -17,6 +17,12 @@
   width: 4.5rem !important;
 }
 
+/* Full-height column so the footer (Configuración) can pin to the bottom. */
+:host ::ng-deep .app-nav-drawer .p-drawer-content {
+  display: flex;
+  flex-direction: column;
+}
+
 .drawer-header-row {
   width: 100%;
   display: flex;
@@ -36,6 +42,28 @@
   display: grid;
   gap: 0.35rem;
   margin-top: 0.5rem;
+}
+
+.drawer-section-title {
+  margin: 0.75rem 0 0.15rem;
+  padding: 0 0.85rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--p-text-muted-color);
+}
+
+.drawer-section-title:first-child {
+  margin-top: 0;
+}
+
+.drawer-footer {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--p-content-border-color);
 }
 
 .drawer-link {

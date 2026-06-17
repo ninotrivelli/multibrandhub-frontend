@@ -2,6 +2,7 @@ import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
+import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
 import { authInterceptor } from './auth.interceptor';
 
@@ -26,23 +27,35 @@ describe('authInterceptor', () => {
 
   afterEach(() => httpTesting.verify());
 
-  it('attaches bearer tokens to authenticated non-login requests', () => {
-    http.get('/api/products').subscribe();
+  it('attaches bearer tokens to authenticated API requests', () => {
+    http.get(`${environment.apiBaseUrl}/products`).subscribe();
 
-    const req = httpTesting.expectOne('/api/products');
+    const req = httpTesting.expectOne(`${environment.apiBaseUrl}/products`);
     expect(req.request.headers.get('Authorization')).toBe('Bearer jwt-token');
     req.flush({});
   });
 
   it('does not attach bearer tokens to login or anonymous requests', () => {
-    http.post('/api/auth/login', {}).subscribe();
-    let req = httpTesting.expectOne('/api/auth/login');
+    http.post(`${environment.apiBaseUrl}/auth/login`, {}).subscribe();
+    let req = httpTesting.expectOne(`${environment.apiBaseUrl}/auth/login`);
     expect(req.request.headers.has('Authorization')).toBe(false);
     req.flush({});
 
     token = null;
-    http.get('/api/products').subscribe();
-    req = httpTesting.expectOne('/api/products');
+    http.get(`${environment.apiBaseUrl}/products`).subscribe();
+    req = httpTesting.expectOne(`${environment.apiBaseUrl}/products`);
+    expect(req.request.headers.has('Authorization')).toBe(false);
+    req.flush({});
+  });
+
+  it('never attaches bearer tokens to non-API requests', () => {
+    http.get('https://images.example.com/product.png').subscribe();
+    let req = httpTesting.expectOne('https://images.example.com/product.png');
+    expect(req.request.headers.has('Authorization')).toBe(false);
+    req.flush({});
+
+    http.get('/assets/config.json').subscribe();
+    req = httpTesting.expectOne('/assets/config.json');
     expect(req.request.headers.has('Authorization')).toBe(false);
     req.flush({});
   });

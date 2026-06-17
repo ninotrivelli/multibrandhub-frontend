@@ -1,13 +1,16 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 
+import { isApiRequest } from '../http/api-url';
 import { AuthService } from './auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const token = auth.token();
 
-  if (!token || req.url.includes('/auth/login')) {
+  // Only our own API ever sees the JWT — attaching it to third-party hosts
+  // (image CDNs, external APIs) would leak the session token.
+  if (!token || !isApiRequest(req.url) || req.url.includes('/auth/login')) {
     return next(req);
   }
 

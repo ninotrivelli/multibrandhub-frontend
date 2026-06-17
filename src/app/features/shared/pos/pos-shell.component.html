@@ -19,19 +19,92 @@
     </button>
   </header>
 
+  @if (noCashRegisterOpen()) {
+    <section
+      class="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30 md:flex-row md:items-center md:justify-between"
+    >
+      <div class="flex items-start gap-3">
+        <i-lucide
+          [img]="icons.AlertTriangle"
+          class="mt-0.5 size-5 text-amber-600 dark:text-amber-300"
+        />
+        <div>
+          <h2 class="text-sm font-semibold text-amber-900 dark:text-amber-100">
+            No hay una caja abierta
+          </h2>
+          <p class="text-sm text-amber-800 dark:text-amber-200">
+            Podés ingresar ventas y devoluciones, pero quedarán fuera de una caja.
+          </p>
+        </div>
+      </div>
+      @if (canOpenCashRegister()) {
+        <a
+          pButton
+          [href]="cashRegisterPath()"
+          severity="warn"
+          [outlined]="true"
+          class="self-start md:self-auto"
+        >
+          <i-lucide [img]="icons.Receipt" class="size-4 mr-2" />
+          <span>Abrir Caja</span>
+        </a>
+      }
+    </section>
+  }
+
   <!-- Search + cart -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
     <div class="lg:col-span-2">
       <app-pos-product-search-panel />
     </div>
     <div class="lg:col-span-1 lg:sticky lg:top-4">
-      <app-pos-cart-panel [submitting]="submitting()" (submitSale)="openSaleReview()" />
+      <app-pos-cart-panel [submitting]="submitting()" (submitSale)="onSubmitSale()" />
     </div>
   </div>
 
   <!-- Recent sales -->
   <app-pos-recent-sales-list />
 </div>
+
+<!-- Caja cerrada · confirmación intermedia -->
+<p-dialog
+  [visible]="cashClosedPromptVisible()"
+  (visibleChange)="cashClosedPromptVisible.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [dismissableMask]="true"
+  [style]="{ width: '32rem', maxWidth: '94vw' }"
+  header="La caja está cerrada"
+>
+  <div class="flex items-start gap-3">
+    <span
+      class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200"
+    >
+      <i-lucide [img]="icons.AlertTriangle" class="size-5" />
+    </span>
+    <p class="text-sm text-surface-600 dark:text-surface-300">
+      No hay una caja abierta. Si continuás, la venta se va a registrar igual, pero va a quedar
+      fuera de una caja.
+    </p>
+  </div>
+
+  <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+    <button
+      pButton
+      type="button"
+      severity="secondary"
+      [text]="true"
+      label="Continuar igualmente"
+      (click)="proceedWithoutCashRegister()"
+    ></button>
+    @if (canOpenCashRegister()) {
+      <a pButton [href]="cashRegisterPath()" class="justify-center">
+        <i-lucide [img]="icons.Receipt" class="size-4 mr-2" />
+        <span>Ir a abrir caja</span>
+      </a>
+    }
+  </div>
+</p-dialog>
 
 <!-- Sale review / confirmación -->
 <app-pos-sale-review-dialog

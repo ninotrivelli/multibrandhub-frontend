@@ -14,6 +14,9 @@ interface BackendErrorBody {
   status?: number;
   error?: string;
   message?: string;
+  // Machine-readable discriminator (ApiErrorCodes in the backend). Only
+  // present for specific error families, e.g. 'session_invalid'.
+  code?: string;
   errors?: ValidationError[];
 }
 
@@ -44,7 +47,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
       if (err.status === 403) {
         const detail = body.message ?? 'No tenés permisos para realizar esta acción.';
-        if (isSessionInvalidForbiddenMessage(detail)) {
+        if (isSessionInvalidForbidden(body, detail)) {
           notifications.warn('Volvé a ingresar', 'Sesión no vigente');
           auth.logout();
           return throwError(() => err);
@@ -61,7 +64,16 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   );
 };
 
-function isSessionInvalidForbiddenMessage(message: string): boolean {
+// Backend discriminator for tenant/session-invalid 403s (ApiErrorCodes.SessionInvalid,
+// emitted by ExceptionHandlingMiddleware for SessionInvalidException).
+const SESSION_INVALID_ERROR_CODE = 'session_invalid';
+
+function isSessionInvalidForbidden(body: BackendErrorBody, message: string): boolean {
+  // Primary contract: machine-readable code, immune to backend copy changes.
+  if (body.code === SESSION_INVALID_ERROR_CODE) return true;
+  // Legacy fallback: exact-message matching for backend deployments that
+  // predate the `code` field. Safe to delete once the coded backend is live
+  // everywhere.
   return SESSION_INVALID_FORBIDDEN_MESSAGES.has(message);
 }
 

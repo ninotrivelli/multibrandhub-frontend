@@ -1,10 +1,20 @@
-import { ChangeDetectionStrategy, Component, inject, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { ButtonModule } from 'primeng/button';
-import { LucideAngularModule, Undo2 } from 'lucide-angular';
+import { DialogModule } from 'primeng/dialog';
+import { AlertTriangle, LucideAngularModule, Receipt, Undo2 } from 'lucide-angular';
 
+import { AuthService } from '../../../core/auth/auth.service';
 import { BrandsService } from '../../../core/brands/brands.service';
+import { CashRegisterService } from '../../../core/cash-register/cash-register.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { SalesService } from '../../../core/sales/sales.service';
 import { SaleResponse } from '../../../core/sales/sales.types';
@@ -20,6 +30,7 @@ import { ReturnDialogComponent } from './return/return-dialog.component';
   selector: 'app-pos-shell',
   imports: [
     ButtonModule,
+    DialogModule,
     LucideAngularModule,
     ProductSearchPanelComponent,
     CartPanelComponent,
@@ -32,17 +43,35 @@ import { ReturnDialogComponent } from './return/return-dialog.component';
   templateUrl: './pos-shell.component.html',
 })
 export class PosShellComponent {
+  private readonly auth = inject(AuthService);
   private readonly sales = inject(SalesService);
   private readonly brands = inject(BrandsService);
+  private readonly cashRegister = inject(CashRegisterService);
   private readonly categories = inject(ProductCategoriesService);
   private readonly notifications = inject(NotificationService);
   protected readonly cart = inject(PosCartStore);
 
-  protected readonly icons = { Undo2 };
+  protected readonly icons = { AlertTriangle, Receipt, Undo2 };
 
   protected readonly submitting = signal(false);
   protected readonly saleReviewVisible = signal(false);
   protected readonly returnDialogVisible = signal(false);
+  protected readonly cashClosedPromptVisible = signal(false);
+  protected readonly noCashRegisterOpen = computed(
+    () =>
+      this.cashRegister.currentLoaded() &&
+      !this.cashRegister.currentLoading() &&
+      !this.cashRegister.currentError() &&
+      this.cashRegister.current() === null,
+  );
+  protected readonly canOpenCashRegister = computed(() => {
+    const r = this.auth.role();
+    return r === 'Seller' || r === 'Admin' || r === 'SuperAdmin';
+  });
+  // Each role opens/closes the register under its own route.
+  protected readonly cashRegisterPath = computed(() =>
+    this.auth.role() === 'Seller' ? '/seller/cash-register' : '/admin/cash-register',
+  );
 
   private readonly searchPanel = viewChild(ProductSearchPanelComponent);
   private readonly recentList = viewChild(RecentSalesListComponent);
@@ -54,6 +83,30 @@ export class PosShellComponent {
       this.brands.list().pipe(takeUntilDestroyed()).subscribe();
     }
     this.categories.list().pipe(takeUntilDestroyed()).subscribe();
+    this.cashRegister
+      .loadCurrent()
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        error: () => {
+          // error.interceptor already shows a toast.
+        },
+      });
+  }
+
+  protected onSubmitSale(): void {
+    if (this.submitting() || !this.cart.canSubmit()) return;
+    // Sales aren't blocked without an open register, but warn first so the
+    // ticket isn't accidentally left out of a cash register session.
+    if (this.noCashRegisterOpen()) {
+      this.cashClosedPromptVisible.set(true);
+      return;
+    }
+    this.openSaleReview();
+  }
+
+  protected proceedWithoutCashRegister(): void {
+    this.cashClosedPromptVisible.set(false);
+    this.openSaleReview();
   }
 
   protected openSaleReview(): void {

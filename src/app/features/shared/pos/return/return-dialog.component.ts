@@ -9,10 +9,20 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { debounceTime, distinctUntilChanged, map, of, switchMap } from 'rxjs';
+import {
+  EMPTY,
+  Subject,
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  map,
+  of,
+  switchMap,
+  tap,
+} from 'rxjs';
 
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -107,7 +117,36 @@ export class ReturnDialogComponent {
 
   protected readonly canSubmit = computed(() => this.hasReturnItems() && !this.submitting());
 
+  // Loads the selected sale's full detail through switchMap so picking a
+  // different sale (or resetting via `null`) cancels the in-flight request —
+  // otherwise a slow earlier response could land last and show the wrong
+  // sale's lines in the return form.
+  private readonly detailTrigger$ = new Subject<string | null>();
+
   constructor() {
+    this.detailTrigger$
+      .pipe(
+        switchMap((id) => {
+          if (!id) return EMPTY;
+          this.loadingDetail.set(true);
+          this.submitError.set(null);
+          return this.sales.getById(id).pipe(
+            tap({
+              next: (full) => {
+                this.selectedSale.set(full);
+                this.returnQuantities.set({});
+                this.step.set('detail');
+                this.loadingDetail.set(false);
+              },
+              error: () => this.loadingDetail.set(false),
+            }),
+            catchError(() => EMPTY),
+          );
+        }),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
+
     effect(() => {
       const open = this.visible();
       if (open) untracked(() => this.reset());
@@ -130,20 +169,12 @@ export class ReturnDialogComponent {
   }
 
   protected selectSale(sale: SaleSearchResponse): void {
-    this.loadingDetail.set(true);
-    this.submitError.set(null);
-    this.sales.getById(sale.id).subscribe({
-      next: (full) => {
-        this.selectedSale.set(full);
-        this.returnQuantities.set({});
-        this.step.set('detail');
-        this.loadingDetail.set(false);
-      },
-      error: () => this.loadingDetail.set(false),
-    });
+    this.detailTrigger$.next(sale.id);
   }
 
   protected backToSearch(): void {
+    this.detailTrigger$.next(null);
+    this.loadingDetail.set(false);
     this.step.set('search');
     this.selectedSale.set(null);
     this.returnQuantities.set({});
@@ -218,6 +249,10 @@ export class ReturnDialogComponent {
   }
 
   private reset(): void {
+    // Cancel any detail load still in flight from a previous open, so it
+    // can't land later and flip the freshly-reset dialog to the detail step.
+    this.detailTrigger$.next(null);
+    this.loadingDetail.set(false);
     this.step.set('search');
     this.searchTerm.set('');
     this.searching.set(false);

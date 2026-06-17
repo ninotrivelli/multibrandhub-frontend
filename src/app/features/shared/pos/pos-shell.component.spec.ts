@@ -3,7 +3,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { makeProduct, makeSale, paged } from '../../../../testing/builders';
+import { AuthService } from '../../../core/auth/auth.service';
 import { BrandsService } from '../../../core/brands/brands.service';
+import { CashRegisterService } from '../../../core/cash-register/cash-register.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { SalesService } from '../../../core/sales/sales.service';
 import { ProductCategoriesService } from '../../../core/product-categories/product-categories.service';
@@ -16,15 +18,29 @@ describe('PosShellComponent', () => {
   let cart: PosCartStore;
   let sales: { create: ReturnType<typeof vi.fn> };
   let notifications: { success: ReturnType<typeof vi.fn> };
+  let cashRegister: any;
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
     sales = { create: vi.fn(() => of(makeSale())) };
     notifications = { success: vi.fn() };
+    cashRegister = {
+      current: signal(null),
+      currentLoaded: signal(true),
+      currentLoading: signal(false),
+      currentError: signal(null),
+      loadCurrent: vi.fn(() => of(null)),
+    };
 
     TestBed.configureTestingModule({
       imports: [PosShellComponent],
       providers: [
+        {
+          provide: AuthService,
+          useValue: {
+            role: signal('Seller').asReadonly(),
+          },
+        },
         {
           provide: SalesService,
           useValue: {
@@ -44,6 +60,7 @@ describe('PosShellComponent', () => {
             list: vi.fn(() => of([])),
           },
         },
+        { provide: CashRegisterService, useValue: cashRegister },
         { provide: NotificationService, useValue: notifications },
       ],
     });
@@ -58,6 +75,7 @@ describe('PosShellComponent', () => {
 
   it('opens the sale review instead of saving immediately', () => {
     cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+    cart.setCardBrand('Visa');
 
     (component as any).openSaleReview();
 
@@ -68,13 +86,14 @@ describe('PosShellComponent', () => {
   it('confirms the sale from the review dialog and resets the POS state', () => {
     sales.create.mockReturnValueOnce(of(makeSale({ ticketId: 'TCK-1' })));
     cart.add(makeProduct({ id: 'p1', price: 1000, currentStock: 5 }));
+    cart.setCardBrand('Visa');
     (component as any).saleReviewVisible.set(true);
 
     (component as any).confirmSale();
 
     expect(sales.create).toHaveBeenCalledWith({
-      paymentMethod: 'Cash',
-      cardBrand: null,
+      paymentMethod: 'DebitCard',
+      cardBrand: 'Visa',
       details: [{ productId: 'p1', quantity: 1 }],
       observations: null,
     });
@@ -85,11 +104,13 @@ describe('PosShellComponent', () => {
       'Venta registrada · Ticket TCK-1',
       'Venta ingresada',
     );
+    expect(cashRegister.loadCurrent).toHaveBeenCalled();
   });
 
   it('keeps the review dialog open when saving fails', () => {
     sales.create.mockReturnValueOnce(throwError(() => new Error('save failed')));
     cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+    cart.setCardBrand('Visa');
     (component as any).saleReviewVisible.set(true);
 
     (component as any).confirmSale();
@@ -97,5 +118,55 @@ describe('PosShellComponent', () => {
     expect((component as any).saleReviewVisible()).toBe(true);
     expect((component as any).submitting()).toBe(false);
     expect(cart.isEmpty()).toBe(false);
+  });
+
+  it('does not block sale review when no register is open', () => {
+    cashRegister.current.set(null);
+    cashRegister.currentLoaded.set(true);
+    cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+    cart.setCardBrand('Visa');
+
+    expect((component as any).noCashRegisterOpen()).toBe(true);
+
+    (component as any).openSaleReview();
+
+    expect((component as any).saleReviewVisible()).toBe(true);
+  });
+
+  it('warns before the sale review when the register is closed', () => {
+    cashRegister.current.set(null);
+    cashRegister.currentLoaded.set(true);
+    cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+    cart.setCardBrand('Visa');
+
+    (component as any).onSubmitSale();
+
+    expect((component as any).cashClosedPromptVisible()).toBe(true);
+    expect((component as any).saleReviewVisible()).toBe(false);
+  });
+
+  it('opens the sale review directly when the register is open', () => {
+    cashRegister.current.set({ status: 'Open' });
+    cashRegister.currentLoaded.set(true);
+    cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+    cart.setCardBrand('Visa');
+
+    (component as any).onSubmitSale();
+
+    expect((component as any).cashClosedPromptVisible()).toBe(false);
+    expect((component as any).saleReviewVisible()).toBe(true);
+  });
+
+  it('continues to the sale review after confirming the closed-register prompt', () => {
+    cashRegister.current.set(null);
+    cashRegister.currentLoaded.set(true);
+    cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+    cart.setCardBrand('Visa');
+    (component as any).cashClosedPromptVisible.set(true);
+
+    (component as any).proceedWithoutCashRegister();
+
+    expect((component as any).cashClosedPromptVisible()).toBe(false);
+    expect((component as any).saleReviewVisible()).toBe(true);
   });
 });

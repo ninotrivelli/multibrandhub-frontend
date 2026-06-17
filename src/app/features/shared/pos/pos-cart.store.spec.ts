@@ -12,6 +12,18 @@ describe('PosCartStore', () => {
     store = TestBed.inject(PosCartStore);
   });
 
+  it('defaults to debit card without preselecting a card brand', () => {
+    store.add(makeProduct({ id: 'p1', currentStock: 5 }));
+
+    expect(store.paymentMethod()).toBe('DebitCard');
+    expect(store.isCardPayment()).toBe(true);
+    expect(store.cardBrand()).toBeNull();
+    expect(store.canSubmit()).toBe(false);
+
+    store.setCardBrand('Visa');
+    expect(store.canSubmit()).toBe(true);
+  });
+
   it('adds products and increments quantity on re-add, capped at stock', () => {
     const product = makeProduct({ id: 'p1', price: 1000, currentStock: 2 });
 
@@ -60,6 +72,23 @@ describe('PosCartStore', () => {
     expect(store.discountTotal()).toBe(200);
     expect(store.total()).toBe(1800);
     expect(store.allLinesValid()).toBe(true);
+  });
+
+  it('rounds money to 2 decimals so floating-point dust never surfaces', () => {
+    // 10% of 10.10 = 1.01 off → unit net 9.09; 9.09 * 3 = 27.269999... in
+    // binary floating point unless every step is rounded.
+    store.add(makeProduct({ id: 'p1', price: 10.1, currentStock: 5 }));
+    store.setQuantity('p1', 3);
+    store.setLineDiscountType('p1', 'Percentage');
+    store.setLineDiscountValue('p1', 10);
+
+    const line = store.pricedLines()[0];
+    expect(line.unitNet).toBe(9.09);
+    expect(line.lineSubtotal).toBe(27.27);
+    expect(store.subtotal()).toBe(30.3);
+    expect(store.discountTotal()).toBe(3.03);
+    expect(store.total()).toBe(27.27);
+    expect(store.brandGroups()[0].total).toBe(27.27);
   });
 
   it('treats a fixed-amount discount as per unit', () => {
@@ -168,6 +197,7 @@ describe('PosCartStore', () => {
 
   it('flags invalid line discounts and blocks submit', () => {
     store.add(makeProduct({ id: 'p1', price: 1000, currentStock: 5 }));
+    store.setCardBrand('Visa');
 
     // Percentage over 100 is invalid.
     store.setLineDiscountType('p1', 'Percentage');
@@ -261,7 +291,7 @@ describe('PosCartStore', () => {
     store.clear();
 
     expect(store.isEmpty()).toBe(true);
-    expect(store.paymentMethod()).toBe('Cash');
+    expect(store.paymentMethod()).toBe('DebitCard');
     expect(store.cardBrand()).toBeNull();
     expect(store.observations()).toBe('');
   });

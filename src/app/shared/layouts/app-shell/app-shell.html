@@ -1,6 +1,7 @@
 <div class="min-h-screen bg-surface-50 dark:bg-surface-900">
   <app-navigation-drawer
-    [links]="navItems()"
+    [sections]="sections()"
+    [footerItems]="footerItems()"
     [collapsed]="collapsed()"
     [mobileOpen]="mobileOpen()"
     (toggleCollapse)="toggleCollapse()"
@@ -47,6 +48,13 @@
       }
 
       <div class="ml-auto flex items-center gap-3">
+        @if (showCashStatus() && cashLoaded()) {
+          <p-tag
+            [value]="cashOpen() ? 'Caja abierta' : 'Caja cerrada'"
+            [severity]="cashOpen() ? 'success' : 'secondary'"
+            [rounded]="true"
+          />
+        }
         <p-avatar
           [label]="initials()"
           shape="circle"
