@@ -72,8 +72,11 @@ describe('SellerCashRegisterComponent', () => {
     fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent as string;
+    const normalizedText = text.replace(/\s+/g, ' ');
     expect(text).toContain('Caja abierta');
     expect(text).toContain('Caja efectivo');
+    expect(text).toContain('(Esperado)');
+    expect(normalizedText).toContain('Inicial: $ 1.000');
     expect(text).toContain('Recaudación total');
     expect(text).toContain('Cerrar Caja');
     expect(text).toContain('Zendra');

@@ -69,6 +69,7 @@ interface CashRegisterKpi {
   label: string;
   value: number;
   kind: 'currency' | 'count';
+  valueSuffix?: string;
   caption?: string;
   icon: LucideIconData;
   iconWrapClass: string;
@@ -171,7 +172,8 @@ export class SellerCashRegisterComponent implements OnInit {
         label: 'Caja efectivo',
         value: this.expectedCash(session),
         kind: 'currency',
-        caption: `Esperado · inicial ${this.formatCurrency(session.openingCashAmount)}`,
+        valueSuffix: '(Esperado)',
+        caption: `Inicial: ${this.formatCurrency(session.openingCashAmount)}`,
         icon: Banknote,
         iconWrapClass: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300',
       },
