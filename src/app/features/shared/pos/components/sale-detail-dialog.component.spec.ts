@@ -1,14 +1,17 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
+import { ConfirmationService } from 'primeng/api';
 
 import { brandHeaderStyle } from '../../../../core/brands/brand-colors';
+import { NotificationService } from '../../../../core/notifications/notification.service';
 import { SalesService } from '../../../../core/sales/sales.service';
 import { makeSale, makeSaleDetail } from '../../../../../testing/builders';
 import { SaleDetailDialogComponent } from './sale-detail-dialog.component';
 
 describe('SaleDetailDialogComponent', () => {
   let fixture: ComponentFixture<SaleDetailDialogComponent>;
-  let sales: { getById: ReturnType<typeof vi.fn> };
+  let sales: { getById: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> };
+  let notifications: { success: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
@@ -29,16 +32,22 @@ describe('SaleDetailDialogComponent', () => {
           }),
         ),
       ),
+      cancel: vi.fn(() => of(void 0)),
     };
+    notifications = { success: vi.fn() };
 
     TestBed.configureTestingModule({
       imports: [SaleDetailDialogComponent],
-      providers: [{ provide: SalesService, useValue: sales }],
+      providers: [
+        { provide: SalesService, useValue: sales },
+        { provide: NotificationService, useValue: notifications },
+      ],
     });
     TestBed.overrideComponent(SaleDetailDialogComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(SaleDetailDialogComponent);
+    fixture.componentRef.setInput('visible', false);
   });
 
   it('groups only the scoped brand lines for Brand Manager detail views', () => {
@@ -89,5 +98,68 @@ describe('SaleDetailDialogComponent', () => {
 
     expect(style).toEqual(brandHeaderStyle({ brandId: 'brand-own', brandName: 'Zendra' }));
     expect(style).not.toEqual(brandHeaderStyle({ brandName: 'Zendra' }));
+  });
+
+  it('enables sale actions only for completed sales when allowed', () => {
+    fixture.componentRef.setInput('allowSaleActions', true);
+    fixture.detectChanges();
+
+    (fixture.componentInstance as any).sale.set(makeSale({ type: 'Sale', status: 'Completed' }));
+    expect((fixture.componentInstance as any).canOperateSale()).toBe(true);
+
+    for (const sale of [
+      makeSale({ type: 'Return', status: 'Completed' }),
+      makeSale({ type: 'Sale', status: 'Canceled' }),
+      makeSale({ type: 'Sale', status: 'Pending' }),
+      makeSale({ type: 'Sale', status: 'Refunded' }),
+    ]) {
+      (fixture.componentInstance as any).sale.set(sale);
+      expect((fixture.componentInstance as any).canOperateSale()).toBe(false);
+    }
+
+    fixture.componentRef.setInput('allowSaleActions', false);
+    (fixture.componentInstance as any).sale.set(makeSale({ type: 'Sale', status: 'Completed' }));
+    fixture.detectChanges();
+
+    expect((fixture.componentInstance as any).canOperateSale()).toBe(false);
+  });
+
+  it('emits returnRequested with the selected sale id', () => {
+    const spy = vi.fn();
+    fixture.componentInstance.returnRequested.subscribe(spy);
+    fixture.componentRef.setInput('allowSaleActions', true);
+    (fixture.componentInstance as any).sale.set(
+      makeSale({ id: 'sale-returnable', type: 'Sale', status: 'Completed' }),
+    );
+    fixture.detectChanges();
+
+    (fixture.componentInstance as any).requestReturn();
+
+    expect(spy).toHaveBeenCalledWith('sale-returnable');
+  });
+
+  it('confirms cancellation, calls the backend, emits saleChanged, and reloads detail', () => {
+    const saleChanged = vi.fn();
+    fixture.componentInstance.saleChanged.subscribe(saleChanged);
+    const confirmation = fixture.debugElement.injector.get(ConfirmationService);
+    const confirmSpy = vi.spyOn(confirmation, 'confirm');
+
+    sales.getById.mockReturnValue(of(makeSale({ id: 'sale-cancel', ticketId: 'TCK-1' })));
+    fixture.componentRef.setInput('visible', true);
+    fixture.componentRef.setInput('saleId', 'sale-cancel');
+    fixture.componentRef.setInput('allowSaleActions', true);
+    fixture.detectChanges();
+
+    (fixture.componentInstance as any).confirmCancel();
+    const confirmationOptions = confirmSpy.mock.calls[0]?.[0];
+    confirmationOptions?.accept?.();
+
+    expect(sales.cancel).toHaveBeenCalledWith('sale-cancel');
+    expect(saleChanged).toHaveBeenCalledWith('sale-cancel');
+    expect(notifications.success).toHaveBeenCalledWith(
+      'La venta se anuló correctamente.',
+      'Venta anulada',
+    );
+    expect(sales.getById).toHaveBeenCalledTimes(2);
   });
 });

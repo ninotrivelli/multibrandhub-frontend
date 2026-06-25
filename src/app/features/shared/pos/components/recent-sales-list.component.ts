@@ -4,6 +4,7 @@ import {
   computed,
   effect,
   inject,
+  output,
   signal,
   untracked,
 } from '@angular/core';
@@ -42,6 +43,9 @@ import {
   cardBrandLabel,
   paymentMethodIcon,
   paymentMethodLabel,
+  saleTypeStatusLabel,
+  saleTypeStatusSeverity,
+  type SaleTagSeverity,
 } from '../../../../core/sales/sales.utils';
 import { BrandChipComponent } from '../../../../shared/components/brand-chip/brand-chip.component';
 import {
@@ -74,6 +78,9 @@ import { SaleDetailDialogComponent } from './sale-detail-dialog.component';
 export class RecentSalesListComponent {
   private readonly sales = inject(SalesService);
   private readonly brands = inject(BrandsService);
+
+  readonly saleChanged = output<string>();
+  readonly returnRequested = output<string>();
 
   protected readonly icons = { History, Search, X };
 
@@ -180,6 +187,15 @@ export class RecentSalesListComponent {
     this.detailVisible.set(true);
   }
 
+  protected onDetailSaleChanged(id: string): void {
+    this.saleChanged.emit(id);
+  }
+
+  protected onDetailReturnRequested(id: string): void {
+    this.detailVisible.set(false);
+    this.returnRequested.emit(id);
+  }
+
   protected clearSearchTerm(): void {
     this.searchTerm.set('');
   }
@@ -223,6 +239,14 @@ export class RecentSalesListComponent {
 
   protected cardBrand(brand: CardBrand): string {
     return cardBrandLabel(brand);
+  }
+
+  protected typeStatusLabel(row: SaleSearchResponse): string {
+    return saleTypeStatusLabel(row.type, row.status);
+  }
+
+  protected typeStatusSeverity(row: SaleSearchResponse): SaleTagSeverity {
+    return saleTypeStatusSeverity(row.type, row.status);
   }
 
   protected formatCurrency(value: number): string {

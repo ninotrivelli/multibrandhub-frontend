@@ -76,6 +76,19 @@ describe('SalesService', () => {
     req.flush(created);
   });
 
+  it('PATCHes a sale cancellation to /sales/{id}/cancel', () => {
+    let completed = false;
+
+    service.cancel('sale-1').subscribe(() => (completed = true));
+
+    const req = http.expectOne(`${baseUrl}/sale-1/cancel`);
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toBeNull();
+    req.flush(null, { status: 204, statusText: 'No Content' });
+
+    expect(completed).toBe(true);
+  });
+
   it('search updates the recent-list signals and sends trimmed params', () => {
     const item = makeSaleSearch();
 

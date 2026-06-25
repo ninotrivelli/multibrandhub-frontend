@@ -60,14 +60,24 @@
   </div>
 
   <app-sales-dashboard-list
-    [sales]="dashboard()?.sales ?? null"
-    [loading]="loading()"
+    [sales]="history()"
+    [loading]="loading() || historyLoading()"
     [page]="page()"
     [pageSize]="pageSize()"
     [hasFilter]="hasAnyFilter()"
     [detailBrandScopeId]="brandScopeId()"
+    [allowSaleActions]="isAdmin()"
     [startDate]="startDate()"
     [endDate]="endDate()"
     (pageChange)="onPageChange($event)"
+    (saleChanged)="onSaleMutated()"
+    (returnRequested)="openReturnForSale($event)"
   />
 </div>
+
+<app-pos-return-dialog
+  [visible]="returnDialogVisible()"
+  [preselectedSaleId]="returnPreselectedSaleId()"
+  (visibleChange)="onReturnDialogVisibleChange($event)"
+  (saved)="onReturnSaved($event)"
+/>

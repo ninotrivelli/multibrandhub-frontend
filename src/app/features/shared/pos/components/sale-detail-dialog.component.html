@@ -2,6 +2,9 @@
   [visible]="visible()"
   (visibleChange)="onVisibleChange($event)"
   [modal]="true"
+  [closable]="!canceling()"
+  [closeOnEscape]="!canceling()"
+  [dismissableMask]="!canceling()"
   [draggable]="false"
   [style]="{ width: '48rem', maxWidth: '95vw' }"
   header="Detalle de la venta"
@@ -18,18 +21,14 @@
     <div class="flex flex-col gap-4">
       <!-- Encabezado: una sola línea en desktop -->
       <div
-        class="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg bg-surface-50 dark:bg-surface-700/40 px-3 py-2.5"
+        class="grid grid-cols-2 items-center gap-x-3 gap-y-2 rounded-lg bg-surface-50 px-3 py-2.5 dark:bg-surface-700/40 md:grid-cols-[auto_minmax(10rem,1fr)_auto_auto_auto]"
       >
-        @if (sale.type === 'Return') {
-          <p-tag severity="warn" value="Devolución" />
-        } @else {
-          <p-tag severity="info" value="Venta" />
-        }
-        <div class="flex flex-col leading-tight">
+        <p-tag [severity]="typeStatusSeverity(sale)" [value]="typeStatusLabel(sale)" />
+        <div class="flex min-w-0 flex-col leading-tight">
           <span class="text-[10px] font-semibold uppercase tracking-wide text-surface-400">
             Ticket
           </span>
-          <span class="font-mono text-sm font-medium text-surface-800 dark:text-surface-100">
+          <span class="truncate font-mono text-sm font-medium text-surface-800 dark:text-surface-100">
             {{ sale.ticketId ?? '—' }}
           </span>
         </div>
@@ -68,6 +67,31 @@
           </div>
         }
       </div>
+
+      @if (canOperateSale()) {
+        <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button
+            pButton
+            type="button"
+            severity="secondary"
+            [outlined]="true"
+            label="Iniciar devolución"
+            [disabled]="canceling()"
+            (click)="requestReturn()"
+          ></button>
+          <button
+            pButton
+            type="button"
+            severity="danger"
+            [outlined]="true"
+            label="Anular venta"
+            [loading]="canceling()"
+            (click)="confirmCancel()"
+          >
+            <i-lucide [img]="icons.Ban" class="size-4 mr-2" />
+          </button>
+        </div>
+      }
 
       <!-- Detalle agrupado por marca -->
       <div class="flex flex-col gap-3">
@@ -185,3 +209,9 @@
     </div>
   }
 </p-dialog>
+
+<p-confirmdialog>
+  <ng-template pTemplate="icon">
+    <i-lucide [img]="icons.AlertTriangle" class="size-6 text-amber-500" />
+  </ng-template>
+</p-confirmdialog>

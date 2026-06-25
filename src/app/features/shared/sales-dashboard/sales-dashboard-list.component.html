@@ -43,7 +43,7 @@
         <th class="min-w-44 hidden lg:table-cell">MARCAS</th>
         <th class="min-w-36 hidden md:table-cell">PAGO</th>
         <th class="hidden xl:table-cell">VENDEDOR</th>
-        <th class="min-w-40 whitespace-nowrap">TOTAL FILTRADO</th>
+        <th class="min-w-40 whitespace-nowrap">TOTAL</th>
       </tr>
     </ng-template>
 
@@ -69,11 +69,7 @@
         </td>
 
         <td>
-          @if (row.type === 'Return') {
-            <p-tag severity="warn" value="Devolución" />
-          } @else {
-            <p-tag severity="info" value="Venta" />
-          }
+          <p-tag [severity]="typeStatusSeverity(row)" [value]="typeStatusLabel(row)" />
         </td>
 
         <td>
@@ -165,4 +161,7 @@
   (visibleChange)="detailVisible.set($event)"
   [saleId]="selectedSaleId()"
   [brandScopeId]="detailBrandScopeId()"
+  [allowSaleActions]="allowSaleActions()"
+  (saleChanged)="onDetailSaleChanged($event)"
+  (returnRequested)="onDetailReturnRequested($event)"
 />

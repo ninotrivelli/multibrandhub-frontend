@@ -13,7 +13,7 @@
       [outlined]="true"
       label="Ingresar devolución"
       class="border-primary! text-primary!"
-      (click)="returnDialogVisible.set(true)"
+      (click)="openManualReturn()"
     >
       <i-lucide [img]="icons.Undo2" class="size-4 mr-2" />
     </button>
@@ -63,7 +63,10 @@
   </div>
 
   <!-- Recent sales -->
-  <app-pos-recent-sales-list />
+  <app-pos-recent-sales-list
+    (saleChanged)="onSaleMutated()"
+    (returnRequested)="openReturnForSale($event)"
+  />
 </div>
 
 <!-- Caja cerrada · confirmación intermedia -->
@@ -117,6 +120,7 @@
 <!-- Return / devolución dialog -->
 <app-pos-return-dialog
   [visible]="returnDialogVisible()"
-  (visibleChange)="returnDialogVisible.set($event)"
+  [preselectedSaleId]="returnPreselectedSaleId()"
+  (visibleChange)="onReturnDialogVisibleChange($event)"
   (saved)="onReturnSaved($event)"
 />

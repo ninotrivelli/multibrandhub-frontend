@@ -158,11 +158,7 @@
 
         <!-- Tipo -->
         <td>
-          @if (row.type === 'Return') {
-            <p-tag severity="warn" value="Devolución" />
-          } @else {
-            <p-tag severity="info" value="Venta" />
-          }
+          <p-tag [severity]="typeStatusSeverity(row)" [value]="typeStatusLabel(row)" />
         </td>
 
         <!-- Ticket -->
@@ -251,4 +247,7 @@
   [visible]="detailVisible()"
   (visibleChange)="detailVisible.set($event)"
   [saleId]="selectedSaleId()"
+  [allowSaleActions]="true"
+  (saleChanged)="onDetailSaleChanged($event)"
+  (returnRequested)="onDetailReturnRequested($event)"
 />

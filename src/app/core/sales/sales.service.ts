@@ -45,6 +45,10 @@ export class SalesService {
     return this.http.post<SaleResponse>(`${this.baseUrl}/return`, req);
   }
 
+  cancel(id: string): Observable<void> {
+    return this.http.patch<void>(`${this.baseUrl}/${id}/cancel`, null);
+  }
+
   // Drives the recent-sales list. Updates the shared signals via tap().
   search(params: SaleSearchParams): Observable<PagedResult<SaleSearchResponse>> {
     const generation = this.sessionState.captureGeneration();
