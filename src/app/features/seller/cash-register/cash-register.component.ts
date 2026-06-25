@@ -164,7 +164,7 @@ export class SellerCashRegisterComponent implements OnInit {
         label: 'Recaudación total',
         value: session.netSalesAmount,
         kind: 'currency',
-        caption: `Bruto ${this.formatCurrency(session.grossSalesAmount)} · Devol ${this.formatCurrency(session.returnsAmount)}`,
+        caption: `Bruto: ${this.formatCurrency(session.grossSalesAmount)} — Devoluciones: ${this.formatCurrency(session.returnsAmount)}`,
         icon: TrendingUp,
         iconWrapClass: 'bg-primary/10 dark:bg-primary/20 text-primary',
       },
@@ -175,7 +175,8 @@ export class SellerCashRegisterComponent implements OnInit {
         valueSuffix: '(Esperado)',
         caption: `Inicial: ${this.formatCurrency(session.openingCashAmount)}`,
         icon: Banknote,
-        iconWrapClass: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300',
+        iconWrapClass:
+          'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300',
       },
       {
         label: 'Ventas',
@@ -356,7 +357,9 @@ export class SellerCashRegisterComponent implements OnInit {
     return groupPaymentTotals(session.paymentTotals);
   }
 
-  protected groupedReconciliation(session: CashRegisterSessionResponse): GroupedReconciliationLine[] {
+  protected groupedReconciliation(
+    session: CashRegisterSessionResponse,
+  ): GroupedReconciliationLine[] {
     return groupReconciliationLines(session.reconciliationLines);
   }
 
