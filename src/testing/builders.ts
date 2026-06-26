@@ -20,6 +20,7 @@ import {
   SalesDashboardResponse,
   SalesDashboardSaleResponse,
 } from '../app/core/sales/sales.types';
+import { BrandSettlementSavedResponse } from '../app/core/settlements/settlements.types';
 import { StoreTaskResponse } from '../app/core/tasks/tasks.types';
 import { UserResponse } from '../app/core/users/users.types';
 import { ProductCategoryResponse } from '../app/core/product-categories/product-categories.types';
@@ -629,6 +630,60 @@ export function makeSalesDashboard(
       },
     ],
     sales: paged([makeSalesDashboardSale()], { totalCount: 1, page: 1, pageSize: 10 }),
+    ...overrides,
+  };
+}
+
+export function makeSettlement(
+  overrides: Partial<BrandSettlementSavedResponse> = {},
+): BrandSettlementSavedResponse {
+  const amountBrandOwesStore = overrides.amountBrandOwesStore ?? 940;
+  const settlementStatus =
+    overrides.settlementStatus ??
+    (amountBrandOwesStore > 0
+      ? 'BrandOwesStore'
+      : amountBrandOwesStore < 0
+        ? 'StoreOwesBrand'
+        : 'BreakEven');
+
+  return {
+    id: 'settlement-1',
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+    contractType: 'Hybrid',
+    from: '2026-06-01T00:00:00',
+    to: '2026-06-30T00:00:00',
+    fromInclusiveUtc: '2026-06-01T03:00:00Z',
+    toExclusiveUtc: '2026-07-01T03:00:00Z',
+    seriesId: 'settlement-series-1',
+    versionNumber: 1,
+    isCurrent: true,
+    supersededAtUtc: null,
+    supersededBySettlementId: null,
+    status: 'Draft',
+    generatedAtUtc: '2026-06-30T21:00:00Z',
+    generatedByUserId: 'user-admin',
+    generationNotes: null,
+    finalizedAtUtc: null,
+    finalizedByUserId: null,
+    paidAtUtc: null,
+    paidByUserId: null,
+    paidAmount: null,
+    paymentReference: null,
+    paymentNotes: null,
+    grossSalesAmount: 18500,
+    returnsAmount: 1500,
+    netSalesAmount: 17000,
+    commissionPercentage: 12,
+    fixedRentCost: 1500,
+    commissionAmount: 2040,
+    fixedAmount: 1500,
+    platformFee: 3540,
+    cashCollectedByStore: 2600,
+    nonCashCollectedByBrand: 14400,
+    amountBrandOwesStore,
+    settlementStatus,
+    createdAt: '2026-06-30T21:00:00Z',
     ...overrides,
   };
 }

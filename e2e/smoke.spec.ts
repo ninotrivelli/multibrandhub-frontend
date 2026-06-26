@@ -180,6 +180,25 @@ test.describe('deep smoke interactions', () => {
     await expect(page.getByText('TCK-SMOKE-001')).toBeVisible();
   });
 
+  test('settlements dashboards render persisted rows and detail by role', async ({ page }) => {
+    await gotoAs(page, 'Admin', '/admin/settlements');
+    await expect(page.getByRole('heading', { name: 'Liquidaciones', exact: true })).toBeVisible();
+    await expect(page.getByText('Lumina')).toBeVisible();
+    await expect(page.getByText('La marca debe pagar al local').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Ver detalle' }).first().click();
+    const adminDetail = page.getByRole('dialog', { name: 'Detalle de liquidación' });
+    await expect(adminDetail).toBeVisible();
+    await expect(adminDetail.getByText('Saldo final').first()).toBeVisible();
+
+    await gotoAs(page, 'BrandManager', '/brand-manager/settlements');
+    await expect(page.getByRole('heading', { name: 'Liquidaciones', exact: true })).toBeVisible();
+    await expect(page.getByText('Balance de liquidación')).toBeVisible();
+    await expect(page.getByText('Lumina').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Generar|Recalcular/ })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Ver detalle' }).first().click();
+    await expect(page.getByRole('dialog', { name: 'Detalle de liquidación' })).toBeVisible();
+  });
+
   test('mobile drawer can navigate key screens', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAs(page, 'Seller', '/seller/pos');

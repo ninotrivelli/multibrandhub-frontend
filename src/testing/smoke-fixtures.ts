@@ -14,6 +14,7 @@ import type {
   StockMovementResponse,
 } from '../app/features/shared/inventory/inventory.types';
 import type { SaleResponse, SaleSearchResponse } from '../app/core/sales/sales.types';
+import type { BrandSettlementSavedResponse } from '../app/core/settlements/settlements.types';
 import {
   makeAuthSession,
   makeBrand,
@@ -28,6 +29,7 @@ import {
   makeSaleSearch,
   makeSalesDashboard,
   makeSalesDashboardSale,
+  makeSettlement,
   makeStoreTask,
   makeUser,
   paged,
@@ -258,6 +260,29 @@ export const smokeSale: SaleResponse = makeSale({
   sellerName: 'Venta Mostrador',
 });
 
+export const smokeSettlements: BrandSettlementSavedResponse[] = [
+  makeSettlement({
+    id: 'settlement-smoke-current',
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+    status: 'Finalized',
+    amountBrandOwesStore: 940,
+    settlementStatus: 'BrandOwesStore',
+    finalizedAtUtc: NOW,
+  }),
+  makeSettlement({
+    id: 'settlement-smoke-old',
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+    versionNumber: 0,
+    isCurrent: false,
+    supersededAtUtc: NOW,
+    supersededBySettlementId: 'settlement-smoke-current',
+    amountBrandOwesStore: -250,
+    settlementStatus: 'StoreOwesBrand',
+  }),
+];
+
 export const smokeClosedCashRegister = makeClosedCashRegisterSession({
   id: 'cash-smoke-closed',
   openedByUserId: 'user-seller',
@@ -371,6 +396,71 @@ export function resolveSmokeApiResponse(request: SmokeApiRequest): SmokeApiRespo
       }),
     };
   }
+  if (method === 'GET' && path === '/api/settlements/brands/saved') {
+    return { status: 200, body: page(filterSettlements(url), url) };
+  }
+  if (method === 'POST' && path === '/api/settlements/brands/generate') {
+    const payload = parseJson<{
+      from: string;
+      to: string;
+      brandId?: string;
+      notes?: string | null;
+    }>(request.postData);
+    const brand = payload.brandId
+      ? (smokeBrands.find((candidate) => candidate.id === payload.brandId) ?? smokeBrands[1]!)
+      : smokeBrands[1]!;
+    return {
+      status: 200,
+      body: [
+        makeSettlement({
+          id: 'settlement-smoke-generated',
+          brandId: brand.id,
+          brandName: brand.name,
+          from: `${payload.from}T00:00:00`,
+          to: `${payload.to}T00:00:00`,
+          generationNotes: payload.notes ?? null,
+        }),
+      ],
+    };
+  }
+  if (method === 'GET' && path.match(/^\/api\/settlements\/brands\/saved\/[^/]+$/)) {
+    const id = path.split('/').pop()!;
+    const settlement =
+      smokeSettlements.find((candidate) => candidate.id === id) ?? smokeSettlements[0]!;
+    return { status: 200, body: settlement };
+  }
+  if (method === 'GET' && path.match(/^\/api\/settlements\/brands\/saved\/[^/]+\/versions$/)) {
+    return { status: 200, body: smokeSettlements };
+  }
+  if (method === 'POST' && path.match(/^\/api\/settlements\/brands\/saved\/[^/]+\/finalize$/)) {
+    const id = path.split('/')[5];
+    const settlement =
+      smokeSettlements.find((candidate) => candidate.id === id) ?? smokeSettlements[0]!;
+    return {
+      status: 200,
+      body: makeSettlement({ ...settlement, status: 'Finalized', finalizedAtUtc: NOW }),
+    };
+  }
+  if (method === 'POST' && path.match(/^\/api\/settlements\/brands\/saved\/[^/]+\/mark-paid$/)) {
+    const id = path.split('/')[5];
+    const payload = parseJson<{
+      paidAtUtc?: string;
+      paymentReference?: string | null;
+      notes?: string | null;
+    }>(request.postData);
+    const settlement =
+      smokeSettlements.find((candidate) => candidate.id === id) ?? smokeSettlements[0]!;
+    return {
+      status: 200,
+      body: makeSettlement({
+        ...settlement,
+        status: 'Paid',
+        paidAtUtc: payload.paidAtUtc ?? NOW,
+        paymentReference: payload.paymentReference ?? null,
+        paymentNotes: payload.notes ?? null,
+      }),
+    };
+  }
   if (method === 'POST' && path === '/api/sales') {
     return { status: 200, body: smokeSale };
   }
@@ -467,9 +557,32 @@ function filterTasks(url: URL): StoreTaskResponse[] {
   });
 }
 
+function filterSettlements(url: URL): BrandSettlementSavedResponse[] {
+  const brandId = url.searchParams.get('BrandId') ?? url.searchParams.get('brandId');
+  const status = url.searchParams.get('Status') ?? url.searchParams.get('status');
+  const includeSuperseded =
+    (url.searchParams.get('IncludeSuperseded') ?? url.searchParams.get('includeSuperseded')) ===
+    'true';
+  const from = url.searchParams.get('From') ?? url.searchParams.get('from');
+  const to = url.searchParams.get('To') ?? url.searchParams.get('to');
+
+  return smokeSettlements.filter((settlement) => {
+    if (!includeSuperseded && !settlement.isCurrent) return false;
+    if (brandId && settlement.brandId !== brandId) return false;
+    if (status && settlement.status !== status) return false;
+    if (from && dateOnly(settlement.to) < from) return false;
+    if (to && dateOnly(settlement.from) > to) return false;
+    return true;
+  });
+}
+
 function page<T>(items: T[], url: URL): PagedResult<T> {
-  const requestedPage = Number(url.searchParams.get('page') ?? 1);
-  const pageSize = Number(url.searchParams.get('pageSize') ?? Math.max(items.length, 1));
+  const requestedPage = Number(url.searchParams.get('page') ?? url.searchParams.get('Page') ?? 1);
+  const pageSize = Number(
+    url.searchParams.get('pageSize') ??
+      url.searchParams.get('PageSize') ??
+      Math.max(items.length, 1),
+  );
   const start = (requestedPage - 1) * pageSize;
   const pageItems = items.slice(start, start + pageSize);
 
@@ -482,4 +595,8 @@ function page<T>(items: T[], url: URL): PagedResult<T> {
 
 function parseJson<T>(value: string | null | undefined): T {
   return JSON.parse(value ?? '{}') as T;
+}
+
+function dateOnly(value: string): string {
+  return value.slice(0, 10);
 }
