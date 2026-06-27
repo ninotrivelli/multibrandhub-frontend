@@ -27,6 +27,7 @@ import {
   Calculator,
   CheckCircle2,
   Eye,
+  FileDown,
   History,
   LucideAngularModule,
   RefreshCw,
@@ -35,6 +36,7 @@ import {
 import { AuthService } from '../../../core/auth/auth.service';
 import { BrandsService } from '../../../core/brands/brands.service';
 import { BrandResponse } from '../../../core/brands/brands.types';
+import { contractTypeLabel } from '../../../core/brands/brands.utils';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { SettlementsService } from '../../../core/settlements/settlements.service';
 import {
@@ -55,7 +57,9 @@ import {
   OPERATIONAL_STATUS_OPTIONS,
   SettlementPeriodPreset,
   currentFullMonthRange,
+  currentLocalDateTimeInput,
   dateOnly,
+  formatRelativeTimeAgo,
   settlementDirectionAmountClasses,
   settlementDirectionLabel,
   settlementDirectionSeverity,
@@ -71,6 +75,10 @@ interface BrandOption {
   label: string;
   value: string;
 }
+
+type SettlementTableRow = BrandSettlementSavedResponse & {
+  generationGroupKey: string;
+};
 
 @Component({
   selector: 'app-settlements-shell',
@@ -103,6 +111,7 @@ export class SettlementsShellComponent implements OnInit {
     Calculator,
     CheckCircle2,
     Eye,
+    FileDown,
     History,
     RefreshCw,
   };
@@ -199,6 +208,41 @@ export class SettlementsShellComponent implements OnInit {
   protected readonly rangeLabel = computed(() =>
     formatRangeSummary(this.startDate(), this.endDate()),
   );
+
+  /** Rows fed to the table. Backend ordering is preserved so grouped pages stay intact. */
+  protected readonly tableRows = computed<SettlementTableRow[]>(() => {
+    const items = this.saved()?.items ?? [];
+    return items.map((item) => ({
+      ...item,
+      generationGroupKey: this.generationGroupKey(item),
+    }));
+  });
+
+  protected readonly tablePaginatorTotalRecords = computed(() => {
+    const saved = this.saved();
+    if (!saved) return 0;
+    if (!this.includeSuperseded()) return saved.totalCount;
+
+    const totalPages =
+      saved.totalPages ?? Math.ceil(saved.totalCount / Math.max(saved.pageSize, 1));
+    return totalPages <= 0 ? 0 : totalPages * this.pageSize();
+  });
+
+  protected readonly pageReportTemplate = computed(() =>
+    this.includeSuperseded()
+      ? 'Página {currentPage} de {totalPages}'
+      : 'Mostrando {first} a {last} de {totalRecords} liquidaciones',
+  );
+
+  /** Most recent generation timestamp among the loaded settlements, if any. */
+  protected readonly lastCalculatedAtUtc = computed<string | null>(() => {
+    const items = this.saved()?.items ?? [];
+    if (items.length === 0) return null;
+    return items.reduce(
+      (latest, item) => (item.generatedAtUtc > latest ? item.generatedAtUtc : latest),
+      items[0].generatedAtUtc,
+    );
+  });
 
   protected readonly generateButtonLabel = computed(() => {
     if (!this.selectedBrandId()) return 'Generar/Recalcular';
@@ -459,6 +503,30 @@ export class SettlementsShellComponent implements OnInit {
     this.selectedSettlement.set(version);
   }
 
+  /**
+   * Front-end only "Descargar PDF": names the document so the browser's
+   * Save-as-PDF dialog defaults to a meaningful filename, then triggers the
+   * native print flow. The print stylesheet isolates `#settlement-print`.
+   */
+  protected downloadSettlementPdf(): void {
+    const settlement = this.selectedSettlement();
+    if (!settlement || typeof window === 'undefined') return;
+
+    const originalTitle = document.title;
+    document.title = this.printFileName(settlement);
+    const restore = (): void => {
+      document.title = originalTitle;
+      window.removeEventListener('afterprint', restore);
+    };
+    window.addEventListener('afterprint', restore);
+    window.print();
+  }
+
+  private printFileName(settlement: BrandSettlementSavedResponse): string {
+    const brand = settlement.brandName.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
+    return `Liquidacion_${brand}_${dateOnly(settlement.from)}_v${settlement.versionNumber}`;
+  }
+
   protected canFinalize(row: BrandSettlementSavedResponse): boolean {
     return this.isAdmin() && row.isCurrent && row.status === 'Draft';
   }
@@ -487,7 +555,7 @@ export class SettlementsShellComponent implements OnInit {
     if (!this.canMarkPaid(row)) return;
 
     this.markPaidTarget.set(row);
-    this.paidAtLocal.set('');
+    this.paidAtLocal.set(currentLocalDateTimeInput());
     this.paymentReference.set('');
     this.paymentNotes.set('');
     this.markPaidDialogVisible.set(true);
@@ -570,6 +638,34 @@ export class SettlementsShellComponent implements OnInit {
     return `${new Intl.NumberFormat('es-UY', { maximumFractionDigits: 2 }).format(value)}%`;
   }
 
+  protected commissionFormula(row: BrandSettlementSavedResponse): string {
+    return `${this.formatPercent(row.commissionPercentage)} de ${this.formatCurrency(row.netSalesAmount)} = ${this.formatCurrency(row.commissionAmount)}`;
+  }
+
+  protected platformFeeFormula(row: BrandSettlementSavedResponse): string {
+    return `${this.formatCurrency(row.commissionAmount)} + ${this.formatCurrency(row.fixedAmount)} = ${this.formatCurrency(row.platformFee)}`;
+  }
+
+  protected nonCashFormula(row: BrandSettlementSavedResponse): string {
+    return `${this.formatCurrency(row.netSalesAmount)} - ${this.formatCurrency(row.cashCollectedByStore)} = ${this.formatCurrency(row.nonCashCollectedByBrand)}`;
+  }
+
+  protected balanceFormula(row: BrandSettlementSavedResponse): string {
+    return `${this.formatCurrency(row.platformFee)} - ${this.formatCurrency(row.cashCollectedByStore)} = ${this.formatCurrency(row.amountBrandOwesStore)}`;
+  }
+
+  protected balanceExplanation(row: BrandSettlementSavedResponse): string {
+    if (row.amountBrandOwesStore > 0) {
+      return 'El efectivo retenido por el local no cubre todo lo que el local tiene que cobrar. La marca debe pagar esa diferencia.';
+    }
+
+    if (row.amountBrandOwesStore < 0) {
+      return 'El local ya retuvo más efectivo que su total a cobrar. La diferencia queda a favor de la marca y el local debe transferirla.';
+    }
+
+    return 'El efectivo retenido coincide exactamente con lo que el local tiene que cobrar. No queda saldo pendiente.';
+  }
+
   protected formatDate(value: string): string {
     return formatShortDateOnly(dateOnly(value));
   }
@@ -578,8 +674,24 @@ export class SettlementsShellComponent implements OnInit {
     return value ? formatMovementDate(value) : '—';
   }
 
+  protected relativeTimeAgo(value: string): string {
+    return formatRelativeTimeAgo(value);
+  }
+
   protected periodLabel(row: BrandSettlementSavedResponse): string {
     return `${this.formatDate(row.from)} al ${this.formatDate(row.to)}`;
+  }
+
+  protected versionTagLabel(row: BrandSettlementSavedResponse): string {
+    return `v${row.versionNumber} · ${row.isCurrent ? 'Vigente' : 'Anterior'}`;
+  }
+
+  protected versionGroupLabel(row: BrandSettlementSavedResponse): string {
+    return `Versión ${row.versionNumber} · ${this.periodLabel(row)}`;
+  }
+
+  protected contractLabel(row: BrandSettlementSavedResponse): string {
+    return contractTypeLabel(row.contractType);
   }
 
   private applyDateRange(startDate: string, endDate: string): void {
@@ -598,6 +710,19 @@ export class SettlementsShellComponent implements OnInit {
       page: 1,
       pageSize: 100,
     });
+  }
+
+  private generationGroupKey(row: BrandSettlementSavedResponse): string {
+    if (row.generationBatchId) return `batch:${row.generationBatchId}`;
+
+    return [
+      'legacy',
+      dateOnly(row.from),
+      dateOnly(row.to),
+      row.versionNumber,
+      row.generatedAtUtc,
+      row.generatedByUserId,
+    ].join(':');
   }
 
   private findExactCurrentForRequest(

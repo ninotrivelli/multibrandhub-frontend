@@ -92,6 +92,32 @@ test.describe('route sweep', () => {
 });
 
 test.describe('deep smoke interactions', () => {
+  test('Admin Inicio shows operational data and navigates key shortcuts', async ({ page }) => {
+    await gotoAs(page, 'Admin', '/admin/dashboard');
+
+    await expect(page.getByText('Ventas de hoy')).toBeVisible();
+    await expect(page.getByText('Atención requerida')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Caja cerrada La caja del local/ })).toBeVisible();
+    await expect(page.getByText('Reponer bolsas')).toBeVisible();
+
+    await page.getByRole('link', { name: /Ventas de hoy/ }).click();
+    await expect(page).toHaveURL(/\/admin\/sales\?from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}$/);
+    await expect(page.getByRole('heading', { name: 'Ventas', exact: true })).toBeVisible();
+
+    await gotoAs(page, 'Admin', '/admin/dashboard');
+    await page.getByRole('link', { name: /Alertas de stock/ }).click();
+    await expect(page).toHaveURL(/\/admin\/inventory\?kpi=alerts$/);
+    await expect(page.getByRole('heading', { name: 'Control de Inventario' })).toBeVisible();
+
+    await gotoAs(page, 'Admin', '/admin/dashboard');
+    await page.getByRole('checkbox', { name: 'Marcar como completada' }).first().click();
+    await expect(page.getByText('Reponer bolsas')).toHaveCount(0);
+
+    await gotoAs(page, 'Admin', '/admin/dashboard');
+    await page.getByRole('link', { name: /Nueva Venta/ }).first().click();
+    await expectRouteReady(page, /\/admin\/pos$/, 'Ingresar Venta');
+  });
+
   test('Admin inventory opens product, import, movement dialogs and movements tab', async ({
     page,
   }) => {
@@ -185,7 +211,7 @@ test.describe('deep smoke interactions', () => {
     await expect(page.getByRole('heading', { name: 'Liquidaciones', exact: true })).toBeVisible();
     await expect(page.getByText('Lumina')).toBeVisible();
     await expect(page.getByText('La marca debe pagar al local').first()).toBeVisible();
-    await page.getByRole('button', { name: 'Ver detalle' }).first().click();
+    await page.getByRole('row', { name: /Lumina/ }).first().click();
     const adminDetail = page.getByRole('dialog', { name: 'Detalle de liquidación' });
     await expect(adminDetail).toBeVisible();
     await expect(adminDetail.getByText('Saldo final').first()).toBeVisible();
@@ -195,7 +221,7 @@ test.describe('deep smoke interactions', () => {
     await expect(page.getByText('Balance de liquidación')).toBeVisible();
     await expect(page.getByText('Lumina').first()).toBeVisible();
     await expect(page.getByRole('button', { name: /Generar|Recalcular/ })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Ver detalle' }).first().click();
+    await page.getByRole('row', { name: /Lumina/ }).first().click();
     await expect(page.getByRole('dialog', { name: 'Detalle de liquidación' })).toBeVisible();
   });
 

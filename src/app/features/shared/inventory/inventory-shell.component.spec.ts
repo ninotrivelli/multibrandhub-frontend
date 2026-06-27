@@ -1,6 +1,7 @@
 import { signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { convertToParamMap, ParamMap, ActivatedRoute } from '@angular/router';
+import { defer, of } from 'rxjs';
 
 import { makeAuthUser } from '../../../../testing/builders';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -16,16 +17,27 @@ describe('InventoryShellComponent', () => {
   let component: InventoryShellComponent;
   let role: WritableSignal<UserRole>;
   let user: WritableSignal<AuthUser | null>;
+  let routeParamMap: ParamMap;
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
     role = signal<UserRole>('Admin');
     user = signal<AuthUser | null>(makeAuthUser({ role: 'Admin', brandId: 'brand-own' }));
+    routeParamMap = convertToParamMap({});
 
     TestBed.configureTestingModule({
       imports: [InventoryShellComponent],
       providers: [
         { provide: AuthService, useValue: { role: role.asReadonly(), user: user.asReadonly() } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            get snapshot() {
+              return { queryParamMap: routeParamMap };
+            },
+            queryParamMap: defer(() => of(routeParamMap)),
+          },
+        },
         {
           provide: ProductsService,
           useValue: {
@@ -45,13 +57,17 @@ describe('InventoryShellComponent', () => {
     });
     TestBed.overrideComponent(InventoryShellComponent, { set: { template: '' } });
     await TestBed.compileComponents();
+  });
 
+  function create(): void {
     fixture = TestBed.createComponent(InventoryShellComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-  });
+  }
 
   it('grants Admin and Seller the full inventory action surface', () => {
+    create();
+
     expect((component as any).canCreateProduct()).toBe(true);
     expect((component as any).canEditProduct()).toBe(true);
     expect((component as any).canArchiveProduct()).toBe(true);
@@ -71,6 +87,8 @@ describe('InventoryShellComponent', () => {
   });
 
   it('limits BrandManager to scoped metadata editing without stock-changing actions', () => {
+    create();
+
     role.set('BrandManager');
     user.set(makeAuthUser({ role: 'BrandManager', brandId: 'brand-manager' }));
 
@@ -85,10 +103,23 @@ describe('InventoryShellComponent', () => {
   });
 
   it('opens the category manager dialog from inventory actions', () => {
+    create();
+
     expect((component as any).categoryDialogVisible()).toBe(false);
 
     (component as any).openCategoryManager();
 
     expect((component as any).categoryDialogVisible()).toBe(true);
+  });
+
+  it('applies KPI and action query params from dashboard shortcuts', async () => {
+    routeParamMap = convertToParamMap({ kpi: 'alerts', action: 'movement' });
+    create();
+
+    await Promise.resolve();
+
+    expect((component as any).activeKpi()).toBe('alerts');
+    expect((component as any).activeTab()).toBe('stock');
+    expect((component as any).movementDialogVisible()).toBe(true);
   });
 });

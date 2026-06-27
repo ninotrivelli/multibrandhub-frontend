@@ -202,3 +202,24 @@ export interface SalesDashboardRequest {
   page?: number;
   pageSize?: number;
 }
+
+export interface SalesSummaryRequest {
+  from: string;
+  to: string;
+  brandId?: string;
+}
+
+export interface SalesSummaryResponse {
+  from: string;
+  to: string;
+  brandId: string | null;
+  grossSalesAmount: number;
+  returnsAmount: number;
+  netSalesAmount: number;
+  saleCount: number;
+  returnCount: number;
+  unitsSold: number;
+  unitsReturned: number;
+  netUnits: number;
+  calculatedAtUtc: string;
+}

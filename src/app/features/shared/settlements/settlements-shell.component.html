@@ -12,17 +12,6 @@
         <button
           pButton
           type="button"
-          severity="secondary"
-          [outlined]="true"
-          label="Actualizar"
-          [disabled]="loading()"
-          (click)="refresh()"
-        >
-          <i-lucide [img]="icons.RefreshCw" class="size-4 mr-2" />
-        </button>
-        <button
-          pButton
-          type="button"
           [label]="generateButtonLabel()"
           [disabled]="loading() || generating()"
           (click)="openGenerateDialog()"
@@ -169,40 +158,45 @@
     class="overflow-hidden rounded-xl border border-surface-200 bg-surface-0 dark:border-surface-700 dark:bg-surface-800"
   >
     <div class="border-b border-surface-200 px-4 py-3 dark:border-surface-700">
-      <h2
-        class="flex items-center gap-2 text-sm font-semibold text-surface-900 dark:text-surface-0"
-      >
-        <i-lucide [img]="icons.BadgeDollarSign" class="size-4 text-surface-400" />
+      <h2 class="text-sm font-semibold text-surface-900 dark:text-surface-0">
         Liquidaciones guardadas
       </h2>
-      <p class="text-xs text-surface-500 dark:text-surface-400">
-        {{ rangeLabel() }}
-      </p>
+      <div
+        class="flex flex-col gap-x-2 gap-y-0.5 text-xs text-surface-500 dark:text-surface-400 sm:flex-row sm:items-center"
+      >
+        <span>{{ rangeLabel() }}</span>
+        @if (lastCalculatedAtUtc(); as last) {
+          <span class="hidden text-surface-300 sm:inline">·</span>
+          <span>Última vez calculada {{ relativeTimeAgo(last) }}</span>
+        }
+      </div>
     </div>
 
     <p-table
-      [value]="saved()?.items ?? []"
+      [value]="tableRows()"
       [lazy]="true"
       [paginator]="true"
       [rows]="pageSize()"
       [first]="(page() - 1) * pageSize()"
-      [totalRecords]="saved()?.totalCount ?? 0"
+      [totalRecords]="tablePaginatorTotalRecords()"
       [rowsPerPageOptions]="[10, 20, 50]"
       paginatorDropdownAppendTo="body"
       [rowHover]="true"
       [loading]="loading()"
       (onLazyLoad)="onLazyLoad($event)"
       dataKey="id"
+      [rowGroupMode]="includeSuperseded() ? 'subheader' : undefined"
+      groupRowsBy="generationGroupKey"
       styleClass="p-datatable-sm"
       responsiveLayout="scroll"
       [showCurrentPageReport]="true"
-      currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} liquidaciones"
+      [currentPageReportTemplate]="pageReportTemplate()"
     >
       <ng-template pTemplate="header">
         <tr>
           <th class="min-w-48">MARCA</th>
           <th class="min-w-36">PERÍODO</th>
-          <th>VERSIÓN</th>
+          <th class="min-w-28">VERSIÓN</th>
           <th>ESTADO</th>
           <th class="min-w-36 text-right">NETO VENTAS</th>
           <th class="min-w-36 text-right">COMISIÓN</th>
@@ -210,12 +204,45 @@
           <th class="min-w-40 text-right">EFECTIVO LOCAL</th>
           <th class="min-w-36 text-right">MONTO FINAL</th>
           <th class="min-w-48">DIRECCIÓN</th>
-          <th class="w-36 text-right">ACCIONES</th>
+          <th class="w-36 text-center">ACCIONES</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="groupheader" let-row>
+        <tr class="border-y border-primary/20 bg-primary/5 dark:border-primary/30 dark:bg-primary/10">
+          <td colspan="11" class="!px-4 !py-3">
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <span
+                class="inline-flex items-center gap-2 rounded-md bg-surface-0 px-2 py-1 font-semibold text-surface-900 shadow-sm ring-1 ring-primary/15 dark:bg-surface-800 dark:text-surface-0 dark:ring-primary/25"
+              >
+                <span class="h-2 w-2 rounded-full bg-primary"></span>
+                {{ versionGroupLabel(row) }}
+              </span>
+              @if (row.isCurrent) {
+                <p-tag value="Vigente" severity="success" styleClass="!text-xs" />
+              }
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="groupfooter">
+        <tr aria-hidden="true">
+          <td colspan="11" class="!border-0 !p-0">
+            <div
+              class="h-3 border-t-2 border-primary/20 bg-surface-50 dark:border-primary/30 dark:bg-surface-900/40"
+            ></div>
+          </td>
         </tr>
       </ng-template>
 
       <ng-template pTemplate="body" let-row>
-        <tr>
+        <tr
+          class="cursor-pointer"
+          tabindex="0"
+          (click)="openDetail(row)"
+          (keydown.enter)="openDetail(row)"
+        >
           <td>
             <div class="flex flex-col gap-1">
               <div class="flex flex-wrap items-center gap-2">
@@ -227,7 +254,7 @@
                 }
               </div>
               <span class="text-xs text-surface-500 dark:text-surface-400">
-                {{ row.contractType }}
+                {{ contractLabel(row) }}
               </span>
             </div>
           </td>
@@ -235,14 +262,11 @@
             {{ periodLabel(row) }}
           </td>
           <td>
-            <div class="flex flex-col gap-1">
-              <span class="font-mono text-sm">v{{ row.versionNumber }}</span>
-              @if (row.isCurrent) {
-                <p-tag value="Vigente" severity="success" styleClass="!text-xs" />
-              } @else {
-                <p-tag value="Anterior" severity="secondary" styleClass="!text-xs" />
-              }
-            </div>
+            <p-tag
+              [value]="versionTagLabel(row)"
+              [severity]="row.isCurrent ? 'success' : 'secondary'"
+              styleClass="!text-xs font-mono !whitespace-nowrap"
+            />
           </td>
           <td>
             <p-tag [value]="statusLabel(row.status)" [severity]="statusSeverity(row.status)" />
@@ -250,8 +274,8 @@
           <td class="text-right font-medium">
             {{ formatCurrency(row.netSalesAmount) }}
           </td>
-          <td class="text-right">
-            <div class="flex flex-col items-end leading-tight">
+          <td>
+            <div class="flex flex-col items-start leading-tight">
               <span>{{ formatCurrency(row.commissionAmount) }}</span>
               <span class="text-xs text-surface-400">{{
                 formatPercent(row.commissionPercentage)
@@ -276,21 +300,8 @@
               styleClass="!whitespace-normal !text-left"
             />
           </td>
-          <td class="text-right">
-            <div class="flex items-center justify-end gap-1">
-              <button
-                pButton
-                type="button"
-                severity="secondary"
-                [text]="true"
-                [rounded]="true"
-                aria-label="Ver detalle"
-                pTooltip="Ver detalle"
-                tooltipPosition="top"
-                (click)="openDetail(row)"
-              >
-                <i-lucide [img]="icons.Eye" class="size-4" />
-              </button>
+          <td class="text-center">
+            <div class="flex items-center justify-center gap-1">
               @if (canFinalize(row)) {
                 <button
                   pButton
@@ -302,7 +313,7 @@
                   pTooltip="Finalizar"
                   tooltipPosition="top"
                   [loading]="isMutating(row)"
-                  (click)="finalize(row)"
+                  (click)="$event.stopPropagation(); finalize(row)"
                 >
                   <i-lucide [img]="icons.CheckCircle2" class="size-4" />
                 </button>
@@ -317,10 +328,13 @@
                   aria-label="Marcar pagada"
                   pTooltip="Marcar pagada"
                   tooltipPosition="top"
-                  (click)="openMarkPaid(row)"
+                  (click)="$event.stopPropagation(); openMarkPaid(row)"
                 >
                   <i-lucide [img]="icons.BadgeDollarSign" class="size-4" />
                 </button>
+              }
+              @if (!canFinalize(row) && !canMarkPaid(row)) {
+                <span class="text-xs text-surface-400">Ver detalle</span>
               }
             </div>
           </td>
@@ -329,8 +343,13 @@
 
       <ng-template pTemplate="emptymessage">
         <tr>
-          <td colspan="11" class="py-8 text-center text-surface-500 dark:text-surface-400">
-            No hay liquidaciones guardadas para los filtros aplicados.
+          <td colspan="11" class="py-10 text-center">
+            <div class="flex flex-col items-center gap-2 text-surface-500 dark:text-surface-400">
+              <i-lucide [img]="icons.BadgeDollarSign" class="size-8 text-surface-300" />
+              <span class="text-sm"
+                >No hay liquidaciones guardadas para los filtros aplicados.</span
+              >
+            </div>
           </td>
         </tr>
       </ng-template>
@@ -343,7 +362,7 @@
   (visibleChange)="onDetailVisibleChange($event)"
   [modal]="true"
   [draggable]="false"
-  [style]="{ width: '58rem', maxWidth: '96vw' }"
+  [style]="{ width: '64rem', maxWidth: '96vw' }"
   header="Detalle de liquidación"
 >
   @if (detailLoading()) {
@@ -415,17 +434,31 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div class="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <dl
           class="flex flex-col gap-3 rounded-lg border border-surface-200 p-4 dark:border-surface-700"
         >
-          <div class="flex items-center justify-between gap-3">
-            <dt class="text-sm text-surface-500 dark:text-surface-400">Comisión</dt>
-            <dd class="text-right font-medium text-surface-900 dark:text-surface-0">
-              {{ formatPercent(settlement.commissionPercentage) }} ·
-              {{ formatCurrency(settlement.commissionAmount) }}
-            </dd>
+          <div>
+            <h3 class="text-sm font-semibold text-surface-900 dark:text-surface-0">
+              1. Qué cobra el local
+            </h3>
+            <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">
+              Se calcula sobre la venta neta del período.
+            </p>
           </div>
+
+          <div class="rounded-lg bg-surface-50 p-3 dark:bg-surface-700/40">
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-sm text-surface-500 dark:text-surface-400">Comisión</dt>
+              <dd class="text-right font-medium text-surface-900 dark:text-surface-0">
+                {{ formatCurrency(settlement.commissionAmount) }}
+              </dd>
+            </div>
+            <p class="mt-1 text-xs font-medium text-surface-600 dark:text-surface-300">
+              {{ commissionFormula(settlement) }}
+            </p>
+          </div>
+
           <div class="flex items-center justify-between gap-3">
             <dt class="text-sm text-surface-500 dark:text-surface-400">Renta fija</dt>
             <dd class="font-medium text-surface-900 dark:text-surface-0">
@@ -442,11 +475,23 @@
               {{ formatCurrency(settlement.platformFee) }}
             </dd>
           </div>
+          <p class="text-right text-xs text-surface-500 dark:text-surface-400">
+            {{ platformFeeFormula(settlement) }}
+          </p>
         </dl>
 
         <dl
           class="flex flex-col gap-3 rounded-lg border border-surface-200 p-4 dark:border-surface-700"
         >
+          <div>
+            <h3 class="text-sm font-semibold text-surface-900 dark:text-surface-0">
+              2. Cómo se cobró la venta neta
+            </h3>
+            <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">
+              Este bloque es informativo. No es la cuenta del saldo final.
+            </p>
+          </div>
+
           <div class="flex items-center justify-between gap-3">
             <dt class="text-sm text-surface-500 dark:text-surface-400">
               Efectivo retenido por el local
@@ -456,23 +501,61 @@
             </dd>
           </div>
           <div class="flex items-center justify-between gap-3">
-            <dt class="text-sm text-surface-500 dark:text-surface-400">
-              No efectivo cobrado por la marca
+            <dt class="whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
+              Cobrado con Tarjetas / Transferencia / Mercado Pago
             </dt>
             <dd class="font-medium text-surface-900 dark:text-surface-0">
               {{ formatCurrency(settlement.nonCashCollectedByBrand) }}
             </dd>
           </div>
-          <div
-            class="flex items-center justify-between gap-3 border-t border-surface-200 pt-3 dark:border-surface-700"
+          <p
+            class="rounded-lg bg-surface-50 p-3 text-xs text-surface-600 dark:bg-surface-700/40 dark:text-surface-300"
           >
-            <dt class="text-sm font-medium text-surface-700 dark:text-surface-200">Saldo final</dt>
-            <dd [class]="directionAmountClasses(settlement.settlementStatus)">
-              {{ formatCurrency(settlement.amountBrandOwesStore) }}
-            </dd>
-          </div>
+            Venta neta menos efectivo retenido:
+            <span class="font-medium">{{ nonCashFormula(settlement) }}</span
+            >. Sirve para entender qué parte no quedó en caja del local.
+          </p>
         </dl>
       </div>
+
+      <section class="rounded-lg border border-primary/20 bg-primary/5 p-4 dark:border-primary/30">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-surface-900 dark:text-surface-0">
+              3. Cálculo del saldo final
+            </h3>
+            <p class="mt-1 text-sm text-surface-600 dark:text-surface-300">
+              Saldo = total a cobrar por el local - efectivo ya retenido por el local.
+            </p>
+          </div>
+          <div class="rounded-lg bg-surface-0 px-4 py-3 text-right shadow-sm dark:bg-surface-800">
+            <span class="block text-xs font-semibold uppercase text-surface-400">Fórmula</span>
+            <span
+              class="mt-1 block font-mono text-base font-semibold text-surface-900 dark:text-surface-0"
+            >
+              {{ balanceFormula(settlement) }}
+            </span>
+          </div>
+        </div>
+
+        <div
+          class="mt-4 flex flex-col gap-2 border-t border-primary/20 pt-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p class="text-sm text-surface-700 dark:text-surface-200">
+            {{ balanceExplanation(settlement) }}
+          </p>
+          <div
+            class="flex shrink-0 items-center justify-between gap-4 rounded-lg bg-surface-0 px-4 py-3 dark:bg-surface-800"
+          >
+            <span class="text-sm font-medium text-surface-600 dark:text-surface-300">
+              Saldo final
+            </span>
+            <span [class]="directionAmountClasses(settlement.settlementStatus)">
+              {{ formatCurrency(settlement.amountBrandOwesStore) }}
+            </span>
+          </div>
+        </div>
+      </section>
 
       <section class="rounded-lg border border-surface-200 p-4 dark:border-surface-700">
         <h3 class="mb-3 text-sm font-semibold text-surface-900 dark:text-surface-0">Auditoría</h3>
@@ -533,8 +616,18 @@
           <i-lucide [img]="icons.History" class="size-4 mr-2" />
         </button>
 
-        @if (isAdmin()) {
-          <div class="flex flex-col gap-2 sm:flex-row">
+        <div class="flex flex-col gap-2 sm:flex-row">
+          <button
+            pButton
+            type="button"
+            severity="secondary"
+            [outlined]="true"
+            label="Descargar PDF"
+            (click)="downloadSettlementPdf()"
+          >
+            <i-lucide [img]="icons.FileDown" class="size-4 mr-2" />
+          </button>
+          @if (isAdmin()) {
             @if (canFinalize(settlement)) {
               <button
                 pButton
@@ -558,8 +651,8 @@
                 <i-lucide [img]="icons.BadgeDollarSign" class="size-4 mr-2" />
               </button>
             }
-          </div>
-        }
+          }
+        </div>
       </div>
 
       @if (versionsVisible()) {
@@ -715,7 +808,7 @@
           (ngModelChange)="paidAtLocal.set($event)"
         />
         <span class="text-xs text-surface-400"
-          >Si queda vacío, el backend usa la fecha actual.</span
+          >Se completa con la fecha y hora actual; podés ajustarla.</span
         >
       </div>
 
@@ -773,3 +866,124 @@
     </div>
   }
 </p-dialog>
+
+<!-- Print-only settlement report (hidden on screen; revealed by the print
+     stylesheet for "Descargar PDF"). -->
+@if (selectedSettlement(); as settlement) {
+  <div id="settlement-print" class="settlement-print" aria-hidden="true">
+    <div class="sp-doc">
+      <div class="sp-header">
+        <div>
+          <div class="sp-title">Reporte de liquidación</div>
+          <div class="sp-subtitle">
+            {{ settlement.brandName }} · {{ contractLabel(settlement) }}<br />
+            {{ periodLabel(settlement) }} · versión {{ settlement.versionNumber }}
+          </div>
+        </div>
+        <div class="sp-status">{{ statusLabel(settlement.status) }}</div>
+      </div>
+
+      <div class="sp-balance">
+        <div>
+          <div class="sp-balance-label">Saldo final</div>
+          <div>{{ directionLabel(settlement.settlementStatus) }}</div>
+        </div>
+        <div class="sp-balance-amount">
+          {{ formatCurrency(settlement.amountBrandOwesStore) }}
+        </div>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-section-title">Ventas</div>
+        <div class="sp-row">
+          <span class="sp-key">Ventas brutas</span>
+          <span class="sp-val">{{ formatCurrency(settlement.grossSalesAmount) }}</span>
+        </div>
+        <div class="sp-row">
+          <span class="sp-key">Devoluciones</span>
+          <span class="sp-val">{{ formatCurrency(settlement.returnsAmount) }}</span>
+        </div>
+        <div class="sp-row sp-total">
+          <span>Venta neta</span>
+          <span class="sp-val">{{ formatCurrency(settlement.netSalesAmount) }}</span>
+        </div>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-section-title">Qué cobra el local</div>
+        <div class="sp-row">
+          <span class="sp-key">Comisión</span>
+          <span class="sp-val">{{ formatCurrency(settlement.commissionAmount) }}</span>
+        </div>
+        <div class="sp-note">{{ commissionFormula(settlement) }}</div>
+        <div class="sp-row">
+          <span class="sp-key">Renta fija</span>
+          <span class="sp-val">{{ formatCurrency(settlement.fixedAmount) }}</span>
+        </div>
+        <div class="sp-row sp-total">
+          <span>Total a cobrar por el local</span>
+          <span class="sp-val">{{ formatCurrency(settlement.platformFee) }}</span>
+        </div>
+        <div class="sp-note">{{ platformFeeFormula(settlement) }}</div>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-section-title">Cómo se cobró la venta neta</div>
+        <div class="sp-row">
+          <span class="sp-key">Efectivo retenido por el local</span>
+          <span class="sp-val">{{ formatCurrency(settlement.cashCollectedByStore) }}</span>
+        </div>
+        <div class="sp-row">
+          <span class="sp-key">Cobrado con Tarjetas / Transferencia / Mercado Pago</span>
+          <span class="sp-val">{{ formatCurrency(settlement.nonCashCollectedByBrand) }}</span>
+        </div>
+        <div class="sp-note">{{ nonCashFormula(settlement) }}</div>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-section-title">Cálculo del saldo final</div>
+        <div class="sp-row">
+          <span class="sp-key">Fórmula</span>
+          <span class="sp-formula">{{ balanceFormula(settlement) }}</span>
+        </div>
+        <div class="sp-note">{{ balanceExplanation(settlement) }}</div>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-section-title">Auditoría</div>
+        <div class="sp-audit">
+          <div class="sp-row">
+            <span class="sp-key">Generada</span>
+            <span class="sp-val">{{ formatDateTime(settlement.generatedAtUtc) }}</span>
+          </div>
+          <div class="sp-row">
+            <span class="sp-key">Finalizada</span>
+            <span class="sp-val">{{ formatDateTime(settlement.finalizedAtUtc) }}</span>
+          </div>
+          <div class="sp-row">
+            <span class="sp-key">Pagada</span>
+            <span class="sp-val">{{ formatDateTime(settlement.paidAtUtc) }}</span>
+          </div>
+          <div class="sp-row">
+            <span class="sp-key">Referencia</span>
+            <span class="sp-val">{{ settlement.paymentReference ?? '—' }}</span>
+          </div>
+        </div>
+      </div>
+
+      @if (settlement.generationNotes || settlement.paymentNotes) {
+        <div class="sp-section">
+          <div class="sp-section-title">Notas</div>
+          @if (settlement.generationNotes) {
+            <div class="sp-note">Generación: {{ settlement.generationNotes }}</div>
+          }
+          @if (settlement.paymentNotes) {
+            <div class="sp-note">Pago: {{ settlement.paymentNotes }}</div>
+          }
+        </div>
+      }
+
+      <div class="sp-foot">MultiBrandHub · Reporte de liquidación</div>
+    </div>
+  </div>
+}

@@ -1,0 +1,461 @@
+<div class="flex flex-col gap-5">
+  <header class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div class="min-w-0">
+      <h1 class="text-2xl font-semibold text-surface-900 dark:text-surface-0">Inicio</h1>
+      <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
+        Hola, {{ user()?.fullName ?? 'Admin' }}. Vista rápida del local para hoy.
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        pButton
+        type="button"
+        severity="secondary"
+        [text]="true"
+        label="Actualizar"
+        [disabled]="salesLoading() || kpiLoading() || cashLoading() || tasksLoading()"
+        (click)="refresh()"
+      >
+        <i-lucide [img]="icons.RefreshCw" class="mr-2 size-4" />
+      </button>
+      <a pButton routerLink="/admin/pos">
+        <i-lucide [img]="icons.Plus" class="mr-2 size-4" />
+        <span>Nueva Venta</span>
+      </a>
+    </div>
+  </header>
+
+  @if (error(); as message) {
+    <section
+      class="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100 md:flex-row md:items-center md:justify-between"
+    >
+      <span>{{ message }}</span>
+      <button pButton type="button" severity="warn" [outlined]="true" label="Reintentar" (click)="refresh()">
+        <i-lucide [img]="icons.RefreshCw" class="mr-2 size-4" />
+      </button>
+    </section>
+  }
+
+  <section class="grid grid-cols-1 gap-3 md:grid-cols-3">
+    <a
+      routerLink="/admin/sales"
+      [queryParams]="todaySalesQuery"
+      class="group flex min-h-36 items-start gap-4 rounded-lg border border-surface-200 bg-surface-0 p-5 text-left transition-colors hover:border-primary/50 hover:bg-surface-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-surface-700 dark:bg-surface-800 dark:hover:bg-surface-700/60"
+    >
+      <span class="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <i-lucide [img]="icons.CalendarDays" class="size-6" />
+      </span>
+      <span class="flex min-w-0 flex-1 flex-col gap-1">
+        <span class="text-sm text-surface-500 dark:text-surface-400">Ventas de hoy</span>
+        @if (todayLoading()) {
+          <p-skeleton width="7rem" height="2rem" />
+        } @else {
+          <span class="truncate text-2xl font-bold leading-tight text-surface-900 dark:text-surface-0">
+            {{ formatCurrency(todaySummary()?.netSalesAmount ?? 0) }}
+          </span>
+          <span class="text-xs text-surface-500 dark:text-surface-400">
+            {{ formatNumber(todaySummary()?.saleCount ?? 0) }} tickets ·
+            {{ formatNumber(todaySummary()?.netUnits ?? 0) }} artículos
+          </span>
+        }
+      </span>
+      <i-lucide
+        [img]="icons.ArrowRight"
+        class="mt-1 size-4 shrink-0 text-surface-300 transition-colors group-hover:text-primary"
+      />
+    </a>
+
+    <a
+      routerLink="/admin/sales"
+      class="group flex min-h-36 items-start gap-4 rounded-lg border border-surface-200 bg-surface-0 p-5 text-left transition-colors hover:border-primary/50 hover:bg-surface-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-surface-700 dark:bg-surface-800 dark:hover:bg-surface-700/60"
+    >
+      <span class="flex size-12 shrink-0 items-center justify-center rounded-lg bg-cyan-100 text-cyan-600 dark:bg-cyan-900/40 dark:text-cyan-200">
+        <i-lucide [img]="icons.TrendingUp" class="size-6" />
+      </span>
+      <span class="flex min-w-0 flex-1 flex-col gap-1">
+        <span class="text-sm text-surface-500 dark:text-surface-400">Ventas del mes</span>
+        @if (dashboardLoading()) {
+          <p-skeleton width="7rem" height="2rem" />
+        } @else {
+          <span class="truncate text-2xl font-bold leading-tight text-surface-900 dark:text-surface-0">
+            {{ formatCurrency(monthNetSales()) }}
+          </span>
+          <span class="text-xs text-surface-500 dark:text-surface-400">
+            {{ formatNumber(monthTicketCount()) }} tickets del mes
+          </span>
+        }
+      </span>
+      <i-lucide
+        [img]="icons.ArrowRight"
+        class="mt-1 size-4 shrink-0 text-surface-300 transition-colors group-hover:text-primary"
+      />
+    </a>
+
+    <a
+      routerLink="/admin/sales"
+      class="group flex min-h-36 items-start gap-4 rounded-lg border border-surface-200 bg-surface-0 p-5 text-left transition-colors hover:border-primary/50 hover:bg-surface-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-surface-700 dark:bg-surface-800 dark:hover:bg-surface-700/60"
+    >
+      <span class="flex size-12 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-200">
+        <i-lucide [img]="icons.WalletCards" class="size-6" />
+      </span>
+      <span class="flex min-w-0 flex-1 flex-col gap-1">
+        <span class="text-sm text-surface-500 dark:text-surface-400">Ticket promedio</span>
+        @if (dashboardLoading()) {
+          <p-skeleton width="7rem" height="2rem" />
+        } @else {
+          <span class="truncate text-2xl font-bold leading-tight text-surface-900 dark:text-surface-0">
+            {{ formatCurrency(averageTicket()) }}
+          </span>
+          <span class="text-xs text-surface-500 dark:text-surface-400">
+            Neto {{ formatCurrency(averageNetTicket()) }}
+          </span>
+        }
+      </span>
+      <i-lucide
+        [img]="icons.ArrowRight"
+        class="mt-1 size-4 shrink-0 text-surface-300 transition-colors group-hover:text-primary"
+      />
+    </a>
+  </section>
+
+  <div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(22rem,0.7fr)]">
+    <div class="flex min-w-0 flex-col gap-5">
+      <section
+        class="rounded-lg border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-800 md:p-5"
+      >
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 class="flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-0">
+              <i-lucide [img]="icons.AlertTriangle" class="size-4 text-surface-400" />
+              Atención requerida
+            </h2>
+            <p class="text-xs text-surface-500 dark:text-surface-400">
+              Alertas cruzadas de stock, caja y tareas.
+            </p>
+          </div>
+        </div>
+
+        @if ((kpiLoading() || immobilizedLoading() || cashLoading()) && attentionItems().length === 0) {
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <p-skeleton height="4.75rem" />
+            <p-skeleton height="4.75rem" />
+          </div>
+        } @else {
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            @for (item of attentionItems(); track item.id) {
+              @if (item.routerLink) {
+                <a
+                  [routerLink]="item.routerLink"
+                  [queryParams]="item.queryParams"
+                  class="group flex min-h-20 items-start gap-3 rounded-lg border p-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  [ngClass]="attentionClasses(item.severity)"
+                >
+                  <span
+                    class="flex size-10 shrink-0 items-center justify-center rounded-lg"
+                    [ngClass]="attentionIconClasses(item.severity)"
+                  >
+                    <i-lucide [img]="item.icon" class="size-5" />
+                  </span>
+                  <span class="min-w-0 flex-1">
+                    <span class="block text-sm font-semibold">{{ item.title }}</span>
+                    <span class="mt-0.5 block text-xs opacity-90">{{ item.detail }}</span>
+                  </span>
+                  <span class="mt-1 flex items-center gap-1 text-xs font-semibold">
+                    {{ item.actionLabel }}
+                    <i-lucide [img]="icons.ArrowRight" class="size-3.5" />
+                  </span>
+                </a>
+              } @else {
+                <div
+                  class="flex min-h-20 items-start gap-3 rounded-lg border p-3"
+                  [ngClass]="attentionClasses(item.severity)"
+                >
+                  <span
+                    class="flex size-10 shrink-0 items-center justify-center rounded-lg"
+                    [ngClass]="attentionIconClasses(item.severity)"
+                  >
+                    <i-lucide [img]="item.icon" class="size-5" />
+                  </span>
+                  <span class="min-w-0 flex-1">
+                    <span class="block text-sm font-semibold">{{ item.title }}</span>
+                    <span class="mt-0.5 block text-xs opacity-90">{{ item.detail }}</span>
+                  </span>
+                </div>
+              }
+            }
+          </div>
+        }
+      </section>
+
+      <section class="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
+        <div
+          class="rounded-lg border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-800 md:p-5"
+        >
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 class="flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-0">
+                <i-lucide [img]="icons.BarChart3" class="size-4 text-surface-400" />
+                Ritmo semanal
+              </h2>
+              <p class="text-xs text-surface-500 dark:text-surface-400">
+                Ventas netas de la semana visible.
+              </p>
+            </div>
+          </div>
+
+          @if (dashboardLoading()) {
+            <p-skeleton height="11rem" />
+          } @else if (weeklySales().length === 0) {
+            <p class="py-10 text-center text-sm text-surface-500 dark:text-surface-400">
+              Todavía no hay ventas para graficar.
+            </p>
+          } @else {
+            <div class="flex h-44 items-end gap-2">
+              @for (day of weeklySales(); track day.date) {
+                <div class="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
+                  <div class="flex h-32 w-full items-end justify-center rounded-md bg-surface-100 px-1 dark:bg-surface-700/50">
+                    <div
+                      class="w-full max-w-10 rounded-t-md bg-primary transition-all"
+                      [style.height]="weeklyBarHeight(day.netSalesAmount)"
+                    ></div>
+                  </div>
+                  <div class="text-center leading-tight">
+                    <div class="text-xs font-medium text-surface-700 dark:text-surface-200">
+                      {{ day.weekday }}
+                    </div>
+                    <div class="text-[11px] text-surface-400 dark:text-surface-500">
+                      {{ day.shortDate }}
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <div
+          class="rounded-lg border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-800 md:p-5"
+        >
+          <h2 class="flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-0">
+            <i-lucide [img]="icons.ShoppingBag" class="size-4 text-surface-400" />
+            Top marcas del mes
+          </h2>
+
+          @if (dashboardLoading()) {
+            <div class="mt-4 flex flex-col gap-3">
+              <p-skeleton height="2.5rem" />
+              <p-skeleton height="2.5rem" />
+              <p-skeleton height="2.5rem" />
+            </div>
+          } @else if (topBrands().length === 0) {
+            <p class="py-10 text-center text-sm text-surface-500 dark:text-surface-400">
+              Sin ventas de marca en el mes.
+            </p>
+          } @else {
+            <div class="mt-4 flex flex-col gap-4">
+              @for (brand of topBrands(); track brand.brandId) {
+                <div class="flex flex-col gap-1.5">
+                  <div class="flex items-center justify-between gap-3 text-sm">
+                    <span class="min-w-0 truncate font-medium text-surface-800 dark:text-surface-100">
+                      {{ brand.brandName }}
+                    </span>
+                    <span class="shrink-0 font-semibold text-surface-900 dark:text-surface-0">
+                      {{ formatCurrency(brand.netSalesAmount) }}
+                    </span>
+                  </div>
+                  <div class="h-2 overflow-hidden rounded-full bg-surface-100 dark:bg-surface-700">
+                    <div class="h-full rounded-full bg-cyan-500" [style.width]="brandBarWidth(brand.netSalesAmount)"></div>
+                  </div>
+                  <span class="text-xs text-surface-400 dark:text-surface-500">
+                    {{ brandShare(brand.netSalesAmount) }} del mes
+                  </span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </section>
+
+      <section
+        class="rounded-lg border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-800 md:p-5"
+      >
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 class="flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-0">
+              <i-lucide [img]="icons.ClipboardList" class="size-4 text-surface-400" />
+              Actividad reciente
+            </h2>
+            <p class="text-xs text-surface-500 dark:text-surface-400">
+              Últimas operaciones del mes.
+            </p>
+          </div>
+          <a routerLink="/admin/sales" class="text-xs font-semibold text-primary hover:underline">
+            Ver ventas
+          </a>
+        </div>
+
+        @if (dashboardLoading()) {
+          <div class="flex flex-col gap-3">
+            <p-skeleton height="3.75rem" />
+            <p-skeleton height="3.75rem" />
+            <p-skeleton height="3.75rem" />
+          </div>
+        } @else if (recentSales().length === 0) {
+          <p class="py-10 text-center text-sm text-surface-500 dark:text-surface-400">
+            Todavía no hay operaciones recientes.
+          </p>
+        } @else {
+          <ul class="divide-y divide-surface-200 dark:divide-surface-700">
+            @for (sale of recentSales(); track sale.id) {
+              <li class="flex flex-col gap-3 py-3 md:flex-row md:items-center md:justify-between">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-mono text-xs font-semibold text-surface-800 dark:text-surface-100">
+                      {{ sale.ticketId ?? 'Sin ticket' }}
+                    </span>
+                    <p-tag [value]="saleStatusLabel(sale)" [severity]="saleStatusSeverity(sale)" styleClass="!text-xs" />
+                  </div>
+                  <div class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-surface-500 dark:text-surface-400">
+                    <span>{{ formatSaleDate(sale) }} · {{ formatSaleTime(sale) }}</span>
+                    <span>·</span>
+                    <i-lucide [img]="paymentIcon(sale)" class="size-3.5" />
+                    <span>{{ paymentLabel(sale) }}</span>
+                  </div>
+                  @if (sale.brands.length > 0) {
+                    <div class="mt-2 flex flex-wrap gap-1">
+                      @for (brand of sale.brands; track brand.brandId) {
+                        <app-brand-chip [brandId]="brand.brandId" [brandName]="brand.brandName" size="xs" />
+                      }
+                    </div>
+                  }
+                </div>
+                <span
+                  class="shrink-0 text-sm font-semibold"
+                  [class.text-red-600]="sale.matchingAmount < 0"
+                  [class.dark:text-red-300]="sale.matchingAmount < 0"
+                  [class.text-surface-900]="sale.matchingAmount >= 0"
+                  [class.dark:text-surface-0]="sale.matchingAmount >= 0"
+                >
+                  {{ formatCurrency(sale.matchingAmount) }}
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    </div>
+
+    <aside class="flex min-w-0 flex-col gap-5">
+      <section
+        class="rounded-lg border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-800 md:p-5"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-0">
+              <i-lucide [img]="icons.Receipt" class="size-4 text-surface-400" />
+              Caja
+            </h2>
+            <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">
+              {{ cashStatus().detail }}
+            </p>
+          </div>
+          <p-tag [value]="cashStatus().label" [severity]="cashStatus().severity" [rounded]="true" />
+        </div>
+
+        @if (cashLoading() && !cashLoaded()) {
+          <div class="mt-4">
+            <p-skeleton height="4rem" />
+          </div>
+        } @else if (cashCurrent(); as cash) {
+          <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+            <div class="rounded-lg bg-surface-50 p-3 dark:bg-surface-700/40">
+              <span class="block text-xs text-surface-500 dark:text-surface-400">Venta neta</span>
+              <span class="font-semibold text-surface-900 dark:text-surface-0">
+                {{ formatCurrency(cash.netSalesAmount) }}
+              </span>
+            </div>
+            <div class="rounded-lg bg-surface-50 p-3 dark:bg-surface-700/40">
+              <span class="block text-xs text-surface-500 dark:text-surface-400">Tickets</span>
+              <span class="font-semibold text-surface-900 dark:text-surface-0">
+                {{ formatNumber(cash.saleCount) }}
+              </span>
+            </div>
+          </div>
+        }
+
+        <a
+          pButton
+          routerLink="/admin/cash-register"
+          severity="secondary"
+          [outlined]="true"
+          class="mt-4 w-full justify-center"
+        >
+          <i-lucide [img]="icons.ArrowRight" class="mr-2 size-4" />
+          <span>Ir a Caja</span>
+        </a>
+      </section>
+
+      <section
+        class="rounded-lg border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-800 md:p-5"
+      >
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 class="flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-0">
+              <i-lucide [img]="icons.CheckCircle2" class="size-4 text-surface-400" />
+              Tareas pendientes
+            </h2>
+            <p class="text-xs text-surface-500 dark:text-surface-400">
+              {{ formatNumber(pendingTaskCount()) }} pendientes
+            </p>
+          </div>
+          <a routerLink="/admin/tasks" class="text-xs font-semibold text-primary hover:underline">
+            Ver todas
+          </a>
+        </div>
+
+        <app-task-list
+          [tasks]="pendingTasks()"
+          [loading]="tasksLoading()"
+          [completingIds]="completingIds()"
+          emptyMessage="No hay tareas pendientes."
+          (completeTask)="completeTask($event)"
+        />
+      </section>
+
+      <section
+        class="rounded-lg border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-800 md:p-5"
+      >
+        <h2 class="text-base font-semibold text-surface-900 dark:text-surface-0">Acciones rápidas</h2>
+        <div class="mt-4 grid grid-cols-1 gap-2">
+          <a pButton routerLink="/admin/pos" class="justify-center">
+            <i-lucide [img]="icons.Plus" class="mr-2 size-4" />
+            <span>Nueva Venta</span>
+          </a>
+          <a
+            pButton
+            routerLink="/admin/inventory"
+            [queryParams]="{ action: 'movement' }"
+            severity="secondary"
+            [outlined]="true"
+            class="justify-center"
+          >
+            <i-lucide [img]="icons.PackageSearch" class="mr-2 size-4" />
+            <span>Reg. Movimiento</span>
+          </a>
+          <a
+            pButton
+            routerLink="/admin/inventory"
+            [queryParams]="{ action: 'create' }"
+            severity="secondary"
+            [outlined]="true"
+            class="justify-center"
+          >
+            <i-lucide [img]="icons.ShoppingBag" class="mr-2 size-4" />
+            <span>Nuevo Artículo</span>
+          </a>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>

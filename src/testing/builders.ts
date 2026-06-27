@@ -19,6 +19,7 @@ import {
   SaleSearchResponse,
   SalesDashboardResponse,
   SalesDashboardSaleResponse,
+  SalesSummaryResponse,
 } from '../app/core/sales/sales.types';
 import { BrandSettlementSavedResponse } from '../app/core/settlements/settlements.types';
 import { StoreTaskResponse } from '../app/core/tasks/tasks.types';
@@ -634,6 +635,24 @@ export function makeSalesDashboard(
   };
 }
 
+export function makeSalesSummary(overrides: Partial<SalesSummaryResponse> = {}): SalesSummaryResponse {
+  return {
+    from: '2026-06-05T00:00:00',
+    to: '2026-06-05T00:00:00',
+    brandId: null,
+    grossSalesAmount: 3200,
+    returnsAmount: 0,
+    netSalesAmount: 3200,
+    saleCount: 2,
+    returnCount: 0,
+    unitsSold: 4,
+    unitsReturned: 0,
+    netUnits: 4,
+    calculatedAtUtc: '2026-06-05T15:00:00Z',
+    ...overrides,
+  };
+}
+
 export function makeSettlement(
   overrides: Partial<BrandSettlementSavedResponse> = {},
 ): BrandSettlementSavedResponse {
@@ -684,6 +703,7 @@ export function makeSettlement(
     amountBrandOwesStore,
     settlementStatus,
     createdAt: '2026-06-30T21:00:00Z',
+    generationBatchId: null,
     ...overrides,
   };
 }

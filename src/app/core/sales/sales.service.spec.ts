@@ -3,7 +3,13 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { environment } from '../../../environments/environment';
-import { makeSale, makeSaleSearch, makeSalesDashboard, paged } from '../../../testing/builders';
+import {
+  makeSale,
+  makeSaleSearch,
+  makeSalesDashboard,
+  makeSalesSummary,
+  paged,
+} from '../../../testing/builders';
 import { SessionStateRegistry } from '../session/session-state-registry.service';
 import { SalesService } from './sales.service';
 
@@ -177,5 +183,27 @@ describe('SalesService', () => {
 
     req.flush(dashboard);
     expect(result).toEqual(dashboard);
+  });
+
+  it('loads a sales summary with optional brand scope', () => {
+    const summary = makeSalesSummary({ brandId: 'brand-a' });
+    let result: typeof summary | undefined;
+
+    service
+      .getSummary({
+        from: '2026-06-05',
+        to: '2026-06-05',
+        brandId: 'brand-a',
+      })
+      .subscribe((res) => (result = res));
+
+    const req = http.expectOne((r) => r.url === `${reportsSalesUrl}/summary`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('from')).toBe('2026-06-05');
+    expect(req.request.params.get('to')).toBe('2026-06-05');
+    expect(req.request.params.get('brandId')).toBe('brand-a');
+
+    req.flush(summary);
+    expect(result).toEqual(summary);
   });
 });

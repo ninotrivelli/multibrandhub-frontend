@@ -8,7 +8,8 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, ParamMap } from '@angular/router';
 import { EMPTY, Observable, Subject, catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
 
 import { ButtonModule } from 'primeng/button';
@@ -35,6 +36,7 @@ import { SalesDashboardListComponent } from './sales-dashboard-list.component';
 import {
   SalesDashboardPeriodPreset,
   SalesDashboardVariant,
+  DateRange,
   addDays,
   clampWeekStart,
   compareDateOnly,
@@ -44,6 +46,7 @@ import {
   periodRangeForPreset,
   weekNavigationBounds,
 } from './sales-dashboard.utils';
+import { formatUruguayDate } from '../inventory/inventory.utils';
 
 @Component({
   selector: 'app-sales-dashboard-shell',
@@ -62,9 +65,15 @@ import {
 })
 export class SalesDashboardShellComponent {
   private readonly auth = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
   private readonly brands = inject(BrandsService);
   private readonly sales = inject(SalesService);
   private readonly notifications = inject(NotificationService);
+  private readonly queryParams = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
+  private readonly defaultRange = currentMonthRange();
+  private readonly initialQueryRange = parseDateRangeQuery(this.route.snapshot.queryParamMap);
 
   readonly variant = input.required<SalesDashboardVariant>();
 
@@ -72,12 +81,16 @@ export class SalesDashboardShellComponent {
   protected readonly brandsList = this.brands.items;
   protected readonly currentUser = this.auth.user;
 
-  protected readonly periodPreset = signal<SalesDashboardPeriodPreset>('currentMonth');
-  protected readonly startDate = signal(currentMonthRange().startDate);
-  protected readonly endDate = signal(currentMonthRange().endDate);
+  protected readonly periodPreset = signal<SalesDashboardPeriodPreset>(
+    this.initialQueryRange ? 'custom' : 'currentMonth',
+  );
+  protected readonly startDate = signal(
+    this.initialQueryRange?.startDate ?? this.defaultRange.startDate,
+  );
+  protected readonly endDate = signal(this.initialQueryRange?.endDate ?? this.defaultRange.endDate);
   protected readonly selectedBrandIds = signal<string[]>([]);
   protected readonly chartWeekStart = signal(
-    defaultWeekStartForRange(currentMonthRange().startDate, currentMonthRange().endDate),
+    defaultWeekStartForRange(this.startDate(), this.endDate()),
   );
   protected readonly page = signal(1);
   protected readonly pageSize = signal(10);
@@ -181,6 +194,16 @@ export class SalesDashboardShellComponent {
         takeUntilDestroyed(),
       )
       .subscribe();
+
+    effect(() => {
+      const range = parseDateRangeQuery(this.queryParams());
+      if (!range) return;
+
+      untracked(() => {
+        this.periodPreset.set('custom');
+        this.applyDateRange(range.startDate, range.endDate);
+      });
+    });
 
     effect(() => {
       const request = this.currentRequest();
@@ -380,4 +403,17 @@ function compareSearchRowsDescending(a: SaleSearchResponse, b: SaleSearchRespons
   const dateComparison = b.date.localeCompare(a.date);
   if (dateComparison !== 0) return dateComparison;
   return b.createdAt.localeCompare(a.createdAt);
+}
+
+function parseDateRangeQuery(params: ParamMap): DateRange | null {
+  const from = parseDateQueryValue(params.get('from'));
+  const to = parseDateQueryValue(params.get('to'));
+  if (!from || !to) return null;
+  return normalizeDateRange(from, to);
+}
+
+function parseDateQueryValue(value: string | null): string | null {
+  if (!value) return null;
+  if (value === 'hoy') return formatUruguayDate();
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
 }

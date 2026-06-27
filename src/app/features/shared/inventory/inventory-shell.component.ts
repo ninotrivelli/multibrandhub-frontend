@@ -2,13 +2,17 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   OnInit,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -63,10 +67,15 @@ type TabId = 'stock' | 'movements';
 })
 export class InventoryShellComponent implements OnInit {
   private readonly auth = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
   private readonly products = inject(ProductsService);
   protected readonly brands = inject(BrandsService);
   private readonly categories = inject(ProductCategoriesService);
   private readonly notifications = inject(NotificationService);
+  private readonly queryParams = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
+  private handledAction: string | null = null;
 
   protected readonly icons = {
     Plus,
@@ -173,6 +182,23 @@ export class InventoryShellComponent implements OnInit {
   protected readonly canConfirmArchive = computed(
     () => this.archiveSkuInput().trim().toUpperCase() === (this.archiveTarget()?.sku ?? ''),
   );
+
+  constructor() {
+    effect(() => {
+      const params = this.queryParams();
+      const kpi = parseKpiFilter(params.get('kpi'));
+      const action = params.get('action');
+
+      untracked(() => {
+        if (kpi) this.onKpiSelected(kpi);
+
+        if (action && action !== this.handledAction) {
+          this.handledAction = action;
+          queueMicrotask(() => this.applyQueryAction(action));
+        }
+      });
+    });
+  }
 
   ngOnInit(): void {
     // Brands are needed by the form dialog selector, the search filter (Admin
@@ -284,6 +310,17 @@ export class InventoryShellComponent implements OnInit {
     this.archiveSkuInput.set('');
   }
 
+  private applyQueryAction(action: string): void {
+    if (action === 'create' && this.canCreateProduct()) {
+      this.openCreateProduct();
+      return;
+    }
+
+    if (action === 'movement' && this.canRegisterMovement()) {
+      this.openMovementDialog();
+    }
+  }
+
   // ---- Movements ---------------------------------------------------------
 
   protected openMovementDialog(): void {
@@ -305,4 +342,8 @@ export class InventoryShellComponent implements OnInit {
     this.products.loadKpiCounts(scope).subscribe({ error: () => {} });
     this.products.loadImmobilizedCount(scope, 60).subscribe({ error: () => {} });
   }
+}
+
+function parseKpiFilter(value: string | null): KpiFilter | null {
+  return value === 'alerts' || value === 'immobilized' || value === 'all' ? value : null;
 }

@@ -162,4 +162,159 @@ describe('SettlementsShellComponent', () => {
     expect((component as any).directionAmountClasses('BrandOwesStore')).toContain('amber');
     expect((component as any).directionAmountClasses('StoreOwesBrand')).toContain('blue');
   });
+
+  it('explains commission, collection context, and final balance formulas', () => {
+    create('admin');
+    const settlement = makeSettlement({
+      grossSalesAmount: 25683,
+      returnsAmount: 502,
+      netSalesAmount: 25181,
+      commissionPercentage: 18,
+      commissionAmount: 4533,
+      fixedAmount: 0,
+      platformFee: 4533,
+      cashCollectedByStore: 11481,
+      nonCashCollectedByBrand: 13700,
+      amountBrandOwesStore: -6948,
+      settlementStatus: 'StoreOwesBrand',
+    });
+
+    expect(normalizeSpaces((component as any).commissionFormula(settlement))).toBe(
+      '18% de $ 25.181 = $ 4.533',
+    );
+    expect(normalizeSpaces((component as any).nonCashFormula(settlement))).toBe(
+      '$ 25.181 - $ 11.481 = $ 13.700',
+    );
+    expect(normalizeSpaces((component as any).balanceFormula(settlement))).toBe(
+      '$ 4.533 - $ 11.481 = -$ 6.948',
+    );
+    expect((component as any).balanceExplanation(settlement)).toContain(
+      'más efectivo que su total a cobrar',
+    );
+  });
+
+  it('prefills the mark-paid date with the current local datetime when opening the dialog', () => {
+    create('admin');
+
+    (component as any).openMarkPaid(makeSettlement({ status: 'Finalized', isCurrent: true }));
+
+    const paidAtLocal = (component as any).paidAtLocal() as string;
+    expect(paidAtLocal).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+    expect((component as any).markPaidDialogVisible()).toBe(true);
+  });
+
+  it('keeps backend grouped order and tags rows with generation batch keys', () => {
+    create('admin');
+
+    (component as any).includeSuperseded.set(true);
+    (component as any).saved.set(
+      paged([
+        makeSettlement({
+          id: 'a2',
+          brandName: 'Aurora',
+          seriesId: 'sa',
+          versionNumber: 2,
+          isCurrent: true,
+          generationBatchId: 'batch-v2',
+        }),
+        makeSettlement({
+          id: 'b2',
+          brandName: 'Bohemia',
+          seriesId: 'sb',
+          versionNumber: 2,
+          isCurrent: true,
+          generationBatchId: 'batch-v2',
+        }),
+        makeSettlement({
+          id: 'a1',
+          brandName: 'Aurora',
+          seriesId: 'sa',
+          versionNumber: 1,
+          isCurrent: false,
+          generationBatchId: 'batch-v1',
+        }),
+        makeSettlement({
+          id: 'b1',
+          brandName: 'Bohemia',
+          seriesId: 'sb',
+          versionNumber: 1,
+          isCurrent: false,
+          generationBatchId: 'batch-v1',
+        }),
+      ]),
+    );
+
+    const rows = (component as any).tableRows() as Array<{
+      id: string;
+      generationGroupKey: string;
+    }>;
+    const ids = rows.map((row) => row.id);
+    expect(ids).toEqual(['a2', 'b2', 'a1', 'b1']);
+    expect(rows.map((row) => row.generationGroupKey)).toEqual([
+      'batch:batch-v2',
+      'batch:batch-v2',
+      'batch:batch-v1',
+      'batch:batch-v1',
+    ]);
+  });
+
+  it('uses grouped backend totalPages for the historical paginator', () => {
+    create('admin');
+
+    (component as any).includeSuperseded.set(true);
+    (component as any).pageSize.set(20);
+    (component as any).saved.set({
+      items: [makeSettlement()],
+      totalCount: 56,
+      page: 1,
+      pageSize: 20,
+      totalPages: 4,
+      totalGroups: 8,
+    });
+
+    expect((component as any).tablePaginatorTotalRecords()).toBe(80);
+    expect((component as any).pageReportTemplate()).toBe('Página {currentPage} de {totalPages}');
+  });
+
+  it('uses row totals and row-range copy for current-only pagination', () => {
+    create('admin');
+
+    (component as any).includeSuperseded.set(false);
+    (component as any).saved.set({
+      items: [makeSettlement()],
+      totalCount: 56,
+      page: 1,
+      pageSize: 20,
+      totalPages: 3,
+    });
+
+    expect((component as any).tablePaginatorTotalRecords()).toBe(56);
+    expect((component as any).pageReportTemplate()).toBe(
+      'Mostrando {first} a {last} de {totalRecords} liquidaciones',
+    );
+  });
+
+  it('builds a sanitized PDF filename from brand, period start and version', () => {
+    create('admin');
+
+    const name = (component as any).printFileName(
+      makeSettlement({ brandName: 'Kora Accesorios', from: '2026-06-01T00:00:00', versionNumber: 3 }),
+    );
+    expect(name).toBe('Liquidacion_Kora-Accesorios_2026-06-01_v3');
+  });
+
+  it('builds a combined version tag label from version number and current flag', () => {
+    create('admin');
+
+    expect(
+      (component as any).versionTagLabel(makeSettlement({ versionNumber: 2, isCurrent: true })),
+    ).toBe('v2 · Vigente');
+    expect(
+      (component as any).versionTagLabel(makeSettlement({ versionNumber: 1, isCurrent: false })),
+    ).toBe('v1 · Anterior');
+  });
 });
+
+function normalizeSpaces(value: string): string {
+  return value.replace(/\s/g, ' ');
+}

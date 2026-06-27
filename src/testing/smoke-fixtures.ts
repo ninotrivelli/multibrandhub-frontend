@@ -13,7 +13,11 @@ import type {
   ProductResponse,
   StockMovementResponse,
 } from '../app/features/shared/inventory/inventory.types';
-import type { SaleResponse, SaleSearchResponse } from '../app/core/sales/sales.types';
+import type {
+  SaleResponse,
+  SaleSearchResponse,
+  SalesSummaryResponse,
+} from '../app/core/sales/sales.types';
 import type { BrandSettlementSavedResponse } from '../app/core/settlements/settlements.types';
 import {
   makeAuthSession,
@@ -29,6 +33,7 @@ import {
   makeSaleSearch,
   makeSalesDashboard,
   makeSalesDashboardSale,
+  makeSalesSummary,
   makeSettlement,
   makeStoreTask,
   makeUser,
@@ -253,6 +258,19 @@ const smokeDashboardSales = [
   }),
 ];
 
+export const smokeSalesSummary: SalesSummaryResponse = makeSalesSummary({
+  from: '2026-06-07T00:00:00',
+  to: '2026-06-07T00:00:00',
+  grossSalesAmount: 3200,
+  returnsAmount: 0,
+  netSalesAmount: 3200,
+  saleCount: 2,
+  returnCount: 0,
+  unitsSold: 4,
+  unitsReturned: 0,
+  netUnits: 4,
+});
+
 export const smokeSale: SaleResponse = makeSale({
   id: 'sale-smoke',
   ticketId: 'TCK-SMOKE-001',
@@ -395,6 +413,9 @@ export function resolveSmokeApiResponse(request: SmokeApiRequest): SmokeApiRespo
         sales: page(smokeDashboardSales, url),
       }),
     };
+  }
+  if (method === 'GET' && path === '/api/reports/sales/summary') {
+    return { status: 200, body: smokeSalesSummary };
   }
   if (method === 'GET' && path === '/api/settlements/brands/saved') {
     return { status: 200, body: page(filterSettlements(url), url) };

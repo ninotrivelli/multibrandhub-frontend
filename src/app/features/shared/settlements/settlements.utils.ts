@@ -2,7 +2,7 @@ import {
   SettlementFinancialStatus,
   SettlementOperationalStatus,
 } from '../../../core/settlements/settlements.types';
-import { formatUruguayDate } from '../inventory/inventory.utils';
+import { formatUruguayDate, parseBackendUtcDate } from '../inventory/inventory.utils';
 import { DateRange, formatMonthName, monthRange } from '../sales-dashboard/sales-dashboard.utils';
 
 export type SettlementPeriodPreset = 'currentMonth' | `month:${string}` | 'custom';
@@ -107,4 +107,37 @@ export function settlementDirectionAmountClasses(status: SettlementFinancialStat
 
 export function dateOnly(value: string): string {
   return value.slice(0, 10);
+}
+
+/**
+ * Human-readable "time ago" in Spanish, limited to days, hours and minutes.
+ * Examples: "hace 3 días", "hace 2 h 5 min", "hace 4 minutos", "recién".
+ */
+export function formatRelativeTimeAgo(value: string, now: Date = new Date()): string {
+  const diffMs = now.getTime() - parseBackendUtcDate(value).getTime();
+  const totalMinutes = Math.floor(diffMs / 60000);
+  if (totalMinutes < 1) return 'recién';
+
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days >= 1) return `hace ${days} ${days === 1 ? 'día' : 'días'}`;
+  if (hours >= 1) return minutes > 0 ? `hace ${hours} h ${minutes} min` : `hace ${hours} h`;
+  return `hace ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`;
+}
+
+/**
+ * Returns the local date-time as a `YYYY-MM-DDTHH:mm` string suitable for an
+ * `input[type=datetime-local]` value. Uses local getters (not UTC) so the input
+ * shows the user's wall-clock time.
+ */
+export function currentLocalDateTimeInput(now: Date = new Date()): string {
+  const pad = (value: number): string => String(value).padStart(2, '0');
+  const year = now.getFullYear();
+  const month = pad(now.getMonth() + 1);
+  const day = pad(now.getDate());
+  const hours = pad(now.getHours());
+  const minutes = pad(now.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }

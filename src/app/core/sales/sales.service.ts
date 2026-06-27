@@ -13,6 +13,8 @@ import {
   SaleSearchResponse,
   SalesDashboardRequest,
   SalesDashboardResponse,
+  SalesSummaryRequest,
+  SalesSummaryResponse,
 } from './sales.types';
 
 @Injectable({ providedIn: 'root' })
@@ -97,6 +99,15 @@ export class SalesService {
     }
 
     return this.http.get<SalesDashboardResponse>(`${this.reportsSalesUrl}/dashboard`, {
+      params: httpParams,
+    });
+  }
+
+  getSummary(params: SalesSummaryRequest): Observable<SalesSummaryResponse> {
+    let httpParams = new HttpParams().set('from', params.from).set('to', params.to);
+    if (params.brandId) httpParams = httpParams.set('brandId', params.brandId);
+
+    return this.http.get<SalesSummaryResponse>(`${this.reportsSalesUrl}/summary`, {
       params: httpParams,
     });
   }

@@ -9,6 +9,10 @@ export interface PagedResult<T> {
   totalCount: number;
   page: number;
   pageSize: number;
+  totalPages?: number;
+  totalGroups?: number | null;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
 }
 
 export interface BrandSettlementSavedResponse {
@@ -49,6 +53,7 @@ export interface BrandSettlementSavedResponse {
   amountBrandOwesStore: number;
   settlementStatus: SettlementFinancialStatus;
   createdAt: string;
+  generationBatchId: string | null;
 }
 
 export interface GenerateBrandSettlementRequest {
