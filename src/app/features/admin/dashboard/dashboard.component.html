@@ -211,10 +211,20 @@
               Todavía no hay ventas para graficar.
             </p>
           } @else {
-            <div class="flex h-44 items-end gap-2">
+            <div class="flex h-48 items-end gap-2">
               @for (day of weeklySales(); track day.date) {
-                <div class="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
-                  <div class="flex h-32 w-full items-end justify-center rounded-md bg-surface-100 px-1 dark:bg-surface-700/50">
+                <div class="flex min-w-0 flex-1 flex-col items-center justify-end gap-1">
+                  <span
+                    class="block max-w-full truncate text-center text-[10px] font-semibold tabular-nums text-surface-600 dark:text-surface-300"
+                    [attr.title]="weeklyBarTitle(day)"
+                  >
+                    {{ weeklyBarValueLabel(day) }}
+                  </span>
+                  <div
+                    class="flex h-32 w-full items-end justify-center rounded-md bg-surface-100 px-1 dark:bg-surface-700/50"
+                    [attr.title]="weeklyBarTitle(day)"
+                    [attr.aria-label]="weeklyBarTitle(day)"
+                  >
                     <div
                       class="w-full max-w-10 rounded-t-md bg-primary transition-all"
                       [style.height]="weeklyBarHeight(day.netSalesAmount)"

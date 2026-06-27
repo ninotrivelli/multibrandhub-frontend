@@ -20,8 +20,13 @@ import {
   SalesDashboardResponse,
   SalesDashboardSaleResponse,
   SalesSummaryResponse,
+  TopSellingProductResponse,
+  TopSellingProductsResponse,
 } from '../app/core/sales/sales.types';
-import { BrandSettlementSavedResponse } from '../app/core/settlements/settlements.types';
+import {
+  BrandSettlementResponse,
+  BrandSettlementSavedResponse,
+} from '../app/core/settlements/settlements.types';
 import { StoreTaskResponse } from '../app/core/tasks/tasks.types';
 import { UserResponse } from '../app/core/users/users.types';
 import { ProductCategoryResponse } from '../app/core/product-categories/product-categories.types';
@@ -649,6 +654,88 @@ export function makeSalesSummary(overrides: Partial<SalesSummaryResponse> = {}):
     unitsReturned: 0,
     netUnits: 4,
     calculatedAtUtc: '2026-06-05T15:00:00Z',
+    ...overrides,
+  };
+}
+
+export function makeTopSellingProduct(
+  overrides: Partial<TopSellingProductResponse> = {},
+): TopSellingProductResponse {
+  return {
+    rank: 1,
+    productId: 'product-lumina-critical',
+    productSku: 'LUM-CAM-002',
+    productName: 'Camisa Serena',
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+    unitsSold: 8,
+    unitsReturned: 1,
+    netUnitsSold: 7,
+    grossSalesAmount: 12800,
+    returnsAmount: 1600,
+    netSalesAmount: 11200,
+    ...overrides,
+  };
+}
+
+export function makeTopSellingProducts(
+  overrides: Partial<TopSellingProductsResponse> = {},
+): TopSellingProductsResponse {
+  return {
+    from: '2026-06-01',
+    to: '2026-06-30',
+    brandId: 'brand-a',
+    limit: 10,
+    items: [
+      makeTopSellingProduct(),
+      makeTopSellingProduct({
+        rank: 2,
+        productId: 'product-lumina-out',
+        productSku: 'LUM-PAN-003',
+        productName: 'Pantalón Alba',
+        unitsSold: 5,
+        unitsReturned: 0,
+        netUnitsSold: 5,
+        grossSalesAmount: 9500,
+        returnsAmount: 0,
+        netSalesAmount: 9500,
+      }),
+    ],
+    calculatedAtUtc: '2026-06-30T21:00:00Z',
+    ...overrides,
+  };
+}
+
+export function makeBrandSettlementEstimate(
+  overrides: Partial<BrandSettlementResponse> = {},
+): BrandSettlementResponse {
+  const amountBrandOwesStore = overrides.amountBrandOwesStore ?? 940;
+  const settlementStatus =
+    overrides.settlementStatus ??
+    (amountBrandOwesStore > 0
+      ? 'BrandOwesStore'
+      : amountBrandOwesStore < 0
+        ? 'StoreOwesBrand'
+        : 'BreakEven');
+
+  return {
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+    contractType: 'Hybrid',
+    from: '2026-06-01T00:00:00',
+    to: '2026-06-30T00:00:00',
+    grossSalesAmount: 18500,
+    returnsAmount: 1500,
+    netSalesAmount: 17000,
+    commissionPercentage: 12,
+    commissionAmount: 2040,
+    fixedAmount: 1500,
+    platformFee: 3540,
+    cashCollectedByStore: 2600,
+    nonCashCollectedByBrand: 14400,
+    amountBrandOwesStore,
+    settlementStatus,
+    calculatedAtUtc: '2026-06-30T21:00:00Z',
     ...overrides,
   };
 }

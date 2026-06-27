@@ -353,6 +353,14 @@ export class AdminDashboardComponent implements OnInit {
     return `${Math.max(0.75, (value / max) * 7.5)}rem`;
   }
 
+  protected weeklyBarTitle(day: WeeklySalesItem): string {
+    return `${day.weekday} ${day.shortDate}: ${this.formatCurrency(day.netSalesAmount)}`;
+  }
+
+  protected weeklyBarValueLabel(day: WeeklySalesItem): string {
+    return this.formatShortCurrency(day.netSalesAmount);
+  }
+
   protected brandBarWidth(value: number): string {
     const max = this.topBrandMax();
     if (max <= 0) return '0%';
@@ -513,5 +521,13 @@ export class AdminDashboardComponent implements OnInit {
       minute: '2-digit',
       hour12: false,
     }).format(parseBackendUtcDate(iso));
+  }
+
+  private formatShortCurrency(value: number): string {
+    const sign = value < 0 ? '-' : '';
+    const amount = new Intl.NumberFormat('es-UY', { maximumFractionDigits: 0 }).format(
+      Math.abs(value),
+    );
+    return `${sign}$${amount}`;
   }
 }

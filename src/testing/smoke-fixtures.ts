@@ -17,11 +17,17 @@ import type {
   SaleResponse,
   SaleSearchResponse,
   SalesSummaryResponse,
+  TopSellingProductResponse,
+  TopSellingProductsResponse,
 } from '../app/core/sales/sales.types';
-import type { BrandSettlementSavedResponse } from '../app/core/settlements/settlements.types';
+import type {
+  BrandSettlementResponse,
+  BrandSettlementSavedResponse,
+} from '../app/core/settlements/settlements.types';
 import {
   makeAuthSession,
   makeBrand,
+  makeBrandSettlementEstimate,
   makeCashRegisterSession,
   makeCashRegisterSummary,
   makeClosedCashRegisterSession,
@@ -36,6 +42,8 @@ import {
   makeSalesSummary,
   makeSettlement,
   makeStoreTask,
+  makeTopSellingProduct,
+  makeTopSellingProducts,
   makeUser,
   paged,
 } from './builders';
@@ -271,6 +279,34 @@ export const smokeSalesSummary: SalesSummaryResponse = makeSalesSummary({
   netUnits: 4,
 });
 
+const smokeTopProductItems: TopSellingProductResponse[] = [
+  makeTopSellingProduct({
+    productId: 'product-lumina-critical',
+    productSku: 'LUM-CAM-002',
+    productName: 'Camisa Serena',
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+  }),
+  makeTopSellingProduct({
+    rank: 2,
+    productId: 'product-lumina-out',
+    productSku: 'LUM-PAN-003',
+    productName: 'Pantalón Alba',
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+    unitsSold: 5,
+    unitsReturned: 0,
+    netUnitsSold: 5,
+    grossSalesAmount: 9500,
+    returnsAmount: 0,
+    netSalesAmount: 9500,
+  }),
+];
+
+export const smokeTopProducts: TopSellingProductsResponse = makeTopSellingProducts({
+  items: smokeTopProductItems,
+});
+
 export const smokeSale: SaleResponse = makeSale({
   id: 'sale-smoke',
   ticketId: 'TCK-SMOKE-001',
@@ -300,6 +336,13 @@ export const smokeSettlements: BrandSettlementSavedResponse[] = [
     settlementStatus: 'StoreOwesBrand',
   }),
 ];
+
+export const smokeSettlementEstimate: BrandSettlementResponse = makeBrandSettlementEstimate({
+  brandId: 'brand-a',
+  brandName: 'Lumina',
+  amountBrandOwesStore: -250,
+  settlementStatus: 'StoreOwesBrand',
+});
 
 export const smokeClosedCashRegister = makeClosedCashRegisterSession({
   id: 'cash-smoke-closed',
@@ -417,8 +460,39 @@ export function resolveSmokeApiResponse(request: SmokeApiRequest): SmokeApiRespo
   if (method === 'GET' && path === '/api/reports/sales/summary') {
     return { status: 200, body: smokeSalesSummary };
   }
+  if (method === 'GET' && path === '/api/reports/sales/top-products') {
+    const brandId = url.searchParams.get('brandId');
+    const limit = Number(url.searchParams.get('limit') ?? smokeTopProducts.limit);
+    const items = smokeTopProductItems
+      .filter((item) => !brandId || item.brandId === brandId)
+      .slice(0, Number.isFinite(limit) ? limit : 10);
+    return {
+      status: 200,
+      body: makeTopSellingProducts({
+        from: url.searchParams.get('from') ?? smokeTopProducts.from,
+        to: url.searchParams.get('to') ?? smokeTopProducts.to,
+        brandId,
+        limit,
+        items,
+      }),
+    };
+  }
   if (method === 'GET' && path === '/api/settlements/brands/saved') {
     return { status: 200, body: page(filterSettlements(url), url) };
+  }
+  if (method === 'GET' && path.match(/^\/api\/settlements\/brands\/[^/]+$/)) {
+    const brandId = path.split('/').pop()!;
+    const brand = smokeBrands.find((candidate) => candidate.id === brandId);
+    return {
+      status: 200,
+      body: makeBrandSettlementEstimate({
+        ...smokeSettlementEstimate,
+        brandId,
+        brandName: brand?.name ?? smokeSettlementEstimate.brandName,
+        from: `${url.searchParams.get('From') ?? '2026-06-01'}T00:00:00`,
+        to: `${url.searchParams.get('To') ?? '2026-06-30'}T00:00:00`,
+      }),
+    };
   }
   if (method === 'POST' && path === '/api/settlements/brands/generate') {
     const payload = parseJson<{

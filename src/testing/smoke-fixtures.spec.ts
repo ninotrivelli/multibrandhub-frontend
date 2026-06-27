@@ -36,6 +36,8 @@ describe('smoke-fixtures', () => {
       ['GET', '/sales/search'],
       ['GET', '/reports/sales/dashboard'],
       ['GET', '/reports/sales/summary'],
+      ['GET', '/reports/sales/top-products'],
+      ['GET', '/settlements/brands/brand-a'],
       ['POST', '/sales'],
       ['GET', '/cash-register/current'],
       ['GET', '/cash-register/history'],

@@ -118,6 +118,28 @@ test.describe('deep smoke interactions', () => {
     await expectRouteReady(page, /\/admin\/pos$/, 'Ingresar Venta');
   });
 
+  test('BrandManager Mi Resumen shows brand data and navigates shortcuts', async ({ page }) => {
+    await gotoAs(page, 'BrandManager', '/brand-manager/dashboard');
+
+    await expect(page.getByText('Ventas del mes')).toBeVisible();
+    await expect(page.getByText('Top 10 productos')).toBeVisible();
+    await expect(page.getByText('Producto estrella')).toBeVisible();
+    await expect(page.getByText('A favor de tu marca').first()).toBeVisible();
+    await expect(page.getByText('Stock a revisar')).toBeVisible();
+
+    await page.getByRole('link', { name: /Ver mis ventas/ }).first().click();
+    await expectRouteReady(page, /\/brand-manager\/sales$/, 'Ventas');
+
+    await gotoAs(page, 'BrandManager', '/brand-manager/dashboard');
+    await page.getByRole('link', { name: /Ver stock/ }).click();
+    await expect(page).toHaveURL(/\/brand-manager\/inventory\?kpi=alerts$/);
+    await expect(page.getByRole('heading', { name: 'Mi Stock' })).toBeVisible();
+
+    await gotoAs(page, 'BrandManager', '/brand-manager/dashboard');
+    await page.getByRole('button', { name: 'Últimos 3 meses' }).click();
+    await expect(page.getByText(/1 de abril al 30 de junio/)).toBeVisible();
+  });
+
   test('Admin inventory opens product, import, movement dialogs and movements tab', async ({
     page,
   }) => {

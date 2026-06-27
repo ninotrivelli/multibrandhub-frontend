@@ -78,3 +78,28 @@ export interface MarkBrandSettlementPaidRequest {
   paymentReference?: string | null;
   notes?: string | null;
 }
+
+export interface BrandSettlementRequest {
+  from: string;
+  to: string;
+}
+
+export interface BrandSettlementResponse {
+  brandId: string;
+  brandName: string;
+  contractType: ContractType;
+  from: string;
+  to: string;
+  grossSalesAmount: number;
+  returnsAmount: number;
+  netSalesAmount: number;
+  commissionPercentage: number;
+  commissionAmount: number;
+  fixedAmount: number;
+  platformFee: number;
+  cashCollectedByStore: number;
+  nonCashCollectedByBrand: number;
+  amountBrandOwesStore: number;
+  settlementStatus: SettlementFinancialStatus;
+  calculatedAtUtc: string;
+}

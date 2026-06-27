@@ -8,6 +8,7 @@ import {
   makeSaleSearch,
   makeSalesDashboard,
   makeSalesSummary,
+  makeTopSellingProducts,
   paged,
 } from '../../../testing/builders';
 import { SessionStateRegistry } from '../session/session-state-registry.service';
@@ -205,5 +206,29 @@ describe('SalesService', () => {
 
     req.flush(summary);
     expect(result).toEqual(summary);
+  });
+
+  it('loads top products with optional brand scope and limit', () => {
+    const topProducts = makeTopSellingProducts();
+    let result: typeof topProducts | undefined;
+
+    service
+      .getTopProducts({
+        from: '2026-06-01',
+        to: '2026-06-30',
+        brandId: 'brand-a',
+        limit: 10,
+      })
+      .subscribe((res) => (result = res));
+
+    const req = http.expectOne((r) => r.url === `${reportsSalesUrl}/top-products`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('from')).toBe('2026-06-01');
+    expect(req.request.params.get('to')).toBe('2026-06-30');
+    expect(req.request.params.get('brandId')).toBe('brand-a');
+    expect(req.request.params.get('limit')).toBe('10');
+
+    req.flush(topProducts);
+    expect(result).toEqual(topProducts);
   });
 });

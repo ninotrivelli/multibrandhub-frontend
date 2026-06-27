@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { environment } from '../../../environments/environment';
-import { makeSettlement, paged } from '../../../testing/builders';
+import { makeBrandSettlementEstimate, makeSettlement, paged } from '../../../testing/builders';
 import { SettlementsService } from './settlements.service';
 
 describe('SettlementsService', () => {
@@ -102,5 +102,25 @@ describe('SettlementsService', () => {
     expect(finalize.request.method).toBe('POST');
     expect(finalize.request.body).toBeNull();
     finalize.flush(makeSettlement({ status: 'Finalized' }));
+  });
+
+  it('loads an estimated settlement for one brand with backend query names', () => {
+    const estimate = makeBrandSettlementEstimate();
+    let result: typeof estimate | undefined;
+
+    service
+      .getByBrand('brand-a', {
+        from: '2026-06-01',
+        to: '2026-06-30',
+      })
+      .subscribe((res) => (result = res));
+
+    const req = http.expectOne(`${baseUrl}/brand-a?From=2026-06-01&To=2026-06-30`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('From')).toBe('2026-06-01');
+    expect(req.request.params.get('To')).toBe('2026-06-30');
+
+    req.flush(estimate);
+    expect(result).toEqual(estimate);
   });
 });

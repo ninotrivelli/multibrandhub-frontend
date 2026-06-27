@@ -5,6 +5,8 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   BrandSettlementSavedResponse,
+  BrandSettlementRequest,
+  BrandSettlementResponse,
   GenerateBrandSettlementRequest,
   MarkBrandSettlementPaidRequest,
   PagedResult,
@@ -36,6 +38,12 @@ export class SettlementsService {
     return this.http.get<BrandSettlementSavedResponse[]>(`${this.baseUrl}/saved/${id}/versions`);
   }
 
+  getByBrand(brandId: string, request: BrandSettlementRequest): Observable<BrandSettlementResponse> {
+    return this.http.get<BrandSettlementResponse>(`${this.baseUrl}/${brandId}`, {
+      params: this.buildBrandSettlementParams(request),
+    });
+  }
+
   finalize(id: string): Observable<BrandSettlementSavedResponse> {
     return this.http.post<BrandSettlementSavedResponse>(
       `${this.baseUrl}/saved/${id}/finalize`,
@@ -65,5 +73,9 @@ export class SettlementsService {
     if (request.status) params = params.set('Status', request.status);
 
     return params;
+  }
+
+  private buildBrandSettlementParams(request: BrandSettlementRequest): HttpParams {
+    return new HttpParams().set('From', request.from).set('To', request.to);
   }
 }
