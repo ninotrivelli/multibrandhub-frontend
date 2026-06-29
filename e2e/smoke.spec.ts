@@ -228,6 +228,18 @@ test.describe('deep smoke interactions', () => {
     await expect(page.getByText('TCK-SMOKE-001')).toBeVisible();
   });
 
+  test('Admin reports can select a template and generate a preview', async ({ page }) => {
+    await gotoAs(page, 'Admin', '/admin/reports');
+
+    await expect(page.getByRole('heading', { name: 'Centro de Reportes' })).toBeVisible();
+    await page.getByRole('button', { name: /Ventas detalladas/ }).click();
+    await page.getByRole('button', { name: 'Vista previa' }).click();
+
+    await expect(page.getByText('Ventas netas')).toBeVisible();
+    await expect(page.getByText('TCK-SMOKE-001')).toBeVisible();
+    await expect(page.getByText('Camisa Serena')).toBeVisible();
+  });
+
   test('settlements dashboards render persisted rows and detail by role', async ({ page }) => {
     await gotoAs(page, 'Admin', '/admin/settlements');
     await expect(page.getByRole('heading', { name: 'Liquidaciones', exact: true })).toBeVisible();

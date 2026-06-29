@@ -36,8 +36,16 @@ describe('AdminDashboardComponent', () => {
     const cash = signal(makeCashRegisterSession());
     const cashLoaded = signal(true);
     const cashLoading = signal(false);
-    const pendingTasks = signal([
+    const generalPendingTasks = signal([
       makeStoreTask({ id: 'task-high', description: 'Reponer bolsas', priority: 'High' }),
+    ]);
+    const personalPendingTasks = signal([
+      makeStoreTask({
+        id: 'task-personal',
+        description: 'Revisar pagos de proveedores',
+        priority: 'Medium',
+        scope: 'Personal',
+      }),
     ]);
     const tasksLoading = signal(false);
 
@@ -85,11 +93,14 @@ describe('AdminDashboardComponent', () => {
         {
           provide: TasksService,
           useValue: {
-            pending: computed(() => pendingTasks()),
+            generalPending: generalPendingTasks.asReadonly(),
+            personalPending: personalPendingTasks.asReadonly(),
+            pending: computed(() => [...generalPendingTasks(), ...personalPendingTasks()]),
             loading: tasksLoading.asReadonly(),
             loadPending: vi.fn(() => of([])),
             complete: vi.fn((id: string) => {
-              pendingTasks.update((tasks) => tasks.filter((task) => task.id !== id));
+              generalPendingTasks.update((tasks) => tasks.filter((task) => task.id !== id));
+              personalPendingTasks.update((tasks) => tasks.filter((task) => task.id !== id));
               return of(void 0);
             }),
           },
@@ -118,6 +129,28 @@ describe('AdminDashboardComponent', () => {
     expect(text).toContain('Atención requerida');
     expect(text).toContain('Caja');
     expect(text).toContain('Tareas pendientes');
+    expect(text).toContain('Tareas del local');
+    expect(text).toContain('Tareas personales');
     expect(text).toContain('Reponer bolsas');
+    expect(text).not.toContain('Revisar pagos de proveedores');
+  });
+
+  it('keeps local and personal pending tasks separated in the dashboard widget', () => {
+    let text = fixture.nativeElement.textContent as string;
+
+    expect(text).toContain('Mostrando Tareas del local');
+    expect(text).toContain('Reponer bolsas');
+    expect(text).not.toContain('Revisar pagos de proveedores');
+
+    const personalTab = fixture.nativeElement.querySelector(
+      '[data-testid="admin-dashboard-tasks-personal"]',
+    ) as HTMLButtonElement;
+    personalTab.click();
+    fixture.detectChanges();
+
+    text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Mostrando Tareas personales');
+    expect(text).toContain('Revisar pagos de proveedores');
+    expect(text).not.toContain('Reponer bolsas');
   });
 });

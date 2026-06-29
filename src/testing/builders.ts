@@ -31,6 +31,11 @@ import { StoreTaskResponse } from '../app/core/tasks/tasks.types';
 import { UserResponse } from '../app/core/users/users.types';
 import { ProductCategoryResponse } from '../app/core/product-categories/product-categories.types';
 import {
+  ReportExportPreviewResponse,
+  ReportExportTemplateResponse,
+  ReportExportTemplatesResponse,
+} from '../app/core/reports/reports.types';
+import {
   ImmobilizedStockProductResponse,
   MovementType,
   PagedResult,
@@ -701,6 +706,112 @@ export function makeTopSellingProducts(
         netSalesAmount: 9500,
       }),
     ],
+    calculatedAtUtc: '2026-06-30T21:00:00Z',
+    ...overrides,
+  };
+}
+
+export function makeReportExportTemplate(
+  overrides: Partial<ReportExportTemplateResponse> = {},
+): ReportExportTemplateResponse {
+  return {
+    reportType: 'LocalMonthlyClose',
+    name: 'Cierre mensual del local',
+    description: 'Resumen operativo para cierre mensual.',
+    supportedFilters: ['From', 'To', 'BrandIds', 'PaymentMethods', 'SellerIds'],
+    columns: [
+      { key: 'metric', header: 'Métrica', dataType: 'string' },
+      { key: 'amount', header: 'Importe', dataType: 'money' },
+    ],
+    ...overrides,
+  };
+}
+
+export function makeReportExportTemplates(
+  overrides: Partial<ReportExportTemplatesResponse> = {},
+): ReportExportTemplatesResponse {
+  return {
+    templates: [
+      makeReportExportTemplate(),
+      makeReportExportTemplate({
+        reportType: 'SalesDetail',
+        name: 'Ventas detalladas',
+        description: 'Detalle línea por línea de ventas.',
+        supportedFilters: [
+          'From',
+          'To',
+          'BrandIds',
+          'CategoryIds',
+          'SellerIds',
+          'PaymentMethods',
+          'SaleStatuses',
+        ],
+        columns: [
+          { key: 'ticketId', header: 'Ticket', dataType: 'string' },
+          { key: 'date', header: 'Fecha', dataType: 'datetime' },
+          { key: 'productName', header: 'Artículo', dataType: 'string' },
+          { key: 'brandName', header: 'Marca', dataType: 'string' },
+          { key: 'subTotal', header: 'Subtotal', dataType: 'money' },
+        ],
+      }),
+      makeReportExportTemplate({
+        reportType: 'InventoryValuation',
+        name: 'Valorización de inventario',
+        description: 'Stock valorizado por marca y categoría.',
+        supportedFilters: ['BrandIds', 'CategoryIds', 'StockStatuses', 'IncludeInactiveProducts'],
+        columns: [
+          { key: 'sku', header: 'SKU', dataType: 'string' },
+          { key: 'productName', header: 'Artículo', dataType: 'string' },
+          { key: 'stockValue', header: 'Valorizado', dataType: 'money' },
+        ],
+      }),
+      makeReportExportTemplate({
+        reportType: 'MyBrand',
+        name: 'Mi Marca',
+        description: 'Resumen de la marca propia del admin.',
+        supportedFilters: ['From', 'To', 'CategoryIds', 'PaymentMethods', 'ImmobilizedDays'],
+        columns: [
+          { key: 'section', header: 'Sección', dataType: 'string' },
+          { key: 'amount', header: 'Importe', dataType: 'money' },
+        ],
+      }),
+    ],
+    defaultImmobilizedDays: 60,
+    previewRowLimit: 100,
+    maxRows: 100000,
+    ...overrides,
+  };
+}
+
+export function makeReportExportPreview(
+  overrides: Partial<ReportExportPreviewResponse> = {},
+): ReportExportPreviewResponse {
+  return {
+    reportType: 'SalesDetail',
+    from: '2026-06-01',
+    to: '2026-06-30',
+    columns: [
+      { key: 'ticketId', header: 'Ticket', dataType: 'string' },
+      { key: 'date', header: 'Fecha', dataType: 'datetime' },
+      { key: 'productName', header: 'Artículo', dataType: 'string' },
+      { key: 'brandName', header: 'Marca', dataType: 'string' },
+      { key: 'quantity', header: 'Cantidad', dataType: 'number' },
+      { key: 'subTotal', header: 'Subtotal', dataType: 'money' },
+    ],
+    rows: [
+      {
+        ticketId: 'TCK-REPORT-001',
+        date: '2026-06-03T12:00:00Z',
+        productName: 'Camisa Serena',
+        brandName: 'Lumina',
+        quantity: 2,
+        subTotal: 3200,
+      },
+    ],
+    summary: {
+      'Ventas netas': 3200,
+      'Tickets venta': 1,
+    },
     calculatedAtUtc: '2026-06-30T21:00:00Z',
     ...overrides,
   };

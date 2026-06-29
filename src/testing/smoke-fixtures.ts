@@ -3,6 +3,7 @@ import type { BrandResponse } from '../app/core/brands/brands.types';
 import type { UserResponse } from '../app/core/users/users.types';
 import type { StoreProfileResponse } from '../app/core/store-profile/store-profile.types';
 import type { ProductCategoryResponse } from '../app/core/product-categories/product-categories.types';
+import type { ReportExportRequest } from '../app/core/reports/reports.types';
 import type {
   CloseCashRegisterRequest,
   OpenCashRegisterRequest,
@@ -35,6 +36,8 @@ import {
   makeImmobilizedProduct,
   makeMovement,
   makeProduct,
+  makeReportExportPreview,
+  makeReportExportTemplates,
   makeSale,
   makeSaleSearch,
   makeSalesDashboard,
@@ -307,6 +310,25 @@ export const smokeTopProducts: TopSellingProductsResponse = makeTopSellingProduc
   items: smokeTopProductItems,
 });
 
+export const smokeReportTemplates = makeReportExportTemplates();
+
+export const smokeReportPreview = makeReportExportPreview({
+  rows: [
+    {
+      ticketId: 'TCK-SMOKE-001',
+      date: '2026-06-03T12:00:00Z',
+      productName: 'Camisa Serena',
+      brandName: 'Lumina',
+      quantity: 2,
+      subTotal: 3200,
+    },
+  ],
+  summary: {
+    'Ventas netas': 3200,
+    'Tickets venta': 1,
+  },
+});
+
 export const smokeSale: SaleResponse = makeSale({
   id: 'sale-smoke',
   ticketId: 'TCK-SMOKE-001',
@@ -474,6 +496,22 @@ export function resolveSmokeApiResponse(request: SmokeApiRequest): SmokeApiRespo
         brandId,
         limit,
         items,
+      }),
+    };
+  }
+  if (method === 'GET' && path === '/api/reports/exports/templates') {
+    return { status: 200, body: smokeReportTemplates };
+  }
+  if (method === 'POST' && path === '/api/reports/exports/preview') {
+    const payload = parseJson<ReportExportRequest>(request.postData);
+    return {
+      status: 200,
+      body: makeReportExportPreview({
+        reportType: payload.reportType,
+        from: payload.from,
+        to: payload.to,
+        rows: smokeReportPreview.rows,
+        summary: smokeReportPreview.summary,
       }),
     };
   }

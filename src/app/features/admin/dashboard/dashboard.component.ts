@@ -23,6 +23,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardList,
+  Lock,
   LucideAngularModule,
   LucideIconData,
   PackageSearch,
@@ -31,6 +32,7 @@ import {
   RefreshCw,
   ShoppingBag,
   TrendingUp,
+  Users,
   WalletCards,
 } from 'lucide-angular';
 
@@ -52,7 +54,7 @@ import {
   saleTypeStatusLabel,
   saleTypeStatusSeverity,
 } from '../../../core/sales/sales.utils';
-import { StoreTaskResponse } from '../../../core/tasks/tasks.types';
+import { StoreTaskResponse, StoreTaskScope } from '../../../core/tasks/tasks.types';
 import { TasksService } from '../../../core/tasks/tasks.service';
 import { sortPendingTasks } from '../../../core/tasks/tasks.utils';
 import { BrandChipComponent } from '../../../shared/components/brand-chip/brand-chip.component';
@@ -97,6 +99,13 @@ interface CashStatusView {
   severity: 'success' | 'warn' | 'danger' | 'secondary';
 }
 
+interface TaskScopeOption {
+  label: string;
+  description: string;
+  value: StoreTaskScope;
+  icon: LucideIconData;
+}
+
 @Component({
   selector: 'app-admin-dashboard',
   imports: [
@@ -129,14 +138,31 @@ export class AdminDashboardComponent implements OnInit {
     CalendarDays,
     CheckCircle2,
     ClipboardList,
+    Lock,
     PackageSearch,
     Plus,
     Receipt,
     RefreshCw,
     ShoppingBag,
     TrendingUp,
+    Users,
     WalletCards,
   };
+
+  protected readonly taskScopeOptions: readonly TaskScopeOption[] = [
+    {
+      label: 'Tareas del local',
+      description: 'Visibles para el equipo',
+      value: 'General',
+      icon: Users,
+    },
+    {
+      label: 'Tareas personales',
+      description: 'Visibles solo para tí',
+      value: 'Personal',
+      icon: Lock,
+    },
+  ];
 
   protected readonly user = this.auth.user;
   protected readonly today = formatUruguayDate();
@@ -150,6 +176,7 @@ export class AdminDashboardComponent implements OnInit {
   protected readonly dashboardLoading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly completingIds = signal<ReadonlySet<string>>(new Set<string>());
+  protected readonly selectedTaskScope = signal<StoreTaskScope>('General');
 
   protected readonly kpiCounts = this.products.kpiCounts;
   protected readonly kpiLoading = this.products.kpiLoading;
@@ -164,8 +191,34 @@ export class AdminDashboardComponent implements OnInit {
   protected readonly alertsCount = computed(
     () => this.kpiCounts().critical + this.kpiCounts().outOfStock,
   );
-  protected readonly pendingTasks = computed(() => sortPendingTasks(this.tasks.pending()).slice(0, 5));
+  protected readonly localPendingTasks = computed(() =>
+    sortPendingTasks(this.tasks.generalPending()),
+  );
+  protected readonly personalPendingTasks = computed(() =>
+    sortPendingTasks(this.tasks.personalPending()),
+  );
+  protected readonly selectedPendingTasks = computed(() =>
+    this.selectedTaskScope() === 'General'
+      ? this.localPendingTasks().slice(0, 5)
+      : this.personalPendingTasks().slice(0, 5),
+  );
   protected readonly pendingTaskCount = computed(() => this.tasks.pending().length);
+  protected readonly selectedTaskCount = computed(() =>
+    this.taskScopeCount(this.selectedTaskScope()),
+  );
+  protected readonly selectedTaskScopeTitle = computed(() =>
+    this.selectedTaskScope() === 'General' ? 'Tareas del local' : 'Tareas personales',
+  );
+  protected readonly selectedTaskScopeDetail = computed(() =>
+    this.selectedTaskScope() === 'General'
+      ? 'Pendientes operativas compartidas con el equipo.'
+      : 'Pendientes administrativos que solo ves vos.',
+  );
+  protected readonly selectedTaskEmptyMessage = computed(() =>
+    this.selectedTaskScope() === 'General'
+      ? 'No hay tareas del local pendientes.'
+      : 'No tenés tareas personales pendientes.',
+  );
   protected readonly highPriorityTaskCount = computed(
     () => this.tasks.pending().filter((task) => task.priority === 'High').length,
   );
@@ -196,7 +249,9 @@ export class AdminDashboardComponent implements OnInit {
   protected readonly topBrandMax = computed(() =>
     Math.max(0, ...this.topBrands().map((brand) => brand.netSalesAmount)),
   );
-  protected readonly recentSales = computed(() => (this.dashboard()?.sales.items ?? []).slice(0, 5));
+  protected readonly recentSales = computed(() =>
+    (this.dashboard()?.sales.items ?? []).slice(0, 5),
+  );
   protected readonly cashStatus = computed<CashStatusView>(() => {
     if (this.cashLoading() || !this.cashLoaded()) {
       return {
@@ -339,6 +394,16 @@ export class AdminDashboardComponent implements OnInit {
       });
   }
 
+  protected selectTaskScope(scope: StoreTaskScope): void {
+    this.selectedTaskScope.set(scope);
+  }
+
+  protected taskScopeCount(scope: StoreTaskScope): number {
+    return scope === 'General'
+      ? this.localPendingTasks().length
+      : this.personalPendingTasks().length;
+  }
+
   protected formatCurrency(value: number): string {
     return formatCurrencyUYU(value);
   }
@@ -395,6 +460,22 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
+  protected taskScopeButtonClasses(scope: StoreTaskScope): string {
+    if (this.selectedTaskScope() === scope) {
+      return 'border-primary/40 bg-primary/10 text-primary shadow-sm dark:border-primary/50 dark:bg-primary/20';
+    }
+
+    return 'border-surface-200 bg-surface-0 text-surface-700 hover:border-surface-300 hover:bg-surface-50 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200 dark:hover:bg-surface-700/60';
+  }
+
+  protected taskScopeIconClasses(scope: StoreTaskScope): string {
+    if (this.selectedTaskScope() === scope) {
+      return 'bg-primary text-primary-contrast';
+    }
+
+    return 'bg-surface-100 text-surface-500 dark:bg-surface-700 dark:text-surface-300';
+  }
+
   protected formatSaleTime(row: SalesDashboardSaleResponse): string {
     return this.formatTime(row.date);
   }
@@ -440,7 +521,10 @@ export class AdminDashboardComponent implements OnInit {
       .getDashboard({
         from: this.monthRange.startDate,
         to: this.monthRange.endDate,
-        chartWeekStart: defaultWeekStartForRange(this.monthRange.startDate, this.monthRange.endDate),
+        chartWeekStart: defaultWeekStartForRange(
+          this.monthRange.startDate,
+          this.monthRange.endDate,
+        ),
         page: 1,
         pageSize: 5,
       })
