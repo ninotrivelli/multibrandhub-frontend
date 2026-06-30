@@ -161,6 +161,27 @@ test.describe('deep smoke interactions', () => {
     await expect(page.getByText('Mostrando 1 a')).toBeVisible();
   });
 
+  test('Seller cash register opens and records a manual movement', async ({ page }) => {
+    await gotoAs(page, 'Seller', '/seller/cash-register');
+
+    await page.getByLabel('Efectivo inicial').fill('1000');
+    await page.getByRole('button', { name: 'Abrir Caja' }).click();
+    await expect(page.getByText('Caja abierta')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Registrar movimiento' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Registrar movimiento' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Salida' }).click();
+    await dialog.getByLabel('Monto').fill('150');
+    await dialog.getByLabel('Descripción').fill('Pago distribuidor');
+    await dialog.getByLabel('Notas').fill('Factura D-100');
+    await dialog.getByRole('button', { name: 'Registrar movimiento' }).click();
+
+    await expect(page.getByText('Pago distribuidor')).toBeVisible();
+    await expect(page.getByText('Factura D-100')).toBeVisible();
+    await expect(page.getByText('Salidas manuales')).toBeVisible();
+  });
+
   test('inventory permissions differ correctly by role', async ({ page }) => {
     await gotoAs(page, 'BrandManager', '/brand-manager/inventory');
     await expect(page.getByRole('heading', { name: 'Mi Stock' })).toBeVisible();

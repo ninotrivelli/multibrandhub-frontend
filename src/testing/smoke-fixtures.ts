@@ -6,6 +6,7 @@ import type { ProductCategoryResponse } from '../app/core/product-categories/pro
 import type { ReportExportRequest } from '../app/core/reports/reports.types';
 import type {
   CloseCashRegisterRequest,
+  CreateCashRegisterMovementRequest,
   OpenCashRegisterRequest,
 } from '../app/core/cash-register/cash-register.types';
 import type { CreateStoreTaskRequest, StoreTaskResponse } from '../app/core/tasks/tasks.types';
@@ -29,6 +30,7 @@ import {
   makeAuthSession,
   makeBrand,
   makeBrandSettlementEstimate,
+  makeCashRegisterMovement,
   makeCashRegisterSession,
   makeCashRegisterSummary,
   makeClosedCashRegisterSession,
@@ -616,6 +618,37 @@ export function resolveSmokeApiResponse(request: SmokeApiRequest): SmokeApiRespo
         openedByUserName: 'Venta Mostrador',
         openingCashAmount: payload.openingCashAmount,
         openingNotes: payload.notes ?? null,
+      }),
+    };
+  }
+  if (method === 'POST' && path.match(/^\/api\/cash-register\/[^/]+\/movements$/)) {
+    const payload = parseJson<CreateCashRegisterMovementRequest>(request.postData);
+    const type = payload.type ?? 'CashOut';
+    const amount = payload.amount ?? 150;
+    const signedAmount = type === 'CashIn' ? amount : -amount;
+    return {
+      status: 200,
+      body: makeCashRegisterSession({
+        id: path.split('/')[3],
+        openedByUserId: 'user-seller',
+        openedByUserName: 'Venta Mostrador',
+        manualCashInAmount: type === 'CashIn' ? amount : 0,
+        manualCashOutAmount: type === 'CashOut' ? amount : 0,
+        manualCashNetAmount: signedAmount,
+        expectedCashAmount: 4200 + signedAmount,
+        movements: [
+          makeCashRegisterMovement({
+            type,
+            amount,
+            signedAmount,
+            description: payload.description ?? 'Pago distribuidor',
+            notes: payload.notes ?? null,
+            createdByUserId: 'user-seller',
+            createdByUserName: 'Venta Mostrador',
+            occurredAtUtc: NOW,
+            createdAt: NOW,
+          }),
+        ],
       }),
     };
   }

@@ -1,0 +1,149 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [closable]="!submitting()"
+  [closeOnEscape]="!submitting()"
+  [dismissableMask]="!submitting()"
+  [draggable]="false"
+  [style]="{ width: '34rem', maxWidth: '95vw' }"
+  header="Registrar movimiento"
+>
+  @if (visible()) {
+    <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm font-medium text-surface-700 dark:text-surface-200">Tipo</label>
+        <p-selectbutton
+          formControlName="type"
+          [options]="typeOptions"
+          optionLabel="label"
+          optionValue="value"
+          [allowEmpty]="false"
+        >
+          <ng-template #item let-option>
+            <span class="inline-flex items-center gap-2">
+              <i-lucide [img]="option.icon" class="size-4" />
+              <span>{{ option.label }}</span>
+            </span>
+          </ng-template>
+        </p-selectbutton>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label
+          for="cashMovementAmount"
+          class="text-sm font-medium text-surface-700 dark:text-surface-200"
+        >
+          Monto
+        </label>
+        <p-inputnumber
+          inputId="cashMovementAmount"
+          formControlName="amount"
+          mode="currency"
+          currency="UYU"
+          locale="es-UY"
+          [min]="0.01"
+          [minFractionDigits]="0"
+          [maxFractionDigits]="2"
+          [invalid]="isInvalid('amount')"
+          inputStyleClass="w-full"
+          fluid
+        />
+        @if (isInvalid('amount')) {
+          <p-message severity="error" size="small" variant="simple">
+            Ingresá un monto mayor a cero.
+          </p-message>
+        }
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label
+          for="cashMovementDescription"
+          class="text-sm font-medium text-surface-700 dark:text-surface-200"
+        >
+          Descripción
+        </label>
+        <textarea
+          pTextarea
+          id="cashMovementDescription"
+          rows="3"
+          formControlName="description"
+          [maxlength]="maxDescriptionLength"
+          [invalid]="isInvalid('description')"
+          placeholder="Ej: Pago a proveedor"
+          fluid
+        ></textarea>
+        <div class="flex justify-end">
+          <span class="text-xs text-surface-400 dark:text-surface-500">
+            {{ descriptionLength }}/{{ maxDescriptionLength }}
+          </span>
+        </div>
+        @if (isInvalid('description')) {
+          <p-message severity="error" size="small" variant="simple">
+            La descripción es obligatoria y no puede superar 200 caracteres.
+          </p-message>
+        }
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label
+          for="cashMovementNotes"
+          class="text-sm font-medium text-surface-700 dark:text-surface-200"
+        >
+          Notas
+        </label>
+        <textarea
+          pTextarea
+          id="cashMovementNotes"
+          rows="2"
+          formControlName="notes"
+          [maxlength]="maxNotesLength"
+          [invalid]="isInvalid('notes')"
+          placeholder="Opcional"
+          fluid
+        ></textarea>
+        <div class="flex justify-end">
+          <span class="text-xs text-surface-400 dark:text-surface-500">
+            {{ notesLength }}/{{ maxNotesLength }}
+          </span>
+        </div>
+        @if (isInvalid('notes')) {
+          <p-message severity="error" size="small" variant="simple">
+            Máximo 500 caracteres.
+          </p-message>
+        }
+      </div>
+
+      @if (submitError()) {
+        <p-message severity="error" variant="outlined" [closable]="false">
+          {{ submitError() }}
+        </p-message>
+      }
+
+      <div class="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          [text]="true"
+          label="Cancelar"
+          [disabled]="submitting()"
+          (click)="cancel()"
+        >
+          <i-lucide [img]="icons.X" class="size-4 mr-2" />
+        </button>
+        <button
+          pButton
+          type="submit"
+          label="Registrar movimiento"
+          [loading]="submitting()"
+          [disabled]="submitting()"
+        >
+          @if (!submitting()) {
+            <i-lucide [img]="icons.Check" class="size-4 mr-2" />
+          }
+        </button>
+      </div>
+    </form>
+  }
+</p-dialog>

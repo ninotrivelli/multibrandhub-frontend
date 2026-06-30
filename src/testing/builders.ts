@@ -8,6 +8,7 @@ import {
 import { BrandResponse, ContractType } from '../app/core/brands/brands.types';
 import {
   CashRegisterBrandTotalResponse,
+  CashRegisterMovementResponse,
   CashRegisterPaymentTotalResponse,
   CashRegisterReconciliationLineResponse,
   CashRegisterSessionResponse,
@@ -381,6 +382,27 @@ export function makeCashRegisterBrandTotal(
   };
 }
 
+export function makeCashRegisterMovement(
+  overrides: Partial<CashRegisterMovementResponse> = {},
+): CashRegisterMovementResponse {
+  const type = overrides.type ?? 'CashIn';
+  const amount = overrides.amount ?? 250;
+
+  return {
+    id: 'cash-movement-1',
+    type,
+    amount,
+    signedAmount: overrides.signedAmount ?? (type === 'CashIn' ? amount : -amount),
+    description: 'Refuerzo de caja',
+    notes: null,
+    occurredAtUtc: '2026-06-03T15:00:00Z',
+    createdByUserId: 'user-seller',
+    createdByUserName: 'Venta Mostrador',
+    createdAt: '2026-06-03T15:00:00Z',
+    ...overrides,
+  };
+}
+
 export function makeCashRegisterSession(
   overrides: Partial<CashRegisterSessionResponse> = {},
 ): CashRegisterSessionResponse {
@@ -457,6 +479,9 @@ export function makeCashRegisterSession(
     actualCashAmount: null,
     expectedCashAmount: 4200,
     cashVarianceAmount: null,
+    manualCashInAmount: 0,
+    manualCashOutAmount: 0,
+    manualCashNetAmount: 0,
     closingNotes: null,
     grossSalesAmount: 5500,
     returnsAmount: 500,
@@ -466,6 +491,7 @@ export function makeCashRegisterSession(
     paymentTotals,
     brandTotals,
     reconciliationLines: lines,
+    movements: [],
     createdAt: '2026-06-03T11:00:00Z',
     ...overrides,
   };
@@ -506,6 +532,9 @@ export function makeClosedCashRegisterSession(
     actualCashAmount: 4300,
     expectedCashAmount: 4200,
     cashVarianceAmount: 100,
+    manualCashInAmount: 0,
+    manualCashOutAmount: 0,
+    manualCashNetAmount: 0,
     closingNotes: 'Cierre sin diferencias grandes',
     reconciliationLines,
     paymentTotals: [
@@ -564,6 +593,9 @@ export function makeCashRegisterSummary(
     actualCashAmount: 4300,
     expectedCashAmount: 4200,
     cashVarianceAmount: 100,
+    manualCashInAmount: 0,
+    manualCashOutAmount: 0,
+    manualCashNetAmount: 0,
     grossSalesAmount: 5500,
     returnsAmount: 500,
     netSalesAmount: 5000,

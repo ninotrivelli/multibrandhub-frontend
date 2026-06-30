@@ -9,6 +9,7 @@ import {
   CashRegisterSessionResponse,
   CashRegisterSessionSummaryResponse,
   CloseCashRegisterRequest,
+  CreateCashRegisterMovementRequest,
   OpenCashRegisterRequest,
   PagedResult,
 } from './cash-register.types';
@@ -107,6 +108,23 @@ export class CashRegisterService {
         this._reportError.set(null);
       }),
     );
+  }
+
+  createMovement(
+    sessionId: string,
+    req: CreateCashRegisterMovementRequest,
+  ): Observable<CashRegisterSessionResponse> {
+    const generation = this.sessionState.captureGeneration();
+    return this.http
+      .post<CashRegisterSessionResponse>(`${this.baseUrl}/${sessionId}/movements`, req)
+      .pipe(
+        tap((session) => {
+          if (!this.sessionState.isCurrentGeneration(generation)) return;
+          this._current.set(session);
+          this._currentLoaded.set(true);
+          this._currentError.set(null);
+        }),
+      );
   }
 
   getById(id: string): Observable<CashRegisterSessionResponse> {
