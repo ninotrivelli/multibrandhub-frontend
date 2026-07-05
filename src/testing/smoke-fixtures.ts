@@ -56,6 +56,7 @@ import {
 export const SMOKE_STORAGE_KEY = 'mbh.token';
 export const SMOKE_TENANT_ID = 'tenant-smoke';
 export const API_BASE_URL = 'https://localhost:7260/api';
+export const SMOKE_NOW = '2026-06-07T12:00:00Z';
 
 export type SmokeRole = Extract<UserRole, 'Admin' | 'BrandManager' | 'Seller'>;
 
@@ -70,7 +71,7 @@ export interface SmokeApiResponse {
   body?: unknown;
 }
 
-const NOW = '2026-06-07T12:00:00Z';
+const NOW = SMOKE_NOW;
 
 const SMOKE_USERS_BY_ROLE: Record<SmokeRole, AuthUser> = {
   Admin: {

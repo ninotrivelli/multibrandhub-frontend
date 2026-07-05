@@ -152,6 +152,45 @@ describe('ProductsService', () => {
     expect(service.totalCount()).toBe(0);
   });
 
+  it('uploads and clears product images while replacing cached products', () => {
+    const original = makeProduct({ id: 'product-1', imageUrl: null });
+    service.search({ page: 1, pageSize: 12 }).subscribe();
+    http
+      .expectOne((request) => request.url === `${baseUrl}/search`)
+      .flush(paged([original], { totalCount: 1 }));
+
+    service.loadAll().subscribe();
+    http
+      .expectOne((request) => request.url === `${baseUrl}/search`)
+      .flush(paged([original], { totalCount: 1 }));
+
+    const file = new File(['image'], 'producto.png', { type: 'image/png' });
+    const withImage = makeProduct({
+      ...original,
+      imageUrl: 'https://cdn.test/producto.webp',
+    });
+    service.uploadImage(original.id, file).subscribe();
+
+    let req = http.expectOne(`${baseUrl}/${original.id}/image`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body instanceof FormData).toBe(true);
+    expect(req.request.body.get('file')).toBe(file);
+    req.flush(withImage);
+
+    expect(service.items()[0]?.imageUrl).toBe('https://cdn.test/producto.webp');
+    expect(service.allItems()[0]?.imageUrl).toBe('https://cdn.test/producto.webp');
+
+    const withoutImage = makeProduct({ ...original, imageUrl: null });
+    service.clearImage(original.id).subscribe();
+
+    req = http.expectOne(`${baseUrl}/${original.id}/image`);
+    expect(req.request.method).toBe('DELETE');
+    req.flush(withoutImage);
+
+    expect(service.items()[0]?.imageUrl).toBeNull();
+    expect(service.allItems()[0]?.imageUrl).toBeNull();
+  });
+
   it('loads KPI, all-items, import, and immobilized endpoints with the expected contract', () => {
     service.loadKpiCounts('brand-own').subscribe();
     const total = http.expectOne(

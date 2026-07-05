@@ -5,6 +5,7 @@ import {
   expectRouteReady,
   expectSmokeClean,
   gotoAs,
+  installSmokeClock,
   installSession,
   mockSmokeApi,
   type SmokeWatchers,
@@ -15,6 +16,7 @@ let watchers: SmokeWatchers;
 
 test.beforeEach(async ({ page }) => {
   watchers = collectSmokeWatchers(page);
+  await installSmokeClock(page);
   await mockSmokeApi(page, watchers);
 });
 

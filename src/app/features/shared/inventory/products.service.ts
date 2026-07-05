@@ -200,9 +200,27 @@ export class ProductsService {
     const generation = this.sessionState.captureGeneration();
     return this.http.put<ProductResponse>(`${this.baseUrl}/${id}`, req).pipe(
       tap((updated) => {
-        if (this.sessionState.isCurrentGeneration(generation)) {
-          this._items.update((curr) => curr.map((p) => (p.id === id ? updated : p)));
-        }
+        if (this.sessionState.isCurrentGeneration(generation)) this.replaceProduct(updated);
+      }),
+    );
+  }
+
+  uploadImage(productId: string, file: File): Observable<ProductResponse> {
+    const generation = this.sessionState.captureGeneration();
+    const fd = new FormData();
+    fd.append('file', file);
+    return this.http.post<ProductResponse>(`${this.baseUrl}/${productId}/image`, fd).pipe(
+      tap((updated) => {
+        if (this.sessionState.isCurrentGeneration(generation)) this.replaceProduct(updated);
+      }),
+    );
+  }
+
+  clearImage(productId: string): Observable<ProductResponse> {
+    const generation = this.sessionState.captureGeneration();
+    return this.http.delete<ProductResponse>(`${this.baseUrl}/${productId}/image`).pipe(
+      tap((updated) => {
+        if (this.sessionState.isCurrentGeneration(generation)) this.replaceProduct(updated);
       }),
     );
   }
@@ -327,6 +345,11 @@ export class ProductsService {
     this._allItems.update((curr) =>
       curr.map((p) => (p.id === productId ? { ...p, currentStock: p.currentStock + delta } : p)),
     );
+  }
+
+  private replaceProduct(updated: ProductResponse): void {
+    this._items.update((curr) => curr.map((p) => (p.id === updated.id ? updated : p)));
+    this._allItems.update((curr) => curr.map((p) => (p.id === updated.id ? updated : p)));
   }
 
   private buildSearchParams(params: ProductSearchParams): HttpParams {
