@@ -4,6 +4,7 @@ import { catchError, throwError } from 'rxjs';
 
 import { AuthService } from '../auth/auth.service';
 import { NotificationService } from '../notifications/notification.service';
+import { HANDLE_ERROR_LOCALLY } from './local-error-handling';
 
 interface ValidationError {
   property: string;
@@ -26,10 +27,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
-      const isLoginRequest = req.url.includes('/auth/login');
-
-      // The LoginComponent handles its own error UI inline
-      if (isLoginRequest) return throwError(() => err);
+      if (req.context.get(HANDLE_ERROR_LOCALLY)) return throwError(() => err);
 
       if (err.status === 401) {
         notifications.warn('Volvé a ingresar', 'Sesión expirada');
@@ -60,7 +58,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       const detail = body.message ?? 'Ocurrió un error inesperado';
       notifications.error(detail);
       return throwError(() => err);
-    })
+    }),
   );
 };
 
@@ -86,4 +84,5 @@ const SESSION_INVALID_FORBIDDEN_MESSAGES = new Set([
   'El rol del token no está vigente.',
   'La marca del token no está vigente.',
   'El local no está activo.',
+  'La sesión dejó de estar vigente.',
 ]);

@@ -54,6 +54,18 @@ describe('tenantInterceptor', () => {
     req.flush({});
   });
 
+  it('keeps the local dev tenant host override on public password endpoints', () => {
+    localStorage.setItem(DEV_TENANT_HOST_STORAGE_KEY, 'aurora.localhost');
+
+    for (const path of ['/auth/forgot-password', '/auth/reset-password']) {
+      const url = `${environment.apiBaseUrl}${path}`;
+      http.post(url, {}).subscribe();
+      const req = httpTesting.expectOne(url);
+      expect(req.request.headers.get(TENANT_HOST_HEADER)).toBe('aurora.localhost');
+      req.flush({});
+    }
+  });
+
   it('never attaches X-Tenant-Host in production', () => {
     environment.production = true;
     localStorage.setItem(DEV_TENANT_HOST_STORAGE_KEY, 'aurora.localhost');

@@ -1,16 +1,19 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, map, tap } from 'rxjs';
 import { jwtDecode } from 'jwt-decode';
 
 import { environment } from '../../../environments/environment';
 import { SessionStateRegistry } from '../session/session-state-registry.service';
+import { HANDLE_ERROR_LOCALLY } from '../http/local-error-handling';
 import {
   AuthResponse,
   AuthSession,
   AuthUser,
+  CompletePasswordResetRequest,
   EMAIL_CLAIM_URI,
+  ForgotPasswordRequest,
   JwtClaims,
   LoginRequest,
   NAMEID_CLAIM_URI,
@@ -132,25 +135,43 @@ export class AuthService {
   }
 
   login(req: LoginRequest): Observable<AuthSession> {
-    return this.http.post<AuthResponse>(`${environment.apiBaseUrl}/auth/login`, req).pipe(
-      map<AuthResponse, AuthSession>((res) => ({
-        user: {
-          userId: res.userId,
-          fullName: res.fullName,
-          email: res.email,
-          role: normalizeRole(res.role),
-          brandId: res.brandId,
-        },
-        tenantId: tenantIdFromToken(res.token),
-        token: res.token,
-        expiresAtUtc: res.expiresAtUtc,
-      })),
-      tap((session) => {
-        this.sessionState.resetAll();
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-        this._session.set(session);
-      }),
-    );
+    return this.http
+      .post<AuthResponse>(`${environment.apiBaseUrl}/auth/login`, req, {
+        context: this.localErrorContext(),
+      })
+      .pipe(
+        map<AuthResponse, AuthSession>((res) => ({
+          user: {
+            userId: res.userId,
+            fullName: res.fullName,
+            email: res.email,
+            role: normalizeRole(res.role),
+            brandId: res.brandId,
+          },
+          tenantId: tenantIdFromToken(res.token),
+          token: res.token,
+          expiresAtUtc: res.expiresAtUtc,
+        })),
+        tap((session) => {
+          this.sessionState.resetAll();
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+          this._session.set(session);
+        }),
+      );
+  }
+
+  requestPasswordReset(email: string): Observable<void> {
+    const body: ForgotPasswordRequest = { email };
+    return this.http.post<void>(`${environment.apiBaseUrl}/auth/forgot-password`, body, {
+      context: this.localErrorContext(),
+    });
+  }
+
+  resetForgottenPassword(token: string, newPassword: string): Observable<void> {
+    const body: CompletePasswordResetRequest = { token, newPassword };
+    return this.http.post<void>(`${environment.apiBaseUrl}/auth/reset-password`, body, {
+      context: this.localErrorContext(),
+    });
   }
 
   logout(): void {
@@ -158,10 +179,14 @@ export class AuthService {
     this.router.navigate(['/login']);
   }
 
-  private clearSession(): void {
+  clearSession(): void {
     localStorage.removeItem(STORAGE_KEY);
     this._session.set(null);
     this.sessionState.resetAll();
+  }
+
+  private localErrorContext(): HttpContext {
+    return new HttpContext().set(HANDLE_ERROR_LOCALLY, true);
   }
 
   homePathFor(role: UserRole): string {

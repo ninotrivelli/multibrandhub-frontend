@@ -35,15 +35,18 @@ describe('authInterceptor', () => {
     req.flush({});
   });
 
-  it('does not attach bearer tokens to login or anonymous requests', () => {
-    http.post(`${environment.apiBaseUrl}/auth/login`, {}).subscribe();
-    let req = httpTesting.expectOne(`${environment.apiBaseUrl}/auth/login`);
-    expect(req.request.headers.has('Authorization')).toBe(false);
-    req.flush({});
+  it('does not attach bearer tokens to public auth endpoints or anonymous requests', () => {
+    for (const path of ['/auth/login', '/auth/forgot-password', '/auth/reset-password']) {
+      const url = `${environment.apiBaseUrl}${path}`;
+      http.post(url, {}).subscribe();
+      const req = httpTesting.expectOne(url);
+      expect(req.request.headers.has('Authorization')).toBe(false);
+      req.flush({});
+    }
 
     token = null;
     http.get(`${environment.apiBaseUrl}/products`).subscribe();
-    req = httpTesting.expectOne(`${environment.apiBaseUrl}/products`);
+    const req = httpTesting.expectOne(`${environment.apiBaseUrl}/products`);
     expect(req.request.headers.has('Authorization')).toBe(false);
     req.flush({});
   });

@@ -25,6 +25,21 @@ test.afterEach(async () => {
 });
 
 test.describe('auth and role guards', () => {
+  test('allows anonymous access to password recovery routes and removes the reset token', async ({
+    page,
+  }) => {
+    await installSession(page, null);
+
+    await page.goto('/forgot-password');
+    await expect(page).toHaveURL(/\/forgot-password$/);
+    await expect(page.getByText('Recuperá tu contraseña')).toBeVisible();
+
+    await page.goto('/reset-password?token=smoke-secret-token');
+    await expect(page).toHaveURL(/\/reset-password$/);
+    await expect(page.getByText('Restablecé tu contraseña')).toBeVisible();
+    await expect(page.getByLabel('Nueva contraseña', { exact: true })).toBeVisible();
+  });
+
   test('redirects protected routes to login without a session', async ({ page }) => {
     await installSession(page, null);
     await page.goto('/admin/inventory');
@@ -116,7 +131,10 @@ test.describe('deep smoke interactions', () => {
     await expect(page.getByText('Reponer bolsas')).toHaveCount(0);
 
     await gotoAs(page, 'Admin', '/admin/dashboard');
-    await page.getByRole('link', { name: /Nueva Venta/ }).first().click();
+    await page
+      .getByRole('link', { name: /Nueva Venta/ })
+      .first()
+      .click();
     await expectRouteReady(page, /\/admin\/pos$/, 'Ingresar Venta');
   });
 
@@ -129,7 +147,10 @@ test.describe('deep smoke interactions', () => {
     await expect(page.getByText('A favor de tu marca').first()).toBeVisible();
     await expect(page.getByText('Stock a revisar')).toBeVisible();
 
-    await page.getByRole('link', { name: /Ver mis ventas/ }).first().click();
+    await page
+      .getByRole('link', { name: /Ver mis ventas/ })
+      .first()
+      .click();
     await expectRouteReady(page, /\/brand-manager\/sales$/, 'Ventas');
 
     await gotoAs(page, 'BrandManager', '/brand-manager/dashboard');
@@ -268,7 +289,10 @@ test.describe('deep smoke interactions', () => {
     await expect(page.getByRole('heading', { name: 'Liquidaciones', exact: true })).toBeVisible();
     await expect(page.getByText('Lumina')).toBeVisible();
     await expect(page.getByText('La marca debe pagar al local').first()).toBeVisible();
-    await page.getByRole('row', { name: /Lumina/ }).first().click();
+    await page
+      .getByRole('row', { name: /Lumina/ })
+      .first()
+      .click();
     const adminDetail = page.getByRole('dialog', { name: 'Detalle de liquidación' });
     await expect(adminDetail).toBeVisible();
     await expect(adminDetail.getByText('Saldo final').first()).toBeVisible();
@@ -278,7 +302,10 @@ test.describe('deep smoke interactions', () => {
     await expect(page.getByText('Balance de liquidación')).toBeVisible();
     await expect(page.getByText('Lumina').first()).toBeVisible();
     await expect(page.getByRole('button', { name: /Generar|Recalcular/ })).toHaveCount(0);
-    await page.getByRole('row', { name: /Lumina/ }).first().click();
+    await page
+      .getByRole('row', { name: /Lumina/ })
+      .first()
+      .click();
     await expect(page.getByRole('dialog', { name: 'Detalle de liquidación' })).toBeVisible();
   });
 
