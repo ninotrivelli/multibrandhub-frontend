@@ -23,6 +23,17 @@
         <button
           pButton
           type="button"
+          severity="secondary"
+          [outlined]="true"
+          label="Registrar movimiento"
+          [disabled]="submittingMovement()"
+          (click)="openMovementDialog()"
+        >
+          <i-lucide [img]="icons.Plus" class="size-4 mr-2" />
+        </button>
+        <button
+          pButton
+          type="button"
           label="Cerrar Caja"
           [disabled]="submittingClose()"
           (click)="openCloseDialog()"
@@ -115,13 +126,39 @@
             </div>
             <div class="flex min-w-0 flex-1 flex-col gap-1">
               <span class="text-sm text-surface-500 dark:text-surface-400">{{ kpi.label }}</span>
-              <span
-                class="truncate text-2xl font-bold leading-tight text-surface-900 dark:text-surface-0"
-              >
-                {{ formatKpi(kpi) }}
+              <span class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span
+                  class="truncate text-2xl font-bold leading-tight text-surface-900 dark:text-surface-0"
+                >
+                  {{ formatKpi(kpi) }}
+                </span>
+                @if (kpi.valueSuffix) {
+                  <span
+                    class="shrink-0 text-sm font-semibold text-surface-500 dark:text-surface-400"
+                  >
+                    {{ kpi.valueSuffix }}
+                  </span>
+                }
               </span>
               @if (kpi.caption) {
                 <span class="text-xs text-surface-500 dark:text-surface-400">{{ kpi.caption }}</span>
+              }
+              @if (kpi.details?.length) {
+                <dl
+                  class="mt-2 grid grid-cols-1 gap-1 border-t border-surface-100 pt-2 text-xs dark:border-surface-700"
+                >
+                  @for (detail of kpi.details ?? []; track detail.label) {
+                    <div class="flex items-center justify-between gap-3">
+                      <dt class="text-surface-500 dark:text-surface-400">{{ detail.label }}</dt>
+                      <dd
+                        class="font-semibold text-surface-700 dark:text-surface-200"
+                        [class]="detail.valueClass ?? ''"
+                      >
+                        {{ detail.value }}
+                      </dd>
+                    </div>
+                  }
+                </dl>
               }
             </div>
           </article>
@@ -155,6 +192,74 @@
             </div>
           }
         </div>
+      </section>
+
+      <section
+        class="rounded-lg border border-surface-200 bg-surface-0 dark:border-surface-700 dark:bg-surface-800"
+      >
+        <div
+          class="flex items-center justify-between gap-3 border-b border-surface-200 px-4 py-3 dark:border-surface-700"
+        >
+          <h2 class="text-base font-semibold text-surface-900 dark:text-surface-0">
+            Movimientos manuales
+          </h2>
+        </div>
+
+        @if (session.movements.length === 0) {
+          <p class="px-4 py-8 text-center text-sm text-surface-500 dark:text-surface-400">
+            Todavía no hay movimientos manuales en esta caja.
+          </p>
+        } @else {
+          <div class="overflow-x-auto p-4">
+            <table class="w-full min-w-[46rem] text-sm">
+              <thead class="text-xs uppercase text-surface-500 dark:text-surface-400">
+                <tr>
+                  <th class="py-2 pr-3 text-left">Fecha</th>
+                  <th class="py-2 pr-3 text-left">Tipo</th>
+                  <th class="py-2 pr-3 text-left">Descripción</th>
+                  <th class="py-2 pr-3 text-left">Usuario</th>
+                  <th class="py-2 text-right">Importe</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (movement of session.movements; track movement.id) {
+                  <tr class="border-t border-surface-100 dark:border-surface-700">
+                    <td class="py-3 pr-3 text-surface-700 dark:text-surface-200">
+                      {{ formatDateTime(movement.occurredAtUtc) }}
+                    </td>
+                    <td class="py-3 pr-3">
+                      <p-tag
+                        [value]="movementTypeLabel(movement.type)"
+                        [severity]="movementSeverity(movement.type)"
+                      />
+                    </td>
+                    <td class="py-3 pr-3">
+                      <div class="flex flex-col leading-tight">
+                        <span class="font-medium text-surface-900 dark:text-surface-0">
+                          {{ movement.description }}
+                        </span>
+                        @if (movement.notes) {
+                          <span class="mt-1 text-xs text-surface-500 dark:text-surface-400">
+                            {{ movement.notes }}
+                          </span>
+                        }
+                      </div>
+                    </td>
+                    <td class="py-3 pr-3 text-surface-700 dark:text-surface-200">
+                      {{ movement.createdByUserName ?? '—' }}
+                    </td>
+                    <td
+                      class="py-3 text-right font-semibold"
+                      [class]="varianceClass(movement.signedAmount)"
+                    >
+                      {{ formatSignedCurrency(movement.signedAmount) }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
       </section>
 
       <section
@@ -438,6 +543,26 @@
           <p class="mt-2 text-xl font-semibold text-surface-900 dark:text-surface-0">
             {{ formatCurrency(report.expectedCashAmount) }}
           </p>
+          <dl class="mt-3 grid grid-cols-1 gap-1 text-xs">
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-surface-500 dark:text-surface-400">Entradas manuales</dt>
+              <dd class="font-semibold text-surface-700 dark:text-surface-200">
+                {{ formatCurrency(report.manualCashInAmount) }}
+              </dd>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-surface-500 dark:text-surface-400">Salidas manuales</dt>
+              <dd class="font-semibold text-surface-700 dark:text-surface-200">
+                {{ formatCurrency(report.manualCashOutAmount) }}
+              </dd>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-surface-500 dark:text-surface-400">Neto manual</dt>
+              <dd class="font-semibold" [class]="varianceClass(report.manualCashNetAmount)">
+                {{ formatSignedCurrency(report.manualCashNetAmount) }}
+              </dd>
+            </div>
+          </dl>
         </div>
         <div class="rounded-lg bg-surface-50 p-4 dark:bg-surface-900/40">
           <span
@@ -465,6 +590,67 @@
       </div>
 
       <div class="grid grid-cols-1 gap-6 p-4">
+        <div class="overflow-x-auto">
+          <h3 class="mb-2 text-sm font-semibold text-surface-900 dark:text-surface-0">
+            Movimientos manuales
+          </h3>
+          @if (report.movements.length === 0) {
+            <p
+              class="rounded-lg border border-surface-100 px-4 py-6 text-center text-sm text-surface-500 dark:border-surface-700 dark:text-surface-400"
+            >
+              Esta caja no tuvo movimientos manuales.
+            </p>
+          } @else {
+            <table class="w-full min-w-[46rem] text-sm">
+              <thead class="text-xs uppercase text-surface-500 dark:text-surface-400">
+                <tr>
+                  <th class="py-2 pr-3 text-left">Fecha</th>
+                  <th class="py-2 pr-3 text-left">Tipo</th>
+                  <th class="py-2 pr-3 text-left">Descripción</th>
+                  <th class="py-2 pr-3 text-left">Usuario</th>
+                  <th class="py-2 text-right">Importe</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (movement of report.movements; track movement.id) {
+                  <tr class="border-t border-surface-100 dark:border-surface-700">
+                    <td class="py-3 pr-3 text-surface-700 dark:text-surface-200">
+                      {{ formatDateTime(movement.occurredAtUtc) }}
+                    </td>
+                    <td class="py-3 pr-3">
+                      <p-tag
+                        [value]="movementTypeLabel(movement.type)"
+                        [severity]="movementSeverity(movement.type)"
+                      />
+                    </td>
+                    <td class="py-3 pr-3">
+                      <div class="flex flex-col leading-tight">
+                        <span class="font-medium text-surface-900 dark:text-surface-0">
+                          {{ movement.description }}
+                        </span>
+                        @if (movement.notes) {
+                          <span class="mt-1 text-xs text-surface-500 dark:text-surface-400">
+                            {{ movement.notes }}
+                          </span>
+                        }
+                      </div>
+                    </td>
+                    <td class="py-3 pr-3 text-surface-700 dark:text-surface-200">
+                      {{ movement.createdByUserName ?? '—' }}
+                    </td>
+                    <td
+                      class="py-3 text-right font-semibold"
+                      [class]="varianceClass(movement.signedAmount)"
+                    >
+                      {{ formatSignedCurrency(movement.signedAmount) }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+
         <div class="overflow-x-auto">
           <h3 class="mb-2 text-sm font-semibold text-surface-900 dark:text-surface-0">
             Totales por método
@@ -701,4 +887,12 @@
   [submitError]="closeSubmitError()"
   (visibleChange)="closeDialogVisible.set($event)"
   (closeRegister)="closeCurrent($event)"
+/>
+
+<app-cash-register-movement-dialog
+  [visible]="movementDialogVisible()"
+  [submitting]="submittingMovement()"
+  [submitError]="movementSubmitError()"
+  (visibleChange)="movementDialogVisible.set($event)"
+  (createMovement)="createManualMovement($event)"
 />

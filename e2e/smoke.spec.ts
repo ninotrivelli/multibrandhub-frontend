@@ -5,6 +5,7 @@ import {
   expectRouteReady,
   expectSmokeClean,
   gotoAs,
+  installSmokeClock,
   installSession,
   mockSmokeApi,
   type SmokeWatchers,
@@ -15,6 +16,7 @@ let watchers: SmokeWatchers;
 
 test.beforeEach(async ({ page }) => {
   watchers = collectSmokeWatchers(page);
+  await installSmokeClock(page);
   await mockSmokeApi(page, watchers);
 });
 
@@ -23,6 +25,21 @@ test.afterEach(async () => {
 });
 
 test.describe('auth and role guards', () => {
+  test('allows anonymous access to password recovery routes and removes the reset token', async ({
+    page,
+  }) => {
+    await installSession(page, null);
+
+    await page.goto('/forgot-password');
+    await expect(page).toHaveURL(/\/forgot-password$/);
+    await expect(page.getByText('Recuperá tu contraseña')).toBeVisible();
+
+    await page.goto('/reset-password?token=smoke-secret-token');
+    await expect(page).toHaveURL(/\/reset-password$/);
+    await expect(page.getByText('Restablecé tu contraseña')).toBeVisible();
+    await expect(page.getByLabel('Nueva contraseña', { exact: true })).toBeVisible();
+  });
+
   test('redirects protected routes to login without a session', async ({ page }) => {
     await installSession(page, null);
     await page.goto('/admin/inventory');
@@ -92,6 +109,60 @@ test.describe('route sweep', () => {
 });
 
 test.describe('deep smoke interactions', () => {
+  test('Admin Inicio shows operational data and navigates key shortcuts', async ({ page }) => {
+    await gotoAs(page, 'Admin', '/admin/dashboard');
+
+    await expect(page.getByText('Ventas de hoy')).toBeVisible();
+    await expect(page.getByText('Atención requerida')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Caja cerrada La caja del local/ })).toBeVisible();
+    await expect(page.getByText('Reponer bolsas')).toBeVisible();
+
+    await page.getByRole('link', { name: /Ventas de hoy/ }).click();
+    await expect(page).toHaveURL(/\/admin\/sales\?from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}$/);
+    await expect(page.getByRole('heading', { name: 'Ventas', exact: true })).toBeVisible();
+
+    await gotoAs(page, 'Admin', '/admin/dashboard');
+    await page.getByRole('link', { name: /Alertas de stock/ }).click();
+    await expect(page).toHaveURL(/\/admin\/inventory\?kpi=alerts$/);
+    await expect(page.getByRole('heading', { name: 'Control de Inventario' })).toBeVisible();
+
+    await gotoAs(page, 'Admin', '/admin/dashboard');
+    await page.getByRole('checkbox', { name: 'Marcar como completada' }).first().click();
+    await expect(page.getByText('Reponer bolsas')).toHaveCount(0);
+
+    await gotoAs(page, 'Admin', '/admin/dashboard');
+    await page
+      .getByRole('link', { name: /Nueva Venta/ })
+      .first()
+      .click();
+    await expectRouteReady(page, /\/admin\/pos$/, 'Ingresar Venta');
+  });
+
+  test('BrandManager Mi Resumen shows brand data and navigates shortcuts', async ({ page }) => {
+    await gotoAs(page, 'BrandManager', '/brand-manager/dashboard');
+
+    await expect(page.getByText('Ventas del mes')).toBeVisible();
+    await expect(page.getByText('Top 10 productos')).toBeVisible();
+    await expect(page.getByText('Producto estrella')).toBeVisible();
+    await expect(page.getByText('A favor de tu marca').first()).toBeVisible();
+    await expect(page.getByText('Stock a revisar')).toBeVisible();
+
+    await page
+      .getByRole('link', { name: /Ver mis ventas/ })
+      .first()
+      .click();
+    await expectRouteReady(page, /\/brand-manager\/sales$/, 'Ventas');
+
+    await gotoAs(page, 'BrandManager', '/brand-manager/dashboard');
+    await page.getByRole('link', { name: /Ver stock/ }).click();
+    await expect(page).toHaveURL(/\/brand-manager\/inventory\?kpi=alerts$/);
+    await expect(page.getByRole('heading', { name: 'Mi Stock' })).toBeVisible();
+
+    await gotoAs(page, 'BrandManager', '/brand-manager/dashboard');
+    await page.getByRole('button', { name: 'Últimos 3 meses' }).click();
+    await expect(page.getByText(/1 de abril al 30 de junio/)).toBeVisible();
+  });
+
   test('Admin inventory opens product, import, movement dialogs and movements tab', async ({
     page,
   }) => {
@@ -111,6 +182,27 @@ test.describe('deep smoke interactions', () => {
 
     await page.getByRole('button', { name: 'Movimientos' }).click();
     await expect(page.getByText('Mostrando 1 a')).toBeVisible();
+  });
+
+  test('Seller cash register opens and records a manual movement', async ({ page }) => {
+    await gotoAs(page, 'Seller', '/seller/cash-register');
+
+    await page.getByLabel('Efectivo inicial').fill('1000');
+    await page.getByRole('button', { name: 'Abrir Caja' }).click();
+    await expect(page.getByRole('heading', { name: 'Caja abierta' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Registrar movimiento' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Registrar movimiento' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Salida' }).click();
+    await dialog.getByLabel('Monto').fill('150');
+    await dialog.getByLabel('Descripción').fill('Pago distribuidor');
+    await dialog.getByLabel('Notas').fill('Factura D-100');
+    await dialog.getByRole('button', { name: 'Registrar movimiento' }).click();
+
+    await expect(page.getByText('Pago distribuidor')).toBeVisible();
+    await expect(page.getByText('Factura D-100')).toBeVisible();
+    await expect(page.getByText('Salidas manuales')).toBeVisible();
   });
 
   test('inventory permissions differ correctly by role', async ({ page }) => {
@@ -178,6 +270,43 @@ test.describe('deep smoke interactions', () => {
     await expect(page.getByRole('heading', { name: 'Ventas', exact: true })).toBeVisible();
     await expect(page.getByText('Total vendido')).toBeVisible();
     await expect(page.getByText('TCK-SMOKE-001')).toBeVisible();
+  });
+
+  test('Admin reports can select a template and generate a preview', async ({ page }) => {
+    await gotoAs(page, 'Admin', '/admin/reports');
+
+    await expect(page.getByRole('heading', { name: 'Centro de Reportes' })).toBeVisible();
+    await page.getByRole('button', { name: /Ventas detalladas/ }).click();
+    await page.getByRole('button', { name: 'Vista previa' }).click();
+
+    await expect(page.getByText('Ventas netas')).toBeVisible();
+    await expect(page.getByText('TCK-SMOKE-001')).toBeVisible();
+    await expect(page.getByText('Camisa Serena')).toBeVisible();
+  });
+
+  test('settlements dashboards render persisted rows and detail by role', async ({ page }) => {
+    await gotoAs(page, 'Admin', '/admin/settlements');
+    await expect(page.getByRole('heading', { name: 'Liquidaciones', exact: true })).toBeVisible();
+    await expect(page.getByText('Lumina')).toBeVisible();
+    await expect(page.getByText('La marca debe pagar al local').first()).toBeVisible();
+    await page
+      .getByRole('row', { name: /Lumina/ })
+      .first()
+      .click();
+    const adminDetail = page.getByRole('dialog', { name: 'Detalle de liquidación' });
+    await expect(adminDetail).toBeVisible();
+    await expect(adminDetail.getByText('Saldo final').first()).toBeVisible();
+
+    await gotoAs(page, 'BrandManager', '/brand-manager/settlements');
+    await expect(page.getByRole('heading', { name: 'Liquidaciones', exact: true })).toBeVisible();
+    await expect(page.getByText('Balance de liquidación')).toBeVisible();
+    await expect(page.getByText('Lumina').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Generar|Recalcular/ })).toHaveCount(0);
+    await page
+      .getByRole('row', { name: /Lumina/ })
+      .first()
+      .click();
+    await expect(page.getByRole('dialog', { name: 'Detalle de liquidación' })).toBeVisible();
   });
 
   test('mobile drawer can navigate key screens', async ({ page }) => {

@@ -8,6 +8,7 @@ import {
 import { BrandResponse, ContractType } from '../app/core/brands/brands.types';
 import {
   CashRegisterBrandTotalResponse,
+  CashRegisterMovementResponse,
   CashRegisterPaymentTotalResponse,
   CashRegisterReconciliationLineResponse,
   CashRegisterSessionResponse,
@@ -19,10 +20,22 @@ import {
   SaleSearchResponse,
   SalesDashboardResponse,
   SalesDashboardSaleResponse,
+  SalesSummaryResponse,
+  TopSellingProductResponse,
+  TopSellingProductsResponse,
 } from '../app/core/sales/sales.types';
+import {
+  BrandSettlementResponse,
+  BrandSettlementSavedResponse,
+} from '../app/core/settlements/settlements.types';
 import { StoreTaskResponse } from '../app/core/tasks/tasks.types';
 import { UserResponse } from '../app/core/users/users.types';
 import { ProductCategoryResponse } from '../app/core/product-categories/product-categories.types';
+import {
+  ReportExportPreviewResponse,
+  ReportExportTemplateResponse,
+  ReportExportTemplatesResponse,
+} from '../app/core/reports/reports.types';
 import {
   ImmobilizedStockProductResponse,
   MovementType,
@@ -369,6 +382,27 @@ export function makeCashRegisterBrandTotal(
   };
 }
 
+export function makeCashRegisterMovement(
+  overrides: Partial<CashRegisterMovementResponse> = {},
+): CashRegisterMovementResponse {
+  const type = overrides.type ?? 'CashIn';
+  const amount = overrides.amount ?? 250;
+
+  return {
+    id: 'cash-movement-1',
+    type,
+    amount,
+    signedAmount: overrides.signedAmount ?? (type === 'CashIn' ? amount : -amount),
+    description: 'Refuerzo de caja',
+    notes: null,
+    occurredAtUtc: '2026-06-03T15:00:00Z',
+    createdByUserId: 'user-seller',
+    createdByUserName: 'Venta Mostrador',
+    createdAt: '2026-06-03T15:00:00Z',
+    ...overrides,
+  };
+}
+
 export function makeCashRegisterSession(
   overrides: Partial<CashRegisterSessionResponse> = {},
 ): CashRegisterSessionResponse {
@@ -445,6 +479,9 @@ export function makeCashRegisterSession(
     actualCashAmount: null,
     expectedCashAmount: 4200,
     cashVarianceAmount: null,
+    manualCashInAmount: 0,
+    manualCashOutAmount: 0,
+    manualCashNetAmount: 0,
     closingNotes: null,
     grossSalesAmount: 5500,
     returnsAmount: 500,
@@ -454,6 +491,7 @@ export function makeCashRegisterSession(
     paymentTotals,
     brandTotals,
     reconciliationLines: lines,
+    movements: [],
     createdAt: '2026-06-03T11:00:00Z',
     ...overrides,
   };
@@ -494,6 +532,9 @@ export function makeClosedCashRegisterSession(
     actualCashAmount: 4300,
     expectedCashAmount: 4200,
     cashVarianceAmount: 100,
+    manualCashInAmount: 0,
+    manualCashOutAmount: 0,
+    manualCashNetAmount: 0,
     closingNotes: 'Cierre sin diferencias grandes',
     reconciliationLines,
     paymentTotals: [
@@ -552,6 +593,9 @@ export function makeCashRegisterSummary(
     actualCashAmount: 4300,
     expectedCashAmount: 4200,
     cashVarianceAmount: 100,
+    manualCashInAmount: 0,
+    manualCashOutAmount: 0,
+    manualCashNetAmount: 0,
     grossSalesAmount: 5500,
     returnsAmount: 500,
     netSalesAmount: 5000,
@@ -629,6 +673,267 @@ export function makeSalesDashboard(
       },
     ],
     sales: paged([makeSalesDashboardSale()], { totalCount: 1, page: 1, pageSize: 10 }),
+    ...overrides,
+  };
+}
+
+export function makeSalesSummary(overrides: Partial<SalesSummaryResponse> = {}): SalesSummaryResponse {
+  return {
+    from: '2026-06-05T00:00:00',
+    to: '2026-06-05T00:00:00',
+    brandId: null,
+    grossSalesAmount: 3200,
+    returnsAmount: 0,
+    netSalesAmount: 3200,
+    saleCount: 2,
+    returnCount: 0,
+    unitsSold: 4,
+    unitsReturned: 0,
+    netUnits: 4,
+    calculatedAtUtc: '2026-06-05T15:00:00Z',
+    ...overrides,
+  };
+}
+
+export function makeTopSellingProduct(
+  overrides: Partial<TopSellingProductResponse> = {},
+): TopSellingProductResponse {
+  return {
+    rank: 1,
+    productId: 'product-lumina-critical',
+    productSku: 'LUM-CAM-002',
+    productName: 'Camisa Serena',
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+    unitsSold: 8,
+    unitsReturned: 1,
+    netUnitsSold: 7,
+    grossSalesAmount: 12800,
+    returnsAmount: 1600,
+    netSalesAmount: 11200,
+    ...overrides,
+  };
+}
+
+export function makeTopSellingProducts(
+  overrides: Partial<TopSellingProductsResponse> = {},
+): TopSellingProductsResponse {
+  return {
+    from: '2026-06-01',
+    to: '2026-06-30',
+    brandId: 'brand-a',
+    limit: 10,
+    items: [
+      makeTopSellingProduct(),
+      makeTopSellingProduct({
+        rank: 2,
+        productId: 'product-lumina-out',
+        productSku: 'LUM-PAN-003',
+        productName: 'Pantalón Alba',
+        unitsSold: 5,
+        unitsReturned: 0,
+        netUnitsSold: 5,
+        grossSalesAmount: 9500,
+        returnsAmount: 0,
+        netSalesAmount: 9500,
+      }),
+    ],
+    calculatedAtUtc: '2026-06-30T21:00:00Z',
+    ...overrides,
+  };
+}
+
+export function makeReportExportTemplate(
+  overrides: Partial<ReportExportTemplateResponse> = {},
+): ReportExportTemplateResponse {
+  return {
+    reportType: 'LocalMonthlyClose',
+    name: 'Cierre mensual del local',
+    description: 'Resumen operativo para cierre mensual.',
+    supportedFilters: ['From', 'To', 'BrandIds', 'PaymentMethods', 'SellerIds'],
+    columns: [
+      { key: 'metric', header: 'Métrica', dataType: 'string' },
+      { key: 'amount', header: 'Importe', dataType: 'money' },
+    ],
+    ...overrides,
+  };
+}
+
+export function makeReportExportTemplates(
+  overrides: Partial<ReportExportTemplatesResponse> = {},
+): ReportExportTemplatesResponse {
+  return {
+    templates: [
+      makeReportExportTemplate(),
+      makeReportExportTemplate({
+        reportType: 'SalesDetail',
+        name: 'Ventas detalladas',
+        description: 'Detalle línea por línea de ventas.',
+        supportedFilters: [
+          'From',
+          'To',
+          'BrandIds',
+          'CategoryIds',
+          'SellerIds',
+          'PaymentMethods',
+          'SaleStatuses',
+        ],
+        columns: [
+          { key: 'ticketId', header: 'Ticket', dataType: 'string' },
+          { key: 'date', header: 'Fecha', dataType: 'datetime' },
+          { key: 'productName', header: 'Artículo', dataType: 'string' },
+          { key: 'brandName', header: 'Marca', dataType: 'string' },
+          { key: 'subTotal', header: 'Subtotal', dataType: 'money' },
+        ],
+      }),
+      makeReportExportTemplate({
+        reportType: 'InventoryValuation',
+        name: 'Valorización de inventario',
+        description: 'Stock valorizado por marca y categoría.',
+        supportedFilters: ['BrandIds', 'CategoryIds', 'StockStatuses', 'IncludeInactiveProducts'],
+        columns: [
+          { key: 'sku', header: 'SKU', dataType: 'string' },
+          { key: 'productName', header: 'Artículo', dataType: 'string' },
+          { key: 'stockValue', header: 'Valorizado', dataType: 'money' },
+        ],
+      }),
+      makeReportExportTemplate({
+        reportType: 'MyBrand',
+        name: 'Mi Marca',
+        description: 'Resumen de la marca propia del admin.',
+        supportedFilters: ['From', 'To', 'CategoryIds', 'PaymentMethods', 'ImmobilizedDays'],
+        columns: [
+          { key: 'section', header: 'Sección', dataType: 'string' },
+          { key: 'amount', header: 'Importe', dataType: 'money' },
+        ],
+      }),
+    ],
+    defaultImmobilizedDays: 60,
+    previewRowLimit: 100,
+    maxRows: 100000,
+    ...overrides,
+  };
+}
+
+export function makeReportExportPreview(
+  overrides: Partial<ReportExportPreviewResponse> = {},
+): ReportExportPreviewResponse {
+  return {
+    reportType: 'SalesDetail',
+    from: '2026-06-01',
+    to: '2026-06-30',
+    columns: [
+      { key: 'ticketId', header: 'Ticket', dataType: 'string' },
+      { key: 'date', header: 'Fecha', dataType: 'datetime' },
+      { key: 'productName', header: 'Artículo', dataType: 'string' },
+      { key: 'brandName', header: 'Marca', dataType: 'string' },
+      { key: 'quantity', header: 'Cantidad', dataType: 'number' },
+      { key: 'subTotal', header: 'Subtotal', dataType: 'money' },
+    ],
+    rows: [
+      {
+        ticketId: 'TCK-REPORT-001',
+        date: '2026-06-03T12:00:00Z',
+        productName: 'Camisa Serena',
+        brandName: 'Lumina',
+        quantity: 2,
+        subTotal: 3200,
+      },
+    ],
+    summary: {
+      'Ventas netas': 3200,
+      'Tickets venta': 1,
+    },
+    calculatedAtUtc: '2026-06-30T21:00:00Z',
+    ...overrides,
+  };
+}
+
+export function makeBrandSettlementEstimate(
+  overrides: Partial<BrandSettlementResponse> = {},
+): BrandSettlementResponse {
+  const amountBrandOwesStore = overrides.amountBrandOwesStore ?? 940;
+  const settlementStatus =
+    overrides.settlementStatus ??
+    (amountBrandOwesStore > 0
+      ? 'BrandOwesStore'
+      : amountBrandOwesStore < 0
+        ? 'StoreOwesBrand'
+        : 'BreakEven');
+
+  return {
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+    contractType: 'Hybrid',
+    from: '2026-06-01T00:00:00',
+    to: '2026-06-30T00:00:00',
+    grossSalesAmount: 18500,
+    returnsAmount: 1500,
+    netSalesAmount: 17000,
+    commissionPercentage: 12,
+    commissionAmount: 2040,
+    fixedAmount: 1500,
+    platformFee: 3540,
+    cashCollectedByStore: 2600,
+    nonCashCollectedByBrand: 14400,
+    amountBrandOwesStore,
+    settlementStatus,
+    calculatedAtUtc: '2026-06-30T21:00:00Z',
+    ...overrides,
+  };
+}
+
+export function makeSettlement(
+  overrides: Partial<BrandSettlementSavedResponse> = {},
+): BrandSettlementSavedResponse {
+  const amountBrandOwesStore = overrides.amountBrandOwesStore ?? 940;
+  const settlementStatus =
+    overrides.settlementStatus ??
+    (amountBrandOwesStore > 0
+      ? 'BrandOwesStore'
+      : amountBrandOwesStore < 0
+        ? 'StoreOwesBrand'
+        : 'BreakEven');
+
+  return {
+    id: 'settlement-1',
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+    contractType: 'Hybrid',
+    from: '2026-06-01T00:00:00',
+    to: '2026-06-30T00:00:00',
+    fromInclusiveUtc: '2026-06-01T03:00:00Z',
+    toExclusiveUtc: '2026-07-01T03:00:00Z',
+    seriesId: 'settlement-series-1',
+    versionNumber: 1,
+    isCurrent: true,
+    supersededAtUtc: null,
+    supersededBySettlementId: null,
+    status: 'Draft',
+    generatedAtUtc: '2026-06-30T21:00:00Z',
+    generatedByUserId: 'user-admin',
+    generationNotes: null,
+    finalizedAtUtc: null,
+    finalizedByUserId: null,
+    paidAtUtc: null,
+    paidByUserId: null,
+    paidAmount: null,
+    paymentReference: null,
+    paymentNotes: null,
+    grossSalesAmount: 18500,
+    returnsAmount: 1500,
+    netSalesAmount: 17000,
+    commissionPercentage: 12,
+    fixedRentCost: 1500,
+    commissionAmount: 2040,
+    fixedAmount: 1500,
+    platformFee: 3540,
+    cashCollectedByStore: 2600,
+    nonCashCollectedByBrand: 14400,
+    amountBrandOwesStore,
+    settlementStatus,
+    createdAt: '2026-06-30T21:00:00Z',
+    generationBatchId: null,
     ...overrides,
   };
 }

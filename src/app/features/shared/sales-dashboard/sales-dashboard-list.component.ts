@@ -16,6 +16,9 @@ import {
   cardBrandLabel,
   paymentMethodIcon,
   paymentMethodLabel,
+  saleTypeStatusLabel,
+  saleTypeStatusSeverity,
+  type SaleTagSeverity,
 } from '../../../core/sales/sales.utils';
 import {
   formatCurrencyUYU,
@@ -47,10 +50,13 @@ export class SalesDashboardListComponent {
   readonly pageSize = input(10);
   readonly hasFilter = input(false);
   readonly detailBrandScopeId = input<string | null>(null);
+  readonly allowSaleActions = input(false);
   readonly startDate = input.required<string>();
   readonly endDate = input.required<string>();
 
   readonly pageChange = output<{ page: number; pageSize: number }>();
+  readonly saleChanged = output<string>();
+  readonly returnRequested = output<string>();
 
   protected readonly icons = { History };
   protected readonly detailVisible = signal(false);
@@ -66,6 +72,15 @@ export class SalesDashboardListComponent {
   protected openDetail(row: SalesDashboardSaleResponse): void {
     this.selectedSaleId.set(row.id);
     this.detailVisible.set(true);
+  }
+
+  protected onDetailSaleChanged(id: string): void {
+    this.saleChanged.emit(id);
+  }
+
+  protected onDetailReturnRequested(id: string): void {
+    this.detailVisible.set(false);
+    this.returnRequested.emit(id);
   }
 
   protected fullDate(iso: string): string {
@@ -95,6 +110,14 @@ export class SalesDashboardListComponent {
 
   protected cardBrand(brand: CardBrand): string {
     return cardBrandLabel(brand);
+  }
+
+  protected typeStatusLabel(row: SalesDashboardSaleResponse): string {
+    return saleTypeStatusLabel(row.type, row.status);
+  }
+
+  protected typeStatusSeverity(row: SalesDashboardSaleResponse): SaleTagSeverity {
+    return saleTypeStatusSeverity(row.type, row.status);
   }
 
   protected formatCurrency(value: number): string {

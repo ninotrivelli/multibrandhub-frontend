@@ -63,6 +63,7 @@ export class ReturnDialogComponent {
   private readonly sales = inject(SalesService);
 
   readonly visible = input.required<boolean>();
+  readonly preselectedSaleId = input<string | null>(null);
   readonly visibleChange = output<boolean>();
   readonly saved = output<SaleResponse>();
 
@@ -149,7 +150,13 @@ export class ReturnDialogComponent {
 
     effect(() => {
       const open = this.visible();
-      if (open) untracked(() => this.reset());
+      const preselectedSaleId = this.preselectedSaleId();
+      if (open) {
+        untracked(() => {
+          this.reset();
+          if (preselectedSaleId) this.loadSaleDetail(preselectedSaleId);
+        });
+      }
     });
 
     // Drop the search spinner once results land.
@@ -169,7 +176,7 @@ export class ReturnDialogComponent {
   }
 
   protected selectSale(sale: SaleSearchResponse): void {
-    this.detailTrigger$.next(sale.id);
+    this.loadSaleDetail(sale.id);
   }
 
   protected backToSearch(): void {
@@ -246,6 +253,10 @@ export class ReturnDialogComponent {
       hour: '2-digit',
       minute: '2-digit',
     }).format(parseBackendUtcDate(iso));
+  }
+
+  private loadSaleDetail(id: string): void {
+    this.detailTrigger$.next(id);
   }
 
   private reset(): void {

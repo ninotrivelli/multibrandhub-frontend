@@ -5,6 +5,15 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface CompletePasswordResetRequest {
+  token: string;
+  newPassword: string;
+}
+
 // Backend may serialize the role enum as either its string name ("Admin")
 // or its numeric value (2), depending on JSON config. Accept both at the
 // wire boundary; normalize to UserRole inside AuthService.
@@ -42,12 +51,10 @@ export interface AuthSession {
 // the JWT payload. Accept both short and URI forms — and arrays, since
 // the backend writes some claim types twice (e.g. JwtRegisteredClaimNames.Email
 // AND ClaimTypes.Email both serialize to "email").
-export const ROLE_CLAIM_URI =
-  'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
+export const ROLE_CLAIM_URI = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
 export const NAMEID_CLAIM_URI =
   'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier';
-export const EMAIL_CLAIM_URI =
-  'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress';
+export const EMAIL_CLAIM_URI = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress';
 
 export interface JwtClaims {
   sub?: string;
@@ -56,6 +63,7 @@ export interface JwtClaims {
   role?: string | string[];
   tenantId?: string;
   brandId?: string;
+  authVersion?: number;
   exp?: number;
   [ROLE_CLAIM_URI]?: string | string[];
   [NAMEID_CLAIM_URI]?: string | string[];

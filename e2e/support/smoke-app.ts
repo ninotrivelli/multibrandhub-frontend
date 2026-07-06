@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 
 import {
   API_BASE_URL,
+  SMOKE_NOW,
   SMOKE_STORAGE_KEY,
   makeSmokeSession,
   resolveSmokeApiResponse,
@@ -32,6 +33,10 @@ export function collectSmokeWatchers(page: Page): SmokeWatchers {
   });
 
   return watchers;
+}
+
+export async function installSmokeClock(page: Page): Promise<void> {
+  await page.clock.setFixedTime(new Date(SMOKE_NOW));
 }
 
 export async function mockSmokeApi(page: Page, watchers: SmokeWatchers): Promise<void> {

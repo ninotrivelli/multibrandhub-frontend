@@ -202,3 +202,55 @@ export interface SalesDashboardRequest {
   page?: number;
   pageSize?: number;
 }
+
+export interface SalesSummaryRequest {
+  from: string;
+  to: string;
+  brandId?: string;
+}
+
+export interface SalesSummaryResponse {
+  from: string;
+  to: string;
+  brandId: string | null;
+  grossSalesAmount: number;
+  returnsAmount: number;
+  netSalesAmount: number;
+  saleCount: number;
+  returnCount: number;
+  unitsSold: number;
+  unitsReturned: number;
+  netUnits: number;
+  calculatedAtUtc: string;
+}
+
+export interface TopSellingProductsRequest {
+  from: string;
+  to: string;
+  brandId?: string;
+  limit?: number;
+}
+
+export interface TopSellingProductResponse {
+  rank: number;
+  productId: string;
+  productSku: string;
+  productName: string;
+  brandId: string;
+  brandName: string;
+  unitsSold: number;
+  unitsReturned: number;
+  netUnitsSold: number;
+  grossSalesAmount: number;
+  returnsAmount: number;
+  netSalesAmount: number;
+}
+
+export interface TopSellingProductsResponse {
+  from: string;
+  to: string;
+  brandId: string | null;
+  limit: number;
+  items: TopSellingProductResponse[];
+  calculatedAtUtc: string;
+}

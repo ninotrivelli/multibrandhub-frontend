@@ -27,6 +27,7 @@ import {
   History,
   LucideAngularModule,
   LucideIconData,
+  Plus,
   Receipt,
   RefreshCw,
   TrendingUp,
@@ -43,8 +44,10 @@ import {
 } from '../../../core/cash-register/cash-register.service';
 import {
   CashRegisterBrandTotalResponse,
+  CashRegisterMovementResponse,
   CashRegisterSessionResponse,
   CloseCashRegisterRequest,
+  CreateCashRegisterMovementRequest,
 } from '../../../core/cash-register/cash-register.types';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import {
@@ -64,12 +67,21 @@ import {
   URUGUAY_TIME_ZONE,
 } from '../../shared/inventory/inventory.utils';
 import { CashRegisterCloseDialogComponent } from './components/cash-register-close-dialog.component';
+import { CashRegisterMovementDialogComponent } from './components/cash-register-movement-dialog.component';
+
+interface CashRegisterKpiDetail {
+  label: string;
+  value: string;
+  valueClass?: string;
+}
 
 interface CashRegisterKpi {
   label: string;
   value: number;
   kind: 'currency' | 'count';
+  valueSuffix?: string;
   caption?: string;
+  details?: CashRegisterKpiDetail[];
   icon: LucideIconData;
   iconWrapClass: string;
 }
@@ -94,6 +106,7 @@ interface PaymentBreakdownRow {
     LucideAngularModule,
     BrandChipComponent,
     CashRegisterCloseDialogComponent,
+    CashRegisterMovementDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './cash-register.component.html',
@@ -110,6 +123,7 @@ export class SellerCashRegisterComponent implements OnInit {
     EyeOff,
     FileText,
     History,
+    Plus,
     Receipt,
     RefreshCw,
     TrendingUp,
@@ -138,9 +152,12 @@ export class SellerCashRegisterComponent implements OnInit {
 
   protected readonly submittingOpen = signal(false);
   protected readonly submittingClose = signal(false);
+  protected readonly submittingMovement = signal(false);
   protected readonly openSubmitError = signal<string | null>(null);
   protected readonly closeSubmitError = signal<string | null>(null);
+  protected readonly movementSubmitError = signal<string | null>(null);
   protected readonly closeDialogVisible = signal(false);
+  protected readonly movementDialogVisible = signal(false);
 
   protected readonly openForm = new FormGroup({
     openingCashAmount: new FormControl<number | null>(null, {
@@ -163,7 +180,7 @@ export class SellerCashRegisterComponent implements OnInit {
         label: 'Recaudación total',
         value: session.netSalesAmount,
         kind: 'currency',
-        caption: `Bruto ${this.formatCurrency(session.grossSalesAmount)} · Devol ${this.formatCurrency(session.returnsAmount)}`,
+        caption: `Bruto: ${this.formatCurrency(session.grossSalesAmount)} — Devoluciones: ${this.formatCurrency(session.returnsAmount)}`,
         icon: TrendingUp,
         iconWrapClass: 'bg-primary/10 dark:bg-primary/20 text-primary',
       },
@@ -171,9 +188,20 @@ export class SellerCashRegisterComponent implements OnInit {
         label: 'Caja efectivo',
         value: this.expectedCash(session),
         kind: 'currency',
-        caption: `Esperado · inicial ${this.formatCurrency(session.openingCashAmount)}`,
+        valueSuffix: '(Esperado)',
+        caption: `Inicial: ${this.formatCurrency(session.openingCashAmount)}`,
+        details: [
+          { label: 'Entradas manuales', value: this.formatCurrency(session.manualCashInAmount) },
+          { label: 'Salidas manuales', value: this.formatCurrency(session.manualCashOutAmount) },
+          {
+            label: 'Neto manual',
+            value: this.formatSignedCurrency(session.manualCashNetAmount),
+            valueClass: this.varianceClass(session.manualCashNetAmount),
+          },
+        ],
         icon: Banknote,
-        iconWrapClass: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300',
+        iconWrapClass:
+          'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300',
       },
       {
         label: 'Ventas',
@@ -266,6 +294,30 @@ export class SellerCashRegisterComponent implements OnInit {
     this.closeDialogVisible.set(true);
   }
 
+  protected openMovementDialog(): void {
+    this.movementSubmitError.set(null);
+    this.movementDialogVisible.set(true);
+  }
+
+  protected createManualMovement(req: CreateCashRegisterMovementRequest): void {
+    const session = this.current();
+    if (!session || this.submittingMovement()) return;
+
+    this.movementSubmitError.set(null);
+    this.submittingMovement.set(true);
+    this.cashRegister.createMovement(session.id, req).subscribe({
+      next: () => {
+        this.submittingMovement.set(false);
+        this.movementDialogVisible.set(false);
+        this.notifications.success('Movimiento de caja registrado.');
+      },
+      error: () => {
+        this.submittingMovement.set(false);
+        this.movementSubmitError.set('No se pudo registrar el movimiento. Revisá los datos.');
+      },
+    });
+  }
+
   protected closeCurrent(req: CloseCashRegisterRequest): void {
     const session = this.current();
     if (!session || this.submittingClose()) return;
@@ -354,7 +406,9 @@ export class SellerCashRegisterComponent implements OnInit {
     return groupPaymentTotals(session.paymentTotals);
   }
 
-  protected groupedReconciliation(session: CashRegisterSessionResponse): GroupedReconciliationLine[] {
+  protected groupedReconciliation(
+    session: CashRegisterSessionResponse,
+  ): GroupedReconciliationLine[] {
     return groupReconciliationLines(session.reconciliationLines);
   }
 
@@ -413,6 +467,14 @@ export class SellerCashRegisterComponent implements OnInit {
 
   protected statusSeverity(status: string): 'success' | 'secondary' {
     return status === 'Open' ? 'success' : 'secondary';
+  }
+
+  protected movementTypeLabel(type: CashRegisterMovementResponse['type']): string {
+    return type === 'CashIn' ? 'Entrada' : 'Salida';
+  }
+
+  protected movementSeverity(type: CashRegisterMovementResponse['type']): 'success' | 'danger' {
+    return type === 'CashIn' ? 'success' : 'danger';
   }
 
   protected varianceClass(value: number | null | undefined): string {

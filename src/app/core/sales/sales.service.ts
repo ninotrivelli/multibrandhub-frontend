@@ -13,6 +13,10 @@ import {
   SaleSearchResponse,
   SalesDashboardRequest,
   SalesDashboardResponse,
+  SalesSummaryRequest,
+  SalesSummaryResponse,
+  TopSellingProductsRequest,
+  TopSellingProductsResponse,
 } from './sales.types';
 
 @Injectable({ providedIn: 'root' })
@@ -43,6 +47,10 @@ export class SalesService {
 
   createReturn(req: CreateReturnRequest): Observable<SaleResponse> {
     return this.http.post<SaleResponse>(`${this.baseUrl}/return`, req);
+  }
+
+  cancel(id: string): Observable<void> {
+    return this.http.patch<void>(`${this.baseUrl}/${id}/cancel`, null);
   }
 
   // Drives the recent-sales list. Updates the shared signals via tap().
@@ -93,6 +101,27 @@ export class SalesService {
     }
 
     return this.http.get<SalesDashboardResponse>(`${this.reportsSalesUrl}/dashboard`, {
+      params: httpParams,
+    });
+  }
+
+  getSummary(params: SalesSummaryRequest): Observable<SalesSummaryResponse> {
+    let httpParams = new HttpParams().set('from', params.from).set('to', params.to);
+    if (params.brandId) httpParams = httpParams.set('brandId', params.brandId);
+
+    return this.http.get<SalesSummaryResponse>(`${this.reportsSalesUrl}/summary`, {
+      params: httpParams,
+    });
+  }
+
+  getTopProducts(params: TopSellingProductsRequest): Observable<TopSellingProductsResponse> {
+    let httpParams = new HttpParams()
+      .set('from', params.from)
+      .set('to', params.to)
+      .set('limit', params.limit ?? 10);
+    if (params.brandId) httpParams = httpParams.set('brandId', params.brandId);
+
+    return this.http.get<TopSellingProductsResponse>(`${this.reportsSalesUrl}/top-products`, {
       params: httpParams,
     });
   }

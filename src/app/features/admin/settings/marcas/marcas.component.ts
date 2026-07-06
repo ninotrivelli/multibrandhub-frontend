@@ -33,12 +33,7 @@ import { hasAssociatedActiveUser, sortBrandsForUser } from './brand-settings.uti
 import { BrandFormDialogComponent } from './brand-form-dialog/brand-form-dialog.component';
 import { BrandsService } from '../../../../core/brands/brands.service';
 import { BrandResponse, ContractType } from '../../../../core/brands/brands.types';
-
-const CONTRACT_LABELS: Record<ContractType, string> = {
-  CommissionOnly: 'Solo comisión',
-  FixedRent: 'Alquiler fijo',
-  Hybrid: 'Mixto',
-};
+import { CONTRACT_TYPE_LABELS } from '../../../../core/brands/brands.utils';
 
 const CONTRACT_SEVERITY: Record<ContractType, 'info' | 'success' | 'warn'> = {
   CommissionOnly: 'info',
@@ -191,7 +186,7 @@ export class AdminMarcasComponent implements OnInit {
   }
 
   protected contractLabel(contractType: ContractType): string {
-    return CONTRACT_LABELS[contractType];
+    return CONTRACT_TYPE_LABELS[contractType];
   }
 
   protected contractSeverity(contractType: ContractType): 'info' | 'success' | 'warn' {

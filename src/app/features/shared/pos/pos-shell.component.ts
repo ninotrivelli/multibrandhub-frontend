@@ -56,6 +56,7 @@ export class PosShellComponent {
   protected readonly submitting = signal(false);
   protected readonly saleReviewVisible = signal(false);
   protected readonly returnDialogVisible = signal(false);
+  protected readonly returnPreselectedSaleId = signal<string | null>(null);
   protected readonly cashClosedPromptVisible = signal(false);
   protected readonly noCashRegisterOpen = computed(
     () =>
@@ -114,6 +115,21 @@ export class PosShellComponent {
     this.saleReviewVisible.set(true);
   }
 
+  protected openManualReturn(): void {
+    this.returnPreselectedSaleId.set(null);
+    this.returnDialogVisible.set(true);
+  }
+
+  protected openReturnForSale(saleId: string): void {
+    this.returnPreselectedSaleId.set(saleId);
+    this.returnDialogVisible.set(true);
+  }
+
+  protected onReturnDialogVisibleChange(value: boolean): void {
+    this.returnDialogVisible.set(value);
+    if (!value) this.returnPreselectedSaleId.set(null);
+  }
+
   protected confirmSale(): void {
     if (this.submitting() || !this.cart.canSubmit()) return;
     this.submitting.set(true);
@@ -135,6 +151,10 @@ export class PosShellComponent {
       this.ticketMessage('Devolución registrada', sale),
       'Devolución ingresada',
     );
+    this.refreshAfterMutation();
+  }
+
+  protected onSaleMutated(): void {
     this.refreshAfterMutation();
   }
 

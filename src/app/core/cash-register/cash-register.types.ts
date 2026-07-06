@@ -1,6 +1,7 @@
 import { PaymentMethod } from '../sales/sales.types';
 
 export type CashRegisterSessionStatus = 'Open' | 'Closed';
+export type CashRegisterMovementType = 'CashIn' | 'CashOut';
 
 export interface CashRegisterReconciliationLineResponse {
   id: string | null;
@@ -41,6 +42,19 @@ export interface CashRegisterBrandTotalResponse {
   netUnits: number;
 }
 
+export interface CashRegisterMovementResponse {
+  id: string;
+  type: CashRegisterMovementType;
+  amount: number;
+  signedAmount: number;
+  description: string;
+  notes: string | null;
+  occurredAtUtc: string;
+  createdByUserId: string;
+  createdByUserName: string | null;
+  createdAt: string;
+}
+
 export interface CashRegisterSessionResponse {
   id: string;
   status: CashRegisterSessionStatus;
@@ -55,6 +69,9 @@ export interface CashRegisterSessionResponse {
   actualCashAmount: number | null;
   expectedCashAmount: number | null;
   cashVarianceAmount: number | null;
+  manualCashInAmount: number;
+  manualCashOutAmount: number;
+  manualCashNetAmount: number;
   closingNotes: string | null;
   grossSalesAmount: number;
   returnsAmount: number;
@@ -64,6 +81,7 @@ export interface CashRegisterSessionResponse {
   paymentTotals: CashRegisterPaymentTotalResponse[];
   brandTotals: CashRegisterBrandTotalResponse[];
   reconciliationLines: CashRegisterReconciliationLineResponse[];
+  movements: CashRegisterMovementResponse[];
   createdAt: string;
 }
 
@@ -80,6 +98,9 @@ export interface CashRegisterSessionSummaryResponse {
   actualCashAmount: number | null;
   expectedCashAmount: number | null;
   cashVarianceAmount: number | null;
+  manualCashInAmount: number;
+  manualCashOutAmount: number;
+  manualCashNetAmount: number;
   grossSalesAmount: number;
   returnsAmount: number;
   netSalesAmount: number;
@@ -90,6 +111,13 @@ export interface CashRegisterSessionSummaryResponse {
 
 export interface OpenCashRegisterRequest {
   openingCashAmount: number;
+  notes?: string | null;
+}
+
+export interface CreateCashRegisterMovementRequest {
+  type: CashRegisterMovementType;
+  amount: number;
+  description: string;
   notes?: string | null;
 }
 

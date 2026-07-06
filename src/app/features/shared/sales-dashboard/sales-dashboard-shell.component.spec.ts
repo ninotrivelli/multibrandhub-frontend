@@ -1,15 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Signal, signal } from '@angular/core';
-import { of } from 'rxjs';
+import { ActivatedRoute, convertToParamMap, ParamMap } from '@angular/router';
+import { defer, of } from 'rxjs';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { AuthUser } from '../../../core/auth/auth.types';
 import { BrandsService } from '../../../core/brands/brands.service';
 import { BrandResponse } from '../../../core/brands/brands.types';
+import { NotificationService } from '../../../core/notifications/notification.service';
 import { SalesService } from '../../../core/sales/sales.service';
 import {
   makeAuthUser,
   makeBrand,
+  makeSaleSearch,
   makeSalesDashboard,
   paged,
 } from '../../../../testing/builders';
@@ -19,7 +22,8 @@ import { SalesDashboardShellComponent } from './sales-dashboard-shell.component'
 describe('SalesDashboardShellComponent', () => {
   let fixture: ComponentFixture<SalesDashboardShellComponent>;
   let user: ReturnType<typeof signal<AuthUser | null>>;
-  let sales: { getDashboard: ReturnType<typeof vi.fn> };
+  let sales: { getDashboard: ReturnType<typeof vi.fn>; searchOnce: ReturnType<typeof vi.fn> };
+  let routeParamMap: ParamMap;
   let brands: {
     items: Signal<BrandResponse[]>;
     hasItems: ReturnType<typeof vi.fn>;
@@ -29,7 +33,11 @@ describe('SalesDashboardShellComponent', () => {
   beforeEach(async () => {
     TestBed.resetTestingModule();
     user = signal(makeAuthUser({ role: 'Admin', brandId: 'brand-own' }));
-    sales = { getDashboard: vi.fn(() => of(makeSalesDashboard())) };
+    routeParamMap = convertToParamMap({});
+    sales = {
+      getDashboard: vi.fn(() => of(makeSalesDashboard())),
+      searchOnce: vi.fn(() => of(paged([makeSaleSearch()]))),
+    };
     const brandItems = signal([makeBrand({ id: 'brand-own', name: 'Zendra' })]);
     brands = {
       items: brandItems.asReadonly(),
@@ -41,8 +49,18 @@ describe('SalesDashboardShellComponent', () => {
       imports: [SalesDashboardShellComponent],
       providers: [
         { provide: AuthService, useValue: { user: user.asReadonly() } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            get snapshot() {
+              return { queryParamMap: routeParamMap };
+            },
+            queryParamMap: defer(() => of(routeParamMap)),
+          },
+        },
         { provide: BrandsService, useValue: brands },
         { provide: SalesService, useValue: sales },
+        { provide: NotificationService, useValue: { success: vi.fn() } },
       ],
     });
     TestBed.overrideComponent(SalesDashboardShellComponent, { set: { template: '' } });
@@ -93,6 +111,18 @@ describe('SalesDashboardShellComponent', () => {
       expect.objectContaining({
         from: '2026-05-01',
         to: '2026-05-31',
+      }),
+    );
+  });
+
+  it('uses date range query params when present', () => {
+    routeParamMap = convertToParamMap({ from: '2026-06-05', to: '2026-06-05' });
+    create('admin');
+
+    expect(sales.getDashboard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: '2026-06-05',
+        to: '2026-06-05',
       }),
     );
   });

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 
 import { ButtonModule } from 'primeng/button';
@@ -13,7 +13,14 @@ import { LoadingService } from '../../../core/loading/loading.service';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, ButtonModule, InputTextModule, PasswordModule, MessageModule],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    ButtonModule,
+    InputTextModule,
+    PasswordModule,
+    MessageModule,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './login.component.html',
 })

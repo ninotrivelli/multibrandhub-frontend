@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
+import { SettlementsShellComponent } from '../../shared/settlements/settlements-shell.component';
+
 @Component({
   selector: 'app-admin-settlements',
+  imports: [SettlementsShellComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <h1 class="text-2xl font-semibold text-surface-900 dark:text-surface-0">Liquidaciones</h1>
-    <p class="text-surface-500 dark:text-surface-400 mt-1">Liquidaciones por Marca</p>
-  `
+  templateUrl: './settlements.component.html',
 })
 export class AdminSettlementsComponent {}

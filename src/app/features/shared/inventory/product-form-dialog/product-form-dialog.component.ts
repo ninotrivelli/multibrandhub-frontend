@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnDestroy,
   computed,
   effect,
   inject,
@@ -21,7 +22,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { TooltipModule } from 'primeng/tooltip';
-import { ImageUp, LucideAngularModule, Minus, Plus, RotateCcw, Wand2 } from 'lucide-angular';
+import { ImageUp, LucideAngularModule, Minus, Plus, RotateCcw, Wand2, X } from 'lucide-angular';
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
@@ -29,9 +30,12 @@ import { BrandsService } from '../../../../core/brands/brands.service';
 import { ProductCategoriesService } from '../../../../core/product-categories/product-categories.service';
 import { ProductsService } from '../products.service';
 import { CreateProductRequest, ProductResponse, UpdateProductRequest } from '../inventory.types';
-import { buildSkuCandidate } from '../inventory.utils';
+import { buildSkuCandidate, categoryPlaceholderUrl } from '../inventory.utils';
 
 type DialogMode = 'create' | 'edit';
+
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 type ControlName =
   | 'sku'
@@ -95,7 +99,7 @@ type ControlName =
     `,
   ],
 })
-export class ProductFormDialogComponent {
+export class ProductFormDialogComponent implements OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly products = inject(ProductsService);
@@ -110,13 +114,20 @@ export class ProductFormDialogComponent {
   readonly visibleChange = output<boolean>();
   readonly saved = output<ProductResponse>();
 
-  protected readonly icons = { ImageUp, Plus, Minus, RotateCcw, Wand2 };
+  protected readonly icons = { ImageUp, Plus, Minus, RotateCcw, Wand2, X };
+  protected readonly imageAccept = ALLOWED_IMAGE_TYPES.join(',');
 
   protected readonly submitting = signal(false);
   protected readonly reactivating = signal(false);
-  protected readonly busy = computed(() => this.submitting() || this.reactivating());
+  protected readonly uploadingImage = signal(false);
+  protected readonly busy = computed(
+    () => this.submitting() || this.reactivating() || this.uploadingImage(),
+  );
   protected readonly submitError = signal<string | null>(null);
   protected readonly skuGenerating = signal(false);
+  protected readonly selectedImageFile = signal<File | null>(null);
+  protected readonly localImagePreviewUrl = signal<string | null>(null);
+  protected readonly clearExistingImage = signal(false);
 
   protected readonly form = this.fb.group({
     sku: this.fb.nonNullable.control('', [
@@ -186,11 +197,42 @@ export class ProductFormDialogComponent {
     this.categories.items().map((c) => ({ label: c.name, value: c.id })),
   );
 
+  protected readonly selectedCategoryName = computed(() => {
+    const categoryId = this.categoryIdValue();
+    return this.categories.items().find((c) => c.id === categoryId)?.name ?? null;
+  });
+
+  protected readonly hasExistingCustomImage = computed(() => {
+    const url = this.editing()?.imageUrl?.trim();
+    return this.mode() === 'edit' && !this.clearExistingImage() && !!url;
+  });
+
+  protected readonly imagePreviewUrl = computed(() => {
+    const localPreview = this.localImagePreviewUrl();
+    if (localPreview) return localPreview;
+
+    if (this.hasExistingCustomImage()) return this.editing()?.imageUrl?.trim() ?? '';
+
+    return categoryPlaceholderUrl(this.selectedCategoryName());
+  });
+
+  protected readonly imageActionLabel = computed(() =>
+    this.selectedImageFile() || this.hasExistingCustomImage() ? 'Cambiar foto' : 'Subir foto',
+  );
+
+  protected readonly canRemoveImage = computed(
+    () => !!this.selectedImageFile() || this.hasExistingCustomImage(),
+  );
+
   constructor() {
     effect(() => {
       const open = this.visible();
       if (open) untracked(() => this.resetFormFromInputs());
     });
+  }
+
+  ngOnDestroy(): void {
+    this.revokeLocalImagePreview();
   }
 
   protected isInvalid(controlName: ControlName): boolean {
@@ -246,15 +288,48 @@ export class ProductFormDialogComponent {
 
   protected onVisibleChange(value: boolean): void {
     if (!value && this.busy()) return;
+    if (!value) this.resetImageDraftState();
     this.visibleChange.emit(value);
   }
 
   protected cancel(): void {
     if (this.busy()) return;
+    this.resetImageDraftState();
     this.visibleChange.emit(false);
   }
 
-  protected submit(): void {
+  protected onImageInputChange(event: Event): void {
+    const inputEl = event.target as HTMLInputElement;
+    const file = inputEl.files?.[0] ?? null;
+    if (!file) return;
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_TYPES)[number])) {
+      this.notifications.error('Formato no permitido. Usá JPG, PNG o WebP.');
+      inputEl.value = '';
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      this.notifications.error('La foto supera los 5 MB.');
+      inputEl.value = '';
+      return;
+    }
+
+    this.setSelectedImageFile(file);
+    this.clearExistingImage.set(false);
+    this.submitError.set(null);
+  }
+
+  protected removeImage(fileInput: HTMLInputElement): void {
+    this.clearSelectedImageFile();
+    fileInput.value = '';
+
+    if (this.mode() === 'edit' && this.editing()?.imageUrl?.trim()) {
+      this.clearExistingImage.set(true);
+    }
+  }
+
+  protected async submit(): Promise<void> {
     if (this.busy()) return;
 
     if (this.form.invalid) {
@@ -282,15 +357,14 @@ export class ProductFormDialogComponent {
         brandId: raw.brandId!,
         categoryId: raw.categoryId!,
       };
-      this.products.create(body).subscribe({
-        next: (created) => {
-          this.submitting.set(false);
-          this.notifications.success(`Se creó ${created.name}.`);
-          this.saved.emit(created);
-          this.visibleChange.emit(false);
-        },
-        error: (err: HttpErrorResponse) => this.handleError(err),
-      });
+      try {
+        const created = await firstValueFrom(this.products.create(body));
+        this.submitting.set(false);
+        const finalProduct = await this.applyImageAction(created);
+        this.finishSave(finalProduct, 'create');
+      } catch (err) {
+        this.handleError(err as HttpErrorResponse);
+      }
     } else if (editing) {
       const body: UpdateProductRequest = {
         name: (raw.name ?? '').trim(),
@@ -302,15 +376,16 @@ export class ProductFormDialogComponent {
         minStockAlert: Number(raw.minStockAlert ?? 0),
         categoryId: raw.categoryId!,
       };
-      this.products.update(editing.id, body).subscribe({
-        next: (updated) => {
-          this.submitting.set(false);
-          this.notifications.success(`Se actualizó ${updated.name}.`);
-          this.saved.emit(updated);
-          this.visibleChange.emit(false);
-        },
-        error: (err: HttpErrorResponse) => this.handleError(err),
-      });
+      try {
+        const updated = await firstValueFrom(this.products.update(editing.id, body));
+        this.submitting.set(false);
+        const finalProduct = await this.applyImageAction(updated);
+        this.finishSave(finalProduct, 'edit');
+      } catch (err) {
+        this.handleError(err as HttpErrorResponse);
+      }
+    } else {
+      this.submitting.set(false);
     }
   }
 
@@ -333,6 +408,9 @@ export class ProductFormDialogComponent {
 
   private resetFormFromInputs(): void {
     this.submitError.set(null);
+    this.submitting.set(false);
+    this.uploadingImage.set(false);
+    this.resetImageDraftState();
     const editing = this.editing();
     const skuCtrl = this.form.controls.sku;
     const brandCtrl = this.form.controls.brandId;
@@ -394,6 +472,7 @@ export class ProductFormDialogComponent {
 
   private handleError(err: HttpErrorResponse): void {
     this.submitting.set(false);
+    this.uploadingImage.set(false);
     this.setSubmitError(err);
   }
 
@@ -411,6 +490,56 @@ export class ProductFormDialogComponent {
     } else {
       this.submitError.set('No se pudo guardar. Probá de nuevo.');
     }
+  }
+
+  private async applyImageAction(product: ProductResponse): Promise<ProductResponse> {
+    const file = this.selectedImageFile();
+    if (!file && !this.clearExistingImage()) return product;
+
+    this.uploadingImage.set(true);
+    try {
+      if (file) return await firstValueFrom(this.products.uploadImage(product.id, file));
+      return await firstValueFrom(this.products.clearImage(product.id));
+    } catch {
+      this.notifications.warn(
+        'El artículo se guardó, pero no pudimos actualizar la foto. Probá de nuevo desde editar.',
+      );
+      return product;
+    } finally {
+      this.uploadingImage.set(false);
+    }
+  }
+
+  private finishSave(product: ProductResponse, mode: DialogMode): void {
+    this.notifications.success(
+      mode === 'create' ? `Se creó ${product.name}.` : `Se actualizó ${product.name}.`,
+    );
+    this.saved.emit(product);
+    this.resetImageDraftState();
+    this.visibleChange.emit(false);
+  }
+
+  private setSelectedImageFile(file: File): void {
+    this.clearSelectedImageFile();
+    this.selectedImageFile.set(file);
+    this.localImagePreviewUrl.set(URL.createObjectURL(file));
+  }
+
+  private clearSelectedImageFile(): void {
+    this.selectedImageFile.set(null);
+    this.revokeLocalImagePreview();
+  }
+
+  private resetImageDraftState(): void {
+    this.clearExistingImage.set(false);
+    this.clearSelectedImageFile();
+  }
+
+  private revokeLocalImagePreview(): void {
+    const url = this.localImagePreviewUrl();
+    if (!url) return;
+    URL.revokeObjectURL(url);
+    this.localImagePreviewUrl.set(null);
   }
 }
 

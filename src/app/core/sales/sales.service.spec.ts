@@ -3,7 +3,14 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { environment } from '../../../environments/environment';
-import { makeSale, makeSaleSearch, makeSalesDashboard, paged } from '../../../testing/builders';
+import {
+  makeSale,
+  makeSaleSearch,
+  makeSalesDashboard,
+  makeSalesSummary,
+  makeTopSellingProducts,
+  paged,
+} from '../../../testing/builders';
 import { SessionStateRegistry } from '../session/session-state-registry.service';
 import { SalesService } from './sales.service';
 
@@ -74,6 +81,19 @@ describe('SalesService', () => {
       observations: null,
     });
     req.flush(created);
+  });
+
+  it('PATCHes a sale cancellation to /sales/{id}/cancel', () => {
+    let completed = false;
+
+    service.cancel('sale-1').subscribe(() => (completed = true));
+
+    const req = http.expectOne(`${baseUrl}/sale-1/cancel`);
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toBeNull();
+    req.flush(null, { status: 204, statusText: 'No Content' });
+
+    expect(completed).toBe(true);
   });
 
   it('search updates the recent-list signals and sends trimmed params', () => {
@@ -164,5 +184,51 @@ describe('SalesService', () => {
 
     req.flush(dashboard);
     expect(result).toEqual(dashboard);
+  });
+
+  it('loads a sales summary with optional brand scope', () => {
+    const summary = makeSalesSummary({ brandId: 'brand-a' });
+    let result: typeof summary | undefined;
+
+    service
+      .getSummary({
+        from: '2026-06-05',
+        to: '2026-06-05',
+        brandId: 'brand-a',
+      })
+      .subscribe((res) => (result = res));
+
+    const req = http.expectOne((r) => r.url === `${reportsSalesUrl}/summary`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('from')).toBe('2026-06-05');
+    expect(req.request.params.get('to')).toBe('2026-06-05');
+    expect(req.request.params.get('brandId')).toBe('brand-a');
+
+    req.flush(summary);
+    expect(result).toEqual(summary);
+  });
+
+  it('loads top products with optional brand scope and limit', () => {
+    const topProducts = makeTopSellingProducts();
+    let result: typeof topProducts | undefined;
+
+    service
+      .getTopProducts({
+        from: '2026-06-01',
+        to: '2026-06-30',
+        brandId: 'brand-a',
+        limit: 10,
+      })
+      .subscribe((res) => (result = res));
+
+    const req = http.expectOne((r) => r.url === `${reportsSalesUrl}/top-products`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('from')).toBe('2026-06-01');
+    expect(req.request.params.get('to')).toBe('2026-06-30');
+    expect(req.request.params.get('brandId')).toBe('brand-a');
+    expect(req.request.params.get('limit')).toBe('10');
+
+    req.flush(topProducts);
+    expect(result).toEqual(topProducts);
   });
 });

@@ -45,13 +45,13 @@
 }
 
 .drawer-section-title {
-  margin: 0.75rem 0 0.15rem;
+  margin: 0.6rem 0 0.1rem;
   padding: 0 0.85rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.015em;
   color: var(--p-text-muted-color);
+  opacity: 0.78;
 }
 
 .drawer-section-title:first-child {

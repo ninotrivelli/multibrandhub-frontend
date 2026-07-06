@@ -27,4 +27,24 @@ describe('SalesDashboardListComponent', () => {
     expect((fixture.componentInstance as any).selectedSaleId()).toBe('sale-clicked');
     expect((fixture.componentInstance as any).detailVisible()).toBe(true);
   });
+
+  it('closes detail and emits the selected sale id when a return is requested', () => {
+    const spy = vi.fn();
+    fixture.componentInstance.returnRequested.subscribe(spy);
+    (fixture.componentInstance as any).detailVisible.set(true);
+
+    (fixture.componentInstance as any).onDetailReturnRequested('sale-return');
+
+    expect((fixture.componentInstance as any).detailVisible()).toBe(false);
+    expect(spy).toHaveBeenCalledWith('sale-return');
+  });
+
+  it('emits saleChanged when the detail reports a mutation', () => {
+    const spy = vi.fn();
+    fixture.componentInstance.saleChanged.subscribe(spy);
+
+    (fixture.componentInstance as any).onDetailSaleChanged('sale-canceled');
+
+    expect(spy).toHaveBeenCalledWith('sale-canceled');
+  });
 });

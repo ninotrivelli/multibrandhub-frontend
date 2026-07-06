@@ -8,14 +8,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import {
-  AbstractControl,
-  FormBuilder,
-  ReactiveFormsModule,
-  ValidationErrors,
-  ValidatorFn,
-  Validators,
-} from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 
 import { ButtonModule } from 'primeng/button';
@@ -23,6 +16,11 @@ import { DialogModule } from 'primeng/dialog';
 import { PasswordModule } from 'primeng/password';
 import { MessageModule } from 'primeng/message';
 
+import { AuthService } from '../../../core/auth/auth.service';
+import {
+  PASSWORD_VALIDATORS,
+  passwordsMatchValidator,
+} from '../../../core/auth/password-reset.validators';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { UsersService } from '../../../core/users/users.service';
 
@@ -32,29 +30,6 @@ export interface ResetPasswordTarget {
   isSelf?: boolean;
 }
 
-const passwordsMatchValidator: ValidatorFn = (group: AbstractControl): ValidationErrors | null => {
-  const newPassword = group.get('newPassword')?.value as string | undefined;
-  const confirmPassword = group.get('confirmPassword')?.value as string | undefined;
-  const confirmCtrl = group.get('confirmPassword');
-  if (!confirmCtrl) return null;
-  if (!newPassword || !confirmPassword) {
-    if (confirmCtrl.hasError('mismatch')) {
-      const { mismatch: _omit, ...rest } = confirmCtrl.errors ?? {};
-      confirmCtrl.setErrors(Object.keys(rest).length ? rest : null);
-    }
-    return null;
-  }
-  if (newPassword !== confirmPassword) {
-    confirmCtrl.setErrors({ ...(confirmCtrl.errors ?? {}), mismatch: true });
-    return { mismatch: true };
-  }
-  if (confirmCtrl.hasError('mismatch')) {
-    const { mismatch: _omit, ...rest } = confirmCtrl.errors ?? {};
-    confirmCtrl.setErrors(Object.keys(rest).length ? rest : null);
-  }
-  return null;
-};
-
 @Component({
   selector: 'app-reset-password-dialog',
   imports: [ReactiveFormsModule, ButtonModule, DialogModule, PasswordModule, MessageModule],
@@ -63,6 +38,7 @@ const passwordsMatchValidator: ValidatorFn = (group: AbstractControl): Validatio
 })
 export class ResetPasswordDialogComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly auth = inject(AuthService);
   private readonly users = inject(UsersService);
   private readonly notifications = inject(NotificationService);
 
@@ -77,7 +53,7 @@ export class ResetPasswordDialogComponent {
 
   protected readonly form = this.fb.nonNullable.group(
     {
-      newPassword: ['', [Validators.required, Validators.minLength(8)]],
+      newPassword: ['', PASSWORD_VALIDATORS],
       confirmPassword: ['', [Validators.required]],
     },
     { validators: passwordsMatchValidator },
@@ -99,7 +75,11 @@ export class ResetPasswordDialogComponent {
 
   protected isInvalid(controlName: 'newPassword' | 'confirmPassword'): boolean {
     const c = this.form.controls[controlName];
-    return c.invalid && (c.touched || c.dirty);
+    const mismatch =
+      controlName === 'confirmPassword' &&
+      this.form.hasError('passwordMismatch') &&
+      (c.touched || c.dirty);
+    return (c.invalid && (c.touched || c.dirty)) || mismatch;
   }
 
   protected onVisibleChange(value: boolean): void {
@@ -130,9 +110,14 @@ export class ResetPasswordDialogComponent {
     this.users.resetPassword(t.id, newPassword).subscribe({
       next: () => {
         this.submitting.set(false);
-        this.notifications.success('Contraseña actualizada.');
         this.success.emit();
         this.visibleChange.emit(false);
+        if (t.isSelf) {
+          this.notifications.success('Contraseña actualizada. Volvé a iniciar sesión.');
+          this.auth.logout();
+          return;
+        }
+        this.notifications.success('Contraseña actualizada.');
       },
       error: (err: HttpErrorResponse) => this.handleError(err),
     });

@@ -143,6 +143,36 @@ describe('AuthService', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/login']);
   });
 
+  it('clears the auth session without navigating', () => {
+    const session = makeAuthSession();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    service.restoreSession();
+
+    service.clearSession();
+
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    expect(service.session()).toBeNull();
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('requests a password reset with the expected endpoint and payload', () => {
+    service.requestPasswordReset('usuario@correo.com').subscribe();
+
+    const req = http.expectOne(`${environment.apiBaseUrl}/auth/forgot-password`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ email: 'usuario@correo.com' });
+    req.flush(null, { status: 202, statusText: 'Accepted' });
+  });
+
+  it('resets a forgotten password with the expected endpoint and payload', () => {
+    service.resetForgottenPassword('email-token', 'Nueva1234').subscribe();
+
+    const req = http.expectOne(`${environment.apiBaseUrl}/auth/reset-password`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ token: 'email-token', newPassword: 'Nueva1234' });
+    req.flush(null, { status: 204, statusText: 'No Content' });
+  });
+
   it('maps roles to their home routes', () => {
     expect(service.homePathFor('SuperAdmin')).toBe('/admin');
     expect(service.homePathFor('Admin')).toBe('/admin');

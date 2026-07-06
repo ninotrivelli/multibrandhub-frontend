@@ -3,8 +3,10 @@ import type { BrandResponse } from '../app/core/brands/brands.types';
 import type { UserResponse } from '../app/core/users/users.types';
 import type { StoreProfileResponse } from '../app/core/store-profile/store-profile.types';
 import type { ProductCategoryResponse } from '../app/core/product-categories/product-categories.types';
+import type { ReportExportRequest } from '../app/core/reports/reports.types';
 import type {
   CloseCashRegisterRequest,
+  CreateCashRegisterMovementRequest,
   OpenCashRegisterRequest,
 } from '../app/core/cash-register/cash-register.types';
 import type { CreateStoreTaskRequest, StoreTaskResponse } from '../app/core/tasks/tasks.types';
@@ -13,10 +15,22 @@ import type {
   ProductResponse,
   StockMovementResponse,
 } from '../app/features/shared/inventory/inventory.types';
-import type { SaleResponse, SaleSearchResponse } from '../app/core/sales/sales.types';
+import type {
+  SaleResponse,
+  SaleSearchResponse,
+  SalesSummaryResponse,
+  TopSellingProductResponse,
+  TopSellingProductsResponse,
+} from '../app/core/sales/sales.types';
+import type {
+  BrandSettlementResponse,
+  BrandSettlementSavedResponse,
+} from '../app/core/settlements/settlements.types';
 import {
   makeAuthSession,
   makeBrand,
+  makeBrandSettlementEstimate,
+  makeCashRegisterMovement,
   makeCashRegisterSession,
   makeCashRegisterSummary,
   makeClosedCashRegisterSession,
@@ -24,11 +38,17 @@ import {
   makeImmobilizedProduct,
   makeMovement,
   makeProduct,
+  makeReportExportPreview,
+  makeReportExportTemplates,
   makeSale,
   makeSaleSearch,
   makeSalesDashboard,
   makeSalesDashboardSale,
+  makeSalesSummary,
+  makeSettlement,
   makeStoreTask,
+  makeTopSellingProduct,
+  makeTopSellingProducts,
   makeUser,
   paged,
 } from './builders';
@@ -36,6 +56,7 @@ import {
 export const SMOKE_STORAGE_KEY = 'mbh.token';
 export const SMOKE_TENANT_ID = 'tenant-smoke';
 export const API_BASE_URL = 'https://localhost:7260/api';
+export const SMOKE_NOW = '2026-06-07T12:00:00Z';
 
 export type SmokeRole = Extract<UserRole, 'Admin' | 'BrandManager' | 'Seller'>;
 
@@ -50,7 +71,7 @@ export interface SmokeApiResponse {
   body?: unknown;
 }
 
-const NOW = '2026-06-07T12:00:00Z';
+const NOW = SMOKE_NOW;
 
 const SMOKE_USERS_BY_ROLE: Record<SmokeRole, AuthUser> = {
   Admin: {
@@ -251,11 +272,101 @@ const smokeDashboardSales = [
   }),
 ];
 
+export const smokeSalesSummary: SalesSummaryResponse = makeSalesSummary({
+  from: '2026-06-07T00:00:00',
+  to: '2026-06-07T00:00:00',
+  grossSalesAmount: 3200,
+  returnsAmount: 0,
+  netSalesAmount: 3200,
+  saleCount: 2,
+  returnCount: 0,
+  unitsSold: 4,
+  unitsReturned: 0,
+  netUnits: 4,
+});
+
+const smokeTopProductItems: TopSellingProductResponse[] = [
+  makeTopSellingProduct({
+    productId: 'product-lumina-critical',
+    productSku: 'LUM-CAM-002',
+    productName: 'Camisa Serena',
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+  }),
+  makeTopSellingProduct({
+    rank: 2,
+    productId: 'product-lumina-out',
+    productSku: 'LUM-PAN-003',
+    productName: 'Pantalón Alba',
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+    unitsSold: 5,
+    unitsReturned: 0,
+    netUnitsSold: 5,
+    grossSalesAmount: 9500,
+    returnsAmount: 0,
+    netSalesAmount: 9500,
+  }),
+];
+
+export const smokeTopProducts: TopSellingProductsResponse = makeTopSellingProducts({
+  items: smokeTopProductItems,
+});
+
+export const smokeReportTemplates = makeReportExportTemplates();
+
+export const smokeReportPreview = makeReportExportPreview({
+  rows: [
+    {
+      ticketId: 'TCK-SMOKE-001',
+      date: '2026-06-03T12:00:00Z',
+      productName: 'Camisa Serena',
+      brandName: 'Lumina',
+      quantity: 2,
+      subTotal: 3200,
+    },
+  ],
+  summary: {
+    'Ventas netas': 3200,
+    'Tickets venta': 1,
+  },
+});
+
 export const smokeSale: SaleResponse = makeSale({
   id: 'sale-smoke',
   ticketId: 'TCK-SMOKE-001',
   sellerId: 'user-seller',
   sellerName: 'Venta Mostrador',
+});
+
+export const smokeSettlements: BrandSettlementSavedResponse[] = [
+  makeSettlement({
+    id: 'settlement-smoke-current',
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+    status: 'Finalized',
+    amountBrandOwesStore: 940,
+    settlementStatus: 'BrandOwesStore',
+    finalizedAtUtc: NOW,
+  }),
+  makeSettlement({
+    id: 'settlement-smoke-old',
+    brandId: 'brand-a',
+    brandName: 'Lumina',
+    versionNumber: 0,
+    isCurrent: false,
+    supersededAtUtc: NOW,
+    supersededBySettlementId: 'settlement-smoke-current',
+    amountBrandOwesStore: -250,
+    settlementStatus: 'StoreOwesBrand',
+  }),
+];
+
+export const smokeSettlementEstimate: BrandSettlementResponse = makeBrandSettlementEstimate({
+  brandId: 'brand-a',
+  brandName: 'Lumina',
+  amountBrandOwesStore: -250,
+  settlementStatus: 'StoreOwesBrand',
 });
 
 export const smokeClosedCashRegister = makeClosedCashRegisterSession({
@@ -371,6 +482,121 @@ export function resolveSmokeApiResponse(request: SmokeApiRequest): SmokeApiRespo
       }),
     };
   }
+  if (method === 'GET' && path === '/api/reports/sales/summary') {
+    return { status: 200, body: smokeSalesSummary };
+  }
+  if (method === 'GET' && path === '/api/reports/sales/top-products') {
+    const brandId = url.searchParams.get('brandId');
+    const limit = Number(url.searchParams.get('limit') ?? smokeTopProducts.limit);
+    const items = smokeTopProductItems
+      .filter((item) => !brandId || item.brandId === brandId)
+      .slice(0, Number.isFinite(limit) ? limit : 10);
+    return {
+      status: 200,
+      body: makeTopSellingProducts({
+        from: url.searchParams.get('from') ?? smokeTopProducts.from,
+        to: url.searchParams.get('to') ?? smokeTopProducts.to,
+        brandId,
+        limit,
+        items,
+      }),
+    };
+  }
+  if (method === 'GET' && path === '/api/reports/exports/templates') {
+    return { status: 200, body: smokeReportTemplates };
+  }
+  if (method === 'POST' && path === '/api/reports/exports/preview') {
+    const payload = parseJson<ReportExportRequest>(request.postData);
+    return {
+      status: 200,
+      body: makeReportExportPreview({
+        reportType: payload.reportType,
+        from: payload.from,
+        to: payload.to,
+        rows: smokeReportPreview.rows,
+        summary: smokeReportPreview.summary,
+      }),
+    };
+  }
+  if (method === 'GET' && path === '/api/settlements/brands/saved') {
+    return { status: 200, body: page(filterSettlements(url), url) };
+  }
+  if (method === 'GET' && path.match(/^\/api\/settlements\/brands\/[^/]+$/)) {
+    const brandId = path.split('/').pop()!;
+    const brand = smokeBrands.find((candidate) => candidate.id === brandId);
+    return {
+      status: 200,
+      body: makeBrandSettlementEstimate({
+        ...smokeSettlementEstimate,
+        brandId,
+        brandName: brand?.name ?? smokeSettlementEstimate.brandName,
+        from: `${url.searchParams.get('From') ?? '2026-06-01'}T00:00:00`,
+        to: `${url.searchParams.get('To') ?? '2026-06-30'}T00:00:00`,
+      }),
+    };
+  }
+  if (method === 'POST' && path === '/api/settlements/brands/generate') {
+    const payload = parseJson<{
+      from: string;
+      to: string;
+      brandId?: string;
+      notes?: string | null;
+    }>(request.postData);
+    const brand = payload.brandId
+      ? (smokeBrands.find((candidate) => candidate.id === payload.brandId) ?? smokeBrands[1]!)
+      : smokeBrands[1]!;
+    return {
+      status: 200,
+      body: [
+        makeSettlement({
+          id: 'settlement-smoke-generated',
+          brandId: brand.id,
+          brandName: brand.name,
+          from: `${payload.from}T00:00:00`,
+          to: `${payload.to}T00:00:00`,
+          generationNotes: payload.notes ?? null,
+        }),
+      ],
+    };
+  }
+  if (method === 'GET' && path.match(/^\/api\/settlements\/brands\/saved\/[^/]+$/)) {
+    const id = path.split('/').pop()!;
+    const settlement =
+      smokeSettlements.find((candidate) => candidate.id === id) ?? smokeSettlements[0]!;
+    return { status: 200, body: settlement };
+  }
+  if (method === 'GET' && path.match(/^\/api\/settlements\/brands\/saved\/[^/]+\/versions$/)) {
+    return { status: 200, body: smokeSettlements };
+  }
+  if (method === 'POST' && path.match(/^\/api\/settlements\/brands\/saved\/[^/]+\/finalize$/)) {
+    const id = path.split('/')[5];
+    const settlement =
+      smokeSettlements.find((candidate) => candidate.id === id) ?? smokeSettlements[0]!;
+    return {
+      status: 200,
+      body: makeSettlement({ ...settlement, status: 'Finalized', finalizedAtUtc: NOW }),
+    };
+  }
+  if (method === 'POST' && path.match(/^\/api\/settlements\/brands\/saved\/[^/]+\/mark-paid$/)) {
+    const id = path.split('/')[5];
+    const payload = parseJson<{
+      paidAtUtc?: string;
+      paymentReference?: string | null;
+      notes?: string | null;
+    }>(request.postData);
+    const settlement =
+      smokeSettlements.find((candidate) => candidate.id === id) ?? smokeSettlements[0]!;
+    return {
+      status: 200,
+      body: makeSettlement({
+        ...settlement,
+        status: 'Paid',
+        paidAtUtc: payload.paidAtUtc ?? NOW,
+        paymentReference: payload.paymentReference ?? null,
+        paymentNotes: payload.notes ?? null,
+      }),
+    };
+  }
   if (method === 'POST' && path === '/api/sales') {
     return { status: 200, body: smokeSale };
   }
@@ -393,6 +619,37 @@ export function resolveSmokeApiResponse(request: SmokeApiRequest): SmokeApiRespo
         openedByUserName: 'Venta Mostrador',
         openingCashAmount: payload.openingCashAmount,
         openingNotes: payload.notes ?? null,
+      }),
+    };
+  }
+  if (method === 'POST' && path.match(/^\/api\/cash-register\/[^/]+\/movements$/)) {
+    const payload = parseJson<CreateCashRegisterMovementRequest>(request.postData);
+    const type = payload.type ?? 'CashOut';
+    const amount = payload.amount ?? 150;
+    const signedAmount = type === 'CashIn' ? amount : -amount;
+    return {
+      status: 200,
+      body: makeCashRegisterSession({
+        id: path.split('/')[3],
+        openedByUserId: 'user-seller',
+        openedByUserName: 'Venta Mostrador',
+        manualCashInAmount: type === 'CashIn' ? amount : 0,
+        manualCashOutAmount: type === 'CashOut' ? amount : 0,
+        manualCashNetAmount: signedAmount,
+        expectedCashAmount: 4200 + signedAmount,
+        movements: [
+          makeCashRegisterMovement({
+            type,
+            amount,
+            signedAmount,
+            description: payload.description ?? 'Pago distribuidor',
+            notes: payload.notes ?? null,
+            createdByUserId: 'user-seller',
+            createdByUserName: 'Venta Mostrador',
+            occurredAtUtc: NOW,
+            createdAt: NOW,
+          }),
+        ],
       }),
     };
   }
@@ -467,9 +724,32 @@ function filterTasks(url: URL): StoreTaskResponse[] {
   });
 }
 
+function filterSettlements(url: URL): BrandSettlementSavedResponse[] {
+  const brandId = url.searchParams.get('BrandId') ?? url.searchParams.get('brandId');
+  const status = url.searchParams.get('Status') ?? url.searchParams.get('status');
+  const includeSuperseded =
+    (url.searchParams.get('IncludeSuperseded') ?? url.searchParams.get('includeSuperseded')) ===
+    'true';
+  const from = url.searchParams.get('From') ?? url.searchParams.get('from');
+  const to = url.searchParams.get('To') ?? url.searchParams.get('to');
+
+  return smokeSettlements.filter((settlement) => {
+    if (!includeSuperseded && !settlement.isCurrent) return false;
+    if (brandId && settlement.brandId !== brandId) return false;
+    if (status && settlement.status !== status) return false;
+    if (from && dateOnly(settlement.to) < from) return false;
+    if (to && dateOnly(settlement.from) > to) return false;
+    return true;
+  });
+}
+
 function page<T>(items: T[], url: URL): PagedResult<T> {
-  const requestedPage = Number(url.searchParams.get('page') ?? 1);
-  const pageSize = Number(url.searchParams.get('pageSize') ?? Math.max(items.length, 1));
+  const requestedPage = Number(url.searchParams.get('page') ?? url.searchParams.get('Page') ?? 1);
+  const pageSize = Number(
+    url.searchParams.get('pageSize') ??
+      url.searchParams.get('PageSize') ??
+      Math.max(items.length, 1),
+  );
   const start = (requestedPage - 1) * pageSize;
   const pageItems = items.slice(start, start + pageSize);
 
@@ -482,4 +762,8 @@ function page<T>(items: T[], url: URL): PagedResult<T> {
 
 function parseJson<T>(value: string | null | undefined): T {
   return JSON.parse(value ?? '{}') as T;
+}
+
+function dateOnly(value: string): string {
+  return value.slice(0, 10);
 }

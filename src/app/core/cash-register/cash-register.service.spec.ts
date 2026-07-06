@@ -107,6 +107,38 @@ describe('CashRegisterService', () => {
     expect(service.selectedReport()).toEqual(closed);
   });
 
+  it('creates a manual movement and updates the current register', () => {
+    const session = makeCashRegisterSession({
+      manualCashOutAmount: 150,
+      manualCashNetAmount: -150,
+      expectedCashAmount: 4050,
+    });
+    let result: typeof session | undefined;
+
+    service
+      .createMovement('cash-session-1', {
+        type: 'CashOut',
+        amount: 150,
+        description: 'Pago distribuidor',
+        notes: 'Factura D-100',
+      })
+      .subscribe((res) => (result = res));
+
+    const req = http.expectOne(`${baseUrl}/cash-session-1/movements`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({
+      type: 'CashOut',
+      amount: 150,
+      description: 'Pago distribuidor',
+      notes: 'Factura D-100',
+    });
+    req.flush(session);
+
+    expect(result).toEqual(session);
+    expect(service.current()).toEqual(session);
+    expect(service.currentLoaded()).toBe(true);
+  });
+
   it('loads a report by id', () => {
     const closed = makeClosedCashRegisterSession();
 

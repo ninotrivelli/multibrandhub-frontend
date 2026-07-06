@@ -4,6 +4,7 @@ import { providePrimeNG } from 'primeng/config';
 import { of } from 'rxjs';
 
 import {
+  makeCashRegisterMovement,
   makeCashRegisterSession,
   makeCashRegisterSummary,
   makeClosedCashRegisterSession,
@@ -19,6 +20,7 @@ import { DEFAULT_PRESET } from '../../../core/theme/theme.presets';
 import { notificationServiceMock } from '../../../../testing/service-mocks';
 import { SellerCashRegisterComponent } from './cash-register.component';
 import { CashRegisterCloseDialogComponent } from './components/cash-register-close-dialog.component';
+import { CashRegisterMovementDialogComponent } from './components/cash-register-movement-dialog.component';
 
 describe('SellerCashRegisterComponent', () => {
   let fixture: ComponentFixture<SellerCashRegisterComponent>;
@@ -72,18 +74,103 @@ describe('SellerCashRegisterComponent', () => {
     fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent as string;
+    const normalizedText = text.replace(/\s+/g, ' ');
     expect(text).toContain('Caja abierta');
     expect(text).toContain('Caja efectivo');
+    expect(text).toContain('(Esperado)');
+    expect(normalizedText).toContain('Inicial: $ 1.000');
+    expect(text).toContain('Entradas manuales');
+    expect(text).toContain('Salidas manuales');
     expect(text).toContain('Recaudación total');
+    expect(text).toContain('Registrar movimiento');
     expect(text).toContain('Cerrar Caja');
     expect(text).toContain('Zendra');
     expect(text).toContain('Lumina');
   });
 
+  it('renders manual movements in the open register view', async () => {
+    cashRegister.currentLoaded.set(true);
+    cashRegister.current.set(
+      makeCashRegisterSession({
+        manualCashInAmount: 250,
+        manualCashOutAmount: 150,
+        manualCashNetAmount: 100,
+        movements: [
+          makeCashRegisterMovement(),
+          makeCashRegisterMovement({
+            id: 'cash-movement-2',
+            type: 'CashOut',
+            amount: 150,
+            signedAmount: -150,
+            description: 'Pago distribuidor',
+            notes: 'Factura D-100',
+          }),
+        ],
+      }),
+    );
+
+    create();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Movimientos manuales');
+    expect(text).toContain('Refuerzo de caja');
+    expect(text).toContain('Pago distribuidor');
+    expect(text).toContain('Factura D-100');
+    expect(text).toContain('Neto manual');
+  });
+
+  it('creates manual movements with the current session id', () => {
+    const session = makeCashRegisterSession({ id: 'cash-session-open' });
+    cashRegister.currentLoaded.set(true);
+    cashRegister.current.set(session);
+
+    create();
+    const component = fixture.componentInstance as unknown as {
+      createManualMovement(req: {
+        type: 'CashIn' | 'CashOut';
+        amount: number;
+        description: string;
+        notes?: string | null;
+      }): void;
+      movementDialogVisible: { set(value: boolean): void; (): boolean };
+    };
+
+    component.movementDialogVisible.set(true);
+    component.createManualMovement({
+      type: 'CashOut',
+      amount: 150,
+      description: 'Pago distribuidor',
+      notes: null,
+    });
+
+    expect(cashRegister.createMovement).toHaveBeenCalledWith('cash-session-open', {
+      type: 'CashOut',
+      amount: 150,
+      description: 'Pago distribuidor',
+      notes: null,
+    });
+    expect(component.movementDialogVisible()).toBe(false);
+  });
+
   it('renders a closed report with variance and reconciliation lines', async () => {
     cashRegister.currentLoaded.set(true);
     cashRegister.current.set(null);
-    cashRegister.selectedReport.set(makeClosedCashRegisterSession());
+    cashRegister.selectedReport.set(
+      makeClosedCashRegisterSession({
+        manualCashOutAmount: 150,
+        manualCashNetAmount: -150,
+        movements: [
+          makeCashRegisterMovement({
+            type: 'CashOut',
+            amount: 150,
+            signedAmount: -150,
+            description: 'Pago distribuidor',
+          }),
+        ],
+      }),
+    );
 
     create();
     await fixture.whenStable();
@@ -92,6 +179,8 @@ describe('SellerCashRegisterComponent', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Reporte de caja');
     expect(text).toContain('Diferencia efectivo');
+    expect(text).toContain('Movimientos manuales');
+    expect(text).toContain('Pago distribuidor');
     expect(text).toContain('Conciliación');
     expect(text).toContain('Lumina');
     expect(text).toContain('+');
@@ -170,6 +259,72 @@ describe('CashRegisterCloseDialogComponent', () => {
   });
 });
 
+describe('CashRegisterMovementDialogComponent', () => {
+  let fixture: ComponentFixture<CashRegisterMovementDialogComponent>;
+  let component: CashRegisterMovementDialogComponent;
+
+  beforeEach(async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [CashRegisterMovementDialogComponent],
+      providers: [
+        providePrimeNG({
+          theme: {
+            preset: DEFAULT_PRESET,
+          },
+        }),
+      ],
+    });
+    await TestBed.compileComponents();
+
+    fixture = TestBed.createComponent(CashRegisterMovementDialogComponent);
+    component = fixture.componentInstance;
+  });
+
+  it('validates description and amount before emitting', () => {
+    const emitted = vi.fn();
+    component.createMovement.subscribe(emitted);
+
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+
+    const form = (component as any).form;
+    form.controls.amount.setValue(0);
+    form.controls.description.setValue('   ');
+
+    (component as any).submit();
+
+    expect(emitted).not.toHaveBeenCalled();
+    expect(form.controls.amount.invalid).toBe(true);
+    expect(form.controls.description.invalid).toBe(true);
+  });
+
+  it('emits a trimmed movement request', () => {
+    const emitted = vi.fn();
+    component.createMovement.subscribe(emitted);
+
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+
+    const form = (component as any).form;
+    form.setValue({
+      type: 'CashOut',
+      amount: 150,
+      description: '  Pago distribuidor  ',
+      notes: '  Factura D-100  ',
+    });
+
+    (component as any).submit();
+
+    expect(emitted).toHaveBeenCalledWith({
+      type: 'CashOut',
+      amount: 150,
+      description: 'Pago distribuidor',
+      notes: 'Factura D-100',
+    });
+  });
+});
+
 function cashRegisterServiceMock() {
   const current = signal<CashRegisterSessionResponse | null>(null);
   const currentLoaded = signal(false);
@@ -202,6 +357,25 @@ function cashRegisterServiceMock() {
     loadCurrent: vi.fn(() => of(current())),
     open: vi.fn((session: CashRegisterSessionResponse) => of(session)),
     close: vi.fn(() => of(makeClosedCashRegisterSession())),
+    createMovement: vi.fn((_sessionId: string, request: { type: 'CashIn' | 'CashOut' }) => {
+      const amount = 150;
+      const signedAmount = request.type === 'CashIn' ? amount : -amount;
+      const updated = makeCashRegisterSession({
+        ...(current() ?? {}),
+        manualCashInAmount: request.type === 'CashIn' ? amount : 0,
+        manualCashOutAmount: request.type === 'CashOut' ? amount : 0,
+        manualCashNetAmount: signedAmount,
+        movements: [
+          makeCashRegisterMovement({
+            type: request.type,
+            amount,
+            signedAmount,
+          }),
+        ],
+      });
+      current.set(updated);
+      return of(updated);
+    }),
     getById: vi.fn(() => of(makeClosedCashRegisterSession())),
     loadHistory: vi.fn(() => of(paged(historyItems()))),
     clearSelectedReport: vi.fn(() => selectedReport.set(null)),

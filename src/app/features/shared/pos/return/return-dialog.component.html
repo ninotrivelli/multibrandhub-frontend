@@ -32,7 +32,9 @@
       </p-iconfield>
 
       <div class="flex flex-col gap-2 min-h-40">
-        @if (searching()) {
+        @if (loadingDetail()) {
+          <p class="text-sm text-surface-400 py-6 text-center">Cargando venta…</p>
+        } @else if (searching()) {
           <p class="text-sm text-surface-400 py-6 text-center">Buscando ventas…</p>
         } @else if (searchTerm().trim().length < 2) {
           <p class="text-sm text-surface-400 py-6 text-center">

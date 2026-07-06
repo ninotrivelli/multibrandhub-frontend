@@ -1,0 +1,524 @@
+<div class="flex flex-col gap-5">
+  <header class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div class="min-w-0">
+      <h1 class="text-2xl font-semibold text-surface-900 dark:text-surface-0">
+        Centro de Reportes
+      </h1>
+      <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
+        Generá reportes operativos, revisá una vista previa y descargalos en Excel.
+      </p>
+    </div>
+
+    <button
+      pButton
+      type="button"
+      severity="secondary"
+      [outlined]="true"
+      label="Actualizar catálogo"
+      [loading]="loadingCatalog()"
+      [disabled]="loadingCatalog()"
+      (click)="loadCatalog()"
+    >
+      <i-lucide [img]="icons.RefreshCw" class="mr-2 size-4" />
+    </button>
+  </header>
+
+  @if (error(); as message) {
+    <section
+      class="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100 md:flex-row md:items-center md:justify-between"
+    >
+      <span>{{ message }}</span>
+      <button
+        pButton
+        type="button"
+        severity="warn"
+        [outlined]="true"
+        label="Reintentar"
+        (click)="loadCatalog()"
+      >
+        <i-lucide [img]="icons.RefreshCw" class="mr-2 size-4" />
+      </button>
+    </section>
+  }
+
+  <div class="grid grid-cols-1 gap-5 xl:grid-cols-[22rem_minmax(0,1fr)]">
+    <aside
+      class="overflow-hidden rounded-lg border border-surface-200 bg-surface-0 dark:border-surface-700 dark:bg-surface-800"
+    >
+      <div class="border-b border-surface-200 px-4 py-3 dark:border-surface-700">
+        <h2 class="flex items-center gap-2 text-sm font-semibold text-surface-900 dark:text-surface-0">
+          <i-lucide [img]="icons.FileSpreadsheet" class="size-4 text-primary" />
+          Plantillas disponibles
+        </h2>
+        <p class="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
+          Elegí qué reporte querés generar.
+        </p>
+      </div>
+
+      @if (loadingCatalog() && templates().length === 0) {
+        <div class="flex flex-col gap-3 p-4">
+          @for (item of [1, 2, 3, 4]; track item) {
+            <p-skeleton height="5.5rem" />
+          }
+        </div>
+      } @else {
+        <div class="flex max-h-[calc(100vh-14rem)] flex-col gap-4 overflow-auto p-3">
+          @for (group of groupedTemplates(); track group.label) {
+            <section class="flex flex-col gap-2">
+              <div class="flex items-start gap-2 px-1">
+                <span
+                  class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"
+                >
+                  <i-lucide [img]="group.icon" class="size-4" />
+                </span>
+                <div class="min-w-0">
+                  <h3 class="text-sm font-semibold text-surface-800 dark:text-surface-100">
+                    {{ group.label }}
+                  </h3>
+                  <p class="text-xs text-surface-500 dark:text-surface-400">
+                    {{ group.description }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-2">
+                @for (template of group.items; track template.reportType) {
+                  <button
+                    type="button"
+                    class="group min-h-24 cursor-pointer rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    [class.border-primary]="isSelected(template.reportType)"
+                    [class.bg-primary/5]="isSelected(template.reportType)"
+                    [class.text-primary]="isSelected(template.reportType)"
+                    [class.border-surface-200]="!isSelected(template.reportType)"
+                    [class.bg-surface-0]="!isSelected(template.reportType)"
+                    [class.text-surface-800]="!isSelected(template.reportType)"
+                    [class.hover:border-primary/50]="!isSelected(template.reportType)"
+                    [class.hover:bg-surface-50]="!isSelected(template.reportType)"
+                    [class.dark:border-surface-700]="!isSelected(template.reportType)"
+                    [class.dark:bg-surface-800]="!isSelected(template.reportType)"
+                    [class.dark:text-surface-100]="!isSelected(template.reportType)"
+                    [class.dark:hover:bg-surface-700/60]="!isSelected(template.reportType)"
+                    (click)="selectReport(template.reportType)"
+                  >
+                    <span class="flex items-start justify-between gap-3">
+                      <span class="min-w-0">
+                        <span class="block text-sm font-semibold">{{ template.name }}</span>
+                        <span
+                          class="mt-1 line-clamp-2 block text-xs leading-5 text-surface-500 group-[.text-primary]:text-primary/80 dark:text-surface-400"
+                        >
+                          {{ template.description }}
+                        </span>
+                      </span>
+                      @if (isSelected(template.reportType)) {
+                        <p-tag value="Activo" severity="info" styleClass="!text-xs" />
+                      }
+                    </span>
+                  </button>
+                }
+              </div>
+            </section>
+          } @empty {
+            <div class="p-6 text-center text-sm text-surface-500 dark:text-surface-400">
+              No hay reportes publicados.
+            </div>
+          }
+        </div>
+      }
+    </aside>
+
+    <section class="flex min-w-0 flex-col gap-5">
+      <section
+        class="rounded-lg border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-800 md:p-5"
+      >
+        <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div class="min-w-0">
+            <h2 class="flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-0">
+              <i-lucide [img]="icons.Filter" class="size-4 text-primary" />
+              Banco de trabajo
+            </h2>
+            @if (selectedTemplate(); as template) {
+              <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                {{ template.name }} · {{ template.description }}
+              </p>
+            } @else {
+              <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                Cargá el catálogo para empezar.
+              </p>
+            }
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <p-tag
+              [value]="'Preview: hasta ' + previewRowLimit() + ' filas'"
+              severity="secondary"
+              [rounded]="true"
+            />
+            <p-tag
+              [value]="'Excel: máximo ' + maxRows().toLocaleString('es-UY') + ' filas'"
+              severity="secondary"
+              [rounded]="true"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-4">
+          <div class="flex flex-col gap-1 lg:col-span-2">
+            <label class="text-xs font-medium text-surface-600 dark:text-surface-300" for="report-from">
+              Desde
+            </label>
+            <input
+              id="report-from"
+              pInputText
+              type="date"
+              [max]="toDate()"
+              [ngModel]="fromDate()"
+              [disabled]="!dateFiltersApply()"
+              (ngModelChange)="setFromDate($event)"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1 lg:col-span-2">
+            <label class="text-xs font-medium text-surface-600 dark:text-surface-300" for="report-to">
+              Hasta
+            </label>
+            <input
+              id="report-to"
+              pInputText
+              type="date"
+              [min]="fromDate()"
+              [ngModel]="toDate()"
+              [disabled]="!dateFiltersApply()"
+              (ngModelChange)="setToDate($event)"
+            />
+          </div>
+        </div>
+
+        @if (currentStateReport()) {
+          <div
+            class="mt-3 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-primary"
+          >
+            Este reporte muestra el estado actual al momento de generarlo. Las fechas no se usan para
+            calcular el resultado.
+          </div>
+        } @else {
+          <div class="mt-2 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
+            <i-lucide [img]="icons.CalendarDays" class="size-3.5" />
+            <span>Período base: {{ rangeLabel() }}</span>
+          </div>
+        }
+
+        @if (dateRangeInvalid()) {
+          <div class="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+            La fecha inicial no puede ser mayor a la fecha final.
+          </div>
+        }
+
+        <div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+          @if (showBrandFilter()) {
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-medium text-surface-600 dark:text-surface-300">Marcas</label>
+              <p-multiselect
+                [options]="brandOptions()"
+                [ngModel]="selectedBrandIds()"
+                (ngModelChange)="setBrandIds($event)"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Todas las marcas"
+                display="chip"
+                [filter]="true"
+                [showClear]="true"
+                [disabled]="loadingFilters()"
+                appendTo="body"
+                styleClass="w-full"
+              />
+            </div>
+          }
+
+          @if (supports('CategoryIds')) {
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-medium text-surface-600 dark:text-surface-300">Categorías</label>
+              <p-multiselect
+                [options]="categoryOptions()"
+                [ngModel]="selectedCategoryIds()"
+                (ngModelChange)="setCategoryIds($event)"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Todas las categorías"
+                display="chip"
+                [filter]="true"
+                [showClear]="true"
+                [disabled]="loadingFilters()"
+                appendTo="body"
+                styleClass="w-full"
+              />
+            </div>
+          }
+
+          @if (supports('SellerIds')) {
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-medium text-surface-600 dark:text-surface-300">Vendedoras</label>
+              <p-multiselect
+                [options]="sellerOptions()"
+                [ngModel]="selectedSellerIds()"
+                (ngModelChange)="setSellerIds($event)"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Todas las vendedoras"
+                display="chip"
+                [filter]="true"
+                [showClear]="true"
+                [disabled]="loadingFilters()"
+                appendTo="body"
+                styleClass="w-full"
+              />
+            </div>
+          }
+
+          @if (supports('PaymentMethods')) {
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-medium text-surface-600 dark:text-surface-300">Medios de pago</label>
+              <p-multiselect
+                [options]="paymentMethodOptions"
+                [ngModel]="selectedPaymentMethods()"
+                (ngModelChange)="setPaymentMethods($event)"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Todos los medios"
+                display="chip"
+                [showClear]="true"
+                appendTo="body"
+                styleClass="w-full"
+              />
+            </div>
+          }
+
+          @if (supports('SaleStatuses')) {
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-medium text-surface-600 dark:text-surface-300">Estados de venta</label>
+              <p-multiselect
+                [options]="saleStatusOptions"
+                [ngModel]="selectedSaleStatuses()"
+                (ngModelChange)="setSaleStatuses($event)"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Default del reporte"
+                display="chip"
+                [showClear]="true"
+                appendTo="body"
+                styleClass="w-full"
+              />
+            </div>
+          }
+
+          @if (supports('MovementTypes')) {
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-medium text-surface-600 dark:text-surface-300">Tipos de movimiento</label>
+              <p-multiselect
+                [options]="movementTypeOptions"
+                [ngModel]="selectedMovementTypes()"
+                (ngModelChange)="setMovementTypes($event)"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Todos los movimientos"
+                display="chip"
+                [showClear]="true"
+                appendTo="body"
+                styleClass="w-full"
+              />
+            </div>
+          }
+
+          @if (supports('StockStatuses')) {
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-medium text-surface-600 dark:text-surface-300">Estados de stock</label>
+              <p-multiselect
+                [options]="stockStatusOptions"
+                [ngModel]="selectedStockStatuses()"
+                (ngModelChange)="setStockStatuses($event)"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Todos los estados"
+                display="chip"
+                [showClear]="true"
+                appendTo="body"
+                styleClass="w-full"
+              />
+            </div>
+          }
+
+          @if (supports('ImmobilizedDays')) {
+            <div class="flex flex-col gap-1">
+              <label
+                class="text-xs font-medium text-surface-600 dark:text-surface-300"
+                for="immobilized-days"
+              >
+                Días sin ventas
+              </label>
+              <p-inputnumber
+                inputId="immobilized-days"
+                [ngModel]="immobilizedDays()"
+                (ngModelChange)="setImmobilizedDays($event)"
+                [min]="1"
+                [max]="3650"
+                [showButtons]="true"
+                [useGrouping]="false"
+                styleClass="w-full"
+              />
+              @if (immobilizedDaysInvalid()) {
+                <span class="text-xs text-red-600 dark:text-red-300">
+                  Usá un valor entre 1 y 3650.
+                </span>
+              }
+            </div>
+          }
+
+          @if (supports('IncludeInactiveProducts')) {
+            <label
+              class="flex min-h-10 items-center gap-2 pt-5 text-sm text-surface-600 dark:text-surface-300"
+            >
+              <p-toggleswitch
+                [ngModel]="includeInactiveProducts()"
+                (ngModelChange)="setIncludeInactiveProducts($event)"
+              />
+              Incluir productos inactivos
+            </label>
+          }
+        </div>
+
+        @if (selectedReportType() === 'MyBrand') {
+          <div class="mt-4 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
+            Mi Marca se resuelve desde tu usuario. No se envía filtro manual de marcas.
+          </div>
+        }
+
+        <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            pButton
+            type="button"
+            severity="secondary"
+            [text]="true"
+            label="Limpiar filtros"
+            (click)="resetFilters()"
+          >
+            <i-lucide [img]="icons.SlidersHorizontal" class="mr-2 size-4" />
+          </button>
+
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              pButton
+              type="button"
+              severity="secondary"
+              [outlined]="true"
+              label="Vista previa"
+              [loading]="previewLoading()"
+              [disabled]="!canRunPreview()"
+              (click)="generatePreview()"
+            >
+              <i-lucide [img]="icons.Eye" class="mr-2 size-4" />
+            </button>
+
+            <button
+              pButton
+              type="button"
+              label="Descargar Excel"
+              [loading]="exporting()"
+              [disabled]="!canExport()"
+              (click)="downloadExcel()"
+            >
+              <i-lucide [img]="icons.Download" class="mr-2 size-4" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="overflow-hidden rounded-lg border border-surface-200 bg-surface-0 dark:border-surface-700 dark:bg-surface-800"
+      >
+        <div class="border-b border-surface-200 px-4 py-3 dark:border-surface-700">
+          <h2 class="flex items-center gap-2 text-sm font-semibold text-surface-900 dark:text-surface-0">
+            <i-lucide [img]="icons.Table2" class="size-4 text-primary" />
+            Vista previa
+          </h2>
+          <p class="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
+            @if (preview(); as result) {
+              Calculado: {{ result.calculatedAtUtc | date: 'dd/MM/yyyy HH:mm' }} · hasta
+              {{ previewRowLimit() }} filas
+            } @else {
+              Generá una vista previa para revisar el resultado antes de descargar.
+            }
+          </p>
+        </div>
+
+        @if (previewLoading()) {
+          <div class="grid grid-cols-1 gap-3 p-4 md:grid-cols-4">
+            @for (item of [1, 2, 3, 4]; track item) {
+              <p-skeleton height="4.25rem" />
+            }
+          </div>
+        }
+
+        @if (summaryEntries().length > 0) {
+          <div class="grid grid-cols-1 gap-3 border-b border-surface-200 p-4 dark:border-surface-700 md:grid-cols-4">
+            @for (item of summaryEntries(); track item.label) {
+              <div class="rounded-lg border border-surface-200 p-3 dark:border-surface-700">
+                <div class="text-xs text-surface-500 dark:text-surface-400">{{ item.label }}</div>
+                <div class="mt-1 truncate text-lg font-semibold text-surface-900 dark:text-surface-0">
+                  {{ item.value }}
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        @if (preview(); as result) {
+          <p-table
+            [value]="previewRows()"
+            [columns]="previewColumns()"
+            [paginator]="previewRows().length > 10"
+            [rows]="10"
+            [rowsPerPageOptions]="[10, 20, 50]"
+            paginatorDropdownAppendTo="body"
+            [rowHover]="true"
+            styleClass="p-datatable-sm"
+            responsiveLayout="scroll"
+            [showCurrentPageReport]="true"
+            currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} filas de preview"
+          >
+            <ng-template pTemplate="header" let-columns>
+              <tr>
+                @for (column of columns; track column.key) {
+                  <th [style.min-width]="columnWidth(column)">
+                    {{ column.header }}
+                  </th>
+                }
+              </tr>
+            </ng-template>
+
+            <ng-template pTemplate="body" let-row let-columns="columns">
+              <tr>
+                @for (column of columns; track column.key) {
+                  <td class="align-top">
+                    {{ formatCell(row, column) }}
+                  </td>
+                }
+              </tr>
+            </ng-template>
+
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td [attr.colspan]="previewColumns().length || 1" class="py-10 text-center text-surface-500">
+                  El reporte no devolvió filas para esos filtros.
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        } @else if (!previewLoading()) {
+          <div class="flex flex-col items-center gap-2 p-10 text-center text-sm text-surface-500 dark:text-surface-400">
+            <i-lucide [img]="icons.AlertCircle" class="size-8 text-surface-300" />
+            <p>No hay vista previa generada todavía.</p>
+          </div>
+        }
+      </section>
+    </section>
+  </div>
+</div>
