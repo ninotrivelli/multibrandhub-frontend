@@ -189,7 +189,7 @@ test.describe('deep smoke interactions', () => {
 
     await page.getByLabel('Efectivo inicial').fill('1000');
     await page.getByRole('button', { name: 'Abrir Caja' }).click();
-    await expect(page.getByText('Caja abierta')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Caja abierta' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Registrar movimiento' }).click();
     const dialog = page.getByRole('dialog', { name: 'Registrar movimiento' });
