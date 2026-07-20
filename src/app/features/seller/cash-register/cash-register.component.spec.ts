@@ -88,6 +88,23 @@ describe('SellerCashRegisterComponent', () => {
     expect(text).toContain('Lumina');
   });
 
+  it('renders an old open register as requiring closure with its exact age', async () => {
+    cashRegister.currentLoaded.set(true);
+    cashRegister.current.set(makeCashRegisterSession({ openedAtUtc: '2026-07-09T11:00:00Z' }));
+    cashRegister.currentAgeText.set('hace 10 días');
+    cashRegister.hasStaleOpenRegister.set(true);
+
+    create();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Caja abierta hace 10 días');
+    expect(text).toContain('Requiere cierre');
+    expect(text).toContain('Cerrala para comenzar un nuevo día');
+    expect(text).toContain('Cerrar Caja');
+  });
+
   it('renders manual movements in the open register view', async () => {
     cashRegister.currentLoaded.set(true);
     cashRegister.current.set(
@@ -330,6 +347,9 @@ function cashRegisterServiceMock() {
   const currentLoaded = signal(false);
   const currentLoading = signal(false);
   const currentError = signal<string | null>(null);
+  const currentAgeDays = signal<number | null>(null);
+  const currentAgeText = signal<string | null>(null);
+  const hasStaleOpenRegister = signal(false);
   const selectedReport = signal<CashRegisterSessionResponse | null>(null);
   const reportLoading = signal(false);
   const reportError = signal<string | null>(null);
@@ -345,6 +365,9 @@ function cashRegisterServiceMock() {
     currentLoaded,
     currentLoading,
     currentError,
+    currentAgeDays,
+    currentAgeText,
+    hasStaleOpenRegister,
     selectedReport,
     reportLoading,
     reportError,

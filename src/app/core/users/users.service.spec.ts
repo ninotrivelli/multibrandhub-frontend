@@ -5,6 +5,7 @@ import { TestBed } from '@angular/core/testing';
 import { environment } from '../../../environments/environment';
 import { makeUser, paged } from '../../../testing/builders';
 import { SessionStateRegistry } from '../session/session-state-registry.service';
+import { HANDLE_ERROR_LOCALLY } from '../http/local-error-handling';
 import { UsersService } from './users.service';
 
 describe('UsersService', () => {
@@ -42,5 +43,22 @@ describe('UsersService', () => {
 
     expect(service.items()).toEqual([]);
     expect(service.totalCount()).toBe(0);
+  });
+
+  it('resets MFA with nullable factor fields and local dialog error handling', () => {
+    const body = {
+      currentPassword: 'Password!123',
+      verificationCode: null,
+      method: null,
+      reason: 'El administrador perdió su dispositivo corporativo.',
+    };
+
+    service.resetMfa('admin-id', body).subscribe();
+
+    const request = http.expectOne(`${baseUrl}/admin-id/mfa/reset`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(body);
+    expect(request.request.context.get(HANDLE_ERROR_LOCALLY)).toBe(true);
+    request.flush(null, { status: 204, statusText: 'No Content' });
   });
 });

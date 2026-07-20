@@ -66,10 +66,16 @@
         }}</p-message>
       }
 
+      @if (rateLimited() && retryLabel(); as remaining) {
+        <p-message severity="warn" variant="outlined" closable="false">
+          Podés volver a intentar en {{ remaining }}.
+        </p-message>
+      }
+
       <button
         pButton
         type="submit"
-        [disabled]="submitting()"
+        [disabled]="submitting() || rateLimited()"
         [loading]="submitting()"
         label="Ingresar"
         class="w-full"

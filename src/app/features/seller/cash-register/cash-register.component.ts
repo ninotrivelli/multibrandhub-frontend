@@ -140,6 +140,8 @@ export class SellerCashRegisterComponent implements OnInit {
   protected readonly currentLoaded = this.cashRegister.currentLoaded;
   protected readonly currentLoading = this.cashRegister.currentLoading;
   protected readonly currentError = this.cashRegister.currentError;
+  protected readonly currentAgeText = this.cashRegister.currentAgeText;
+  protected readonly hasStaleOpenRegister = this.cashRegister.hasStaleOpenRegister;
   protected readonly selectedReport = this.cashRegister.selectedReport;
   protected readonly reportLoading = this.cashRegister.reportLoading;
   protected readonly reportError = this.cashRegister.reportError;

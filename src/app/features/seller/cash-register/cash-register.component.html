@@ -35,6 +35,7 @@
           pButton
           type="button"
           label="Cerrar Caja"
+          [severity]="hasStaleOpenRegister() ? 'danger' : undefined"
           [disabled]="submittingClose()"
           (click)="openCloseDialog()"
         >
@@ -76,25 +77,41 @@
   } @else if (current(); as session) {
     <section class="flex flex-col gap-4">
       <div
-        class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30"
+        [class]="
+          hasStaleOpenRegister()
+            ? 'rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/30'
+            : 'rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30'
+        "
       >
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div class="flex items-start gap-3">
             <span
-              class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200"
+              [class]="
+                hasStaleOpenRegister()
+                  ? 'flex size-10 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-200'
+                  : 'flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200'
+              "
             >
-              <i-lucide [img]="icons.CheckCircle2" class="size-5" />
+              <i-lucide
+                [img]="hasStaleOpenRegister() ? icons.AlertTriangle : icons.CheckCircle2"
+                class="size-5"
+              />
             </span>
             <div>
               <div class="mb-1 flex flex-wrap items-center gap-2">
                 <h2 class="text-lg font-semibold text-surface-900 dark:text-surface-0">
-                  Caja abierta
+                  Caja abierta {{ currentAgeText() }}
                 </h2>
                 <p-tag
-                  [value]="statusLabel(session.status)"
-                  [severity]="statusSeverity(session.status)"
+                  [value]="hasStaleOpenRegister() ? 'Requiere cierre' : statusLabel(session.status)"
+                  [severity]="hasStaleOpenRegister() ? 'danger' : statusSeverity(session.status)"
                 />
               </div>
+              @if (hasStaleOpenRegister()) {
+                <p class="mb-1 text-sm font-medium text-red-700 dark:text-red-200">
+                  Esta caja pertenece a una jornada anterior. Cerrala para comenzar un nuevo día.
+                </p>
+              }
               <p class="text-sm text-surface-600 dark:text-surface-300">
                 Abierta por {{ session.openedByUserName ?? '—' }} ·
                 {{ formatDateTime(session.openedAtUtc) }}
@@ -141,7 +158,9 @@
                 }
               </span>
               @if (kpi.caption) {
-                <span class="text-xs text-surface-500 dark:text-surface-400">{{ kpi.caption }}</span>
+                <span class="text-xs text-surface-500 dark:text-surface-400">{{
+                  kpi.caption
+                }}</span>
               }
               @if (kpi.details?.length) {
                 <dl
@@ -336,10 +355,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      @for (
-                        line of groupedLinesForBrand(session, brand.brandId);
-                        track line.key
-                      ) {
+                      @for (line of groupedLinesForBrand(session, brand.brandId); track line.key) {
                         <tr class="border-t border-surface-100 dark:border-surface-700">
                           <td class="py-2 pr-3 font-medium text-surface-800 dark:text-surface-100">
                             <span class="flex items-center gap-2">
@@ -671,10 +687,7 @@
                     class="py-2 pr-3 text-left font-medium text-surface-800 dark:text-surface-100"
                   >
                     <span class="flex items-center gap-2">
-                      <i-lucide
-                        [img]="groupIcon(total.group)"
-                        class="size-4 text-surface-400"
-                      />
+                      <i-lucide [img]="groupIcon(total.group)" class="size-4 text-surface-400" />
                       {{ groupLabel(total.group) }}
                     </span>
                   </td>

@@ -1,14 +1,16 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { HANDLE_ERROR_LOCALLY } from '../http/local-error-handling';
 import { SessionStateRegistry } from '../session/session-state-registry.service';
 import {
   CreateUserRequest,
   ListUsersParams,
   PagedResult,
   ResetPasswordRequest,
+  ResetUserMfaRequest,
   UpdateUserRequest,
   UserResponse,
 } from './users.types';
@@ -93,6 +95,12 @@ export class UsersService {
   resetPassword(id: string, newPassword: string): Observable<void> {
     const body: ResetPasswordRequest = { newPassword };
     return this.http.patch<void>(`${this.baseUrl}/${id}/password`, body);
+  }
+
+  resetMfa(id: string, body: ResetUserMfaRequest): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/${id}/mfa/reset`, body, {
+      context: new HttpContext().set(HANDLE_ERROR_LOCALLY, true),
+    });
   }
 
   delete(id: string): Observable<void> {

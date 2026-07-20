@@ -5,6 +5,7 @@ import { of } from 'rxjs';
 import { makeAuthUser, makeUser } from '../../../../../testing/builders';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { AuthUser } from '../../../../core/auth/auth.types';
+import { MfaService } from '../../../../core/auth/mfa.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { UsersService } from '../../../../core/users/users.service';
 import { UserResponse } from '../../../../core/users/users.types';
@@ -25,6 +26,14 @@ describe('AdminEquipoComponent', () => {
       imports: [AdminEquipoComponent],
       providers: [
         { provide: AuthService, useValue: { user: currentUser.asReadonly() } },
+        {
+          provide: MfaService,
+          useValue: {
+            status: signal(null).asReadonly(),
+            loadingStatus: signal(false).asReadonly(),
+            loadStatus: vi.fn(() => of(null)),
+          },
+        },
         {
           provide: UsersService,
           useValue: {
@@ -79,5 +88,26 @@ describe('AdminEquipoComponent', () => {
 
     currentUser.set(makeAuthUser({ role: 'SuperAdmin', userId: 'root' }));
     expect((component as any).canEdit(otherAdmin)).toBe(true);
+  });
+
+  it('exposes only administrative MFA targets to SuperAdmin and blocks self reset', () => {
+    currentUser.set(makeAuthUser({ role: 'SuperAdmin', userId: 'root' }));
+    userItems.set([
+      makeUser({ id: 'root', role: 'SuperAdmin' }),
+      makeUser({ id: 'other-root', role: 'SuperAdmin' }),
+      makeUser({ id: 'admin', role: 'Admin' }),
+      makeUser({ id: 'seller', role: 'Seller' }),
+    ]);
+
+    expect((component as any).showMfaAdministration()).toBe(true);
+    expect((component as any).adminMfaTargets().map((user: UserResponse) => user.id)).toEqual([
+      'root',
+      'other-root',
+      'admin',
+    ]);
+    expect((component as any).canResetMfa(userItems()[0]!)).toBe(false);
+    expect((component as any).canResetMfa(userItems()[1]!)).toBe(true);
+    expect((component as any).canResetMfa(userItems()[2]!)).toBe(true);
+    expect((component as any).canResetMfa(userItems()[3]!)).toBe(false);
   });
 });

@@ -43,6 +43,58 @@
     </label>
   </div>
 
+  @if (showMfaAdministration()) {
+    <section
+      class="rounded-xl border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-800"
+    >
+      <div class="mb-3">
+        <h3 class="font-semibold text-surface-900 dark:text-surface-0">Administradores y MFA</h3>
+        <p class="text-sm text-surface-500 dark:text-surface-400">
+          Reset de emergencia para cuentas administrativas. No muestra ni infiere el estado MFA del
+          objetivo.
+        </p>
+      </div>
+      <div class="grid gap-2 md:grid-cols-2">
+        @for (admin of adminMfaTargets(); track admin.id) {
+          <div
+            class="flex items-center gap-3 rounded-lg border border-surface-200 p-3 dark:border-surface-700"
+          >
+            <p-avatar
+              [label]="initialsOf(admin.fullName)"
+              shape="circle"
+              styleClass="bg-primary text-primary-contrast"
+            />
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="truncate text-sm font-medium text-surface-900 dark:text-surface-0">{{
+                  admin.fullName
+                }}</span>
+                <p-tag [value]="roleLabel(admin.role)" [severity]="roleSeverity(admin.role)" />
+              </div>
+              <span class="block truncate text-xs text-surface-500 dark:text-surface-400">{{
+                admin.email
+              }}</span>
+            </div>
+            <button
+              pButton
+              type="button"
+              severity="danger"
+              [text]="true"
+              [rounded]="true"
+              [disabled]="!canResetMfa(admin) || !actorMfaStatus() || mfaStatusLoading()"
+              [pTooltip]="isSelf(admin) ? 'No podés resetear tu propio MFA' : 'Resetear MFA'"
+              tooltipPosition="top"
+              ariaLabel="Resetear MFA"
+              (click)="openMfaReset(admin)"
+            >
+              <i-lucide [img]="icons.ShieldOff" class="size-4" />
+            </button>
+          </div>
+        }
+      </div>
+    </section>
+  }
+
   @if (loading() && !hasItems()) {
     <div class="flex flex-col gap-2">
       @for (i of [1, 2, 3, 4]; track i) {
@@ -226,6 +278,13 @@
   [visible]="resetDialogVisible()"
   [target]="resetTarget()"
   (visibleChange)="onResetVisibleChange($event)"
+/>
+
+<app-mfa-reset-dialog
+  [visible]="mfaResetDialogVisible()"
+  [target]="mfaResetTarget()"
+  [actorMfaEnabled]="actorMfaStatus()?.enabled ?? false"
+  (visibleChange)="mfaResetDialogVisible.set($event)"
 />
 
 <p-confirmdialog>

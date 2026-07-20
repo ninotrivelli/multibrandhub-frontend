@@ -1,0 +1,29 @@
+<header class="mb-6">
+  <h1 class="text-2xl font-semibold text-surface-900 dark:text-surface-0">Configuración</h1>
+  <p class="mt-1 text-surface-500 dark:text-surface-400">
+    Marcas, equipo, datos del local y seguridad de tu cuenta.
+  </p>
+</header>
+
+<p-tabs [value]="activeTab()" (valueChange)="onTabChange($event!)" [scrollable]="true">
+  <p-tablist>
+    <p-tab value="marcas">Marcas Asociadas</p-tab>
+    <p-tab value="equipo">Equipo</p-tab>
+    <p-tab value="ajustes">Ajustes Generales</p-tab>
+    <p-tab value="seguridad">Seguridad</p-tab>
+  </p-tablist>
+  <p-tabpanels>
+    <p-tabpanel value="marcas">
+      <app-admin-marcas />
+    </p-tabpanel>
+    <p-tabpanel value="equipo">
+      <app-admin-equipo />
+    </p-tabpanel>
+    <p-tabpanel value="ajustes">
+      <app-ajustes-generales />
+    </p-tabpanel>
+    <p-tabpanel value="seguridad">
+      <app-admin-seguridad [active]="activeTab() === 'seguridad'" />
+    </p-tabpanel>
+  </p-tabpanels>
+</p-tabs>

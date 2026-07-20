@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { HttpClient, HttpContext } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, map, tap } from 'rxjs';
+import { Observable, map, tap, throwError } from 'rxjs';
 import { jwtDecode } from 'jwt-decode';
 
 import { environment } from '../../../environments/environment';
@@ -16,10 +16,14 @@ import {
   ForgotPasswordRequest,
   JwtClaims,
   LoginRequest,
+  LoginOutcome,
+  MfaChallengeResponse,
+  MfaVerificationMethod,
   NAMEID_CLAIM_URI,
   ROLE_CLAIM_URI,
   RoleWire,
   UserRole,
+  VerifyMfaRequest,
 } from './auth.types';
 
 const STORAGE_KEY = 'mbh.token';
@@ -82,6 +86,47 @@ function tenantIdFromToken(token: string): string {
   return claims.tenantId;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isRoleWire(value: unknown): value is RoleWire {
+  return (
+    value === 'SuperAdmin' ||
+    value === 'Admin' ||
+    value === 'BrandManager' ||
+    value === 'Seller' ||
+    value === 1 ||
+    value === 2 ||
+    value === 3 ||
+    value === 4
+  );
+}
+
+function isAuthResponse(value: unknown): value is AuthResponse {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value['userId'] === 'string' &&
+    typeof value['fullName'] === 'string' &&
+    typeof value['email'] === 'string' &&
+    isRoleWire(value['role']) &&
+    (typeof value['brandId'] === 'string' || value['brandId'] === null) &&
+    typeof value['token'] === 'string' &&
+    value['token'].length > 0 &&
+    typeof value['expiresAtUtc'] === 'string'
+  );
+}
+
+function isMfaChallengeResponse(value: unknown): value is MfaChallengeResponse {
+  if (!isRecord(value)) return false;
+  return (
+    value['status'] === 'MfaRequired' &&
+    typeof value['challengeToken'] === 'string' &&
+    value['challengeToken'].length > 0 &&
+    typeof value['expiresAtUtc'] === 'string'
+  );
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
@@ -89,6 +134,7 @@ export class AuthService {
   private readonly sessionState = inject(SessionStateRegistry);
 
   private readonly _session = signal<AuthSession | null>(null);
+  private readonly _pendingMfaChallenge = signal<MfaChallengeResponse | null>(null);
 
   readonly session = this._session.asReadonly();
   readonly user = computed(() => this._session()?.user ?? null);
@@ -96,8 +142,13 @@ export class AuthService {
   readonly tenantId = computed(() => this._session()?.tenantId ?? null);
   readonly role = computed<UserRole | null>(() => this._session()?.user.role ?? null);
   readonly isAuthenticated = computed(() => this._session() !== null);
+  readonly pendingMfaExpiresAtUtc = computed(
+    () => this._pendingMfaChallenge()?.expiresAtUtc ?? null,
+  );
+  readonly hasPendingMfaChallenge = computed(() => this._pendingMfaChallenge() !== null);
 
   restoreSession(): void {
+    this.clearPendingMfaChallenge();
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
 
@@ -134,30 +185,56 @@ export class AuthService {
     this._session.set(parsed);
   }
 
-  login(req: LoginRequest): Observable<AuthSession> {
+  login(req: LoginRequest): Observable<LoginOutcome> {
+    this.clearPendingMfaChallenge();
+
     return this.http
-      .post<AuthResponse>(`${environment.apiBaseUrl}/auth/login`, req, {
+      .post<unknown>(`${environment.apiBaseUrl}/auth/login`, req, {
+        context: this.localErrorContext(),
+        observe: 'response',
+      })
+      .pipe(
+        map((response) => this.mapLoginResponse(response)),
+        tap((outcome) => {
+          if (outcome.kind === 'authenticated') {
+            this.persistSession(outcome.session);
+          }
+        }),
+      );
+  }
+
+  verifyMfa(code: string, method: MfaVerificationMethod): Observable<AuthSession> {
+    const challenge = this._pendingMfaChallenge();
+    if (!challenge) {
+      return throwError(() => new Error('MFA challenge is not available.'));
+    }
+
+    const body: VerifyMfaRequest = {
+      challengeToken: challenge.challengeToken,
+      code,
+      method,
+    };
+
+    return this.http
+      .post<unknown>(`${environment.apiBaseUrl}/auth/mfa/verify`, body, {
         context: this.localErrorContext(),
       })
       .pipe(
-        map<AuthResponse, AuthSession>((res) => ({
-          user: {
-            userId: res.userId,
-            fullName: res.fullName,
-            email: res.email,
-            role: normalizeRole(res.role),
-            brandId: res.brandId,
-          },
-          tenantId: tenantIdFromToken(res.token),
-          token: res.token,
-          expiresAtUtc: res.expiresAtUtc,
-        })),
+        map((response) => {
+          if (!isAuthResponse(response)) {
+            throw new Error('Unexpected MFA verification response contract.');
+          }
+          return this.mapAuthResponse(response);
+        }),
         tap((session) => {
-          this.sessionState.resetAll();
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-          this._session.set(session);
+          this.clearPendingMfaChallenge();
+          this.persistSession(session);
         }),
       );
+  }
+
+  clearPendingMfaChallenge(): void {
+    this._pendingMfaChallenge.set(null);
   }
 
   requestPasswordReset(email: string): Observable<void> {
@@ -182,11 +259,46 @@ export class AuthService {
   clearSession(): void {
     localStorage.removeItem(STORAGE_KEY);
     this._session.set(null);
+    this.clearPendingMfaChallenge();
     this.sessionState.resetAll();
   }
 
   private localErrorContext(): HttpContext {
     return new HttpContext().set(HANDLE_ERROR_LOCALLY, true);
+  }
+
+  private mapLoginResponse(response: HttpResponse<unknown>): LoginOutcome {
+    if (response.status === 200 && isAuthResponse(response.body)) {
+      return { kind: 'authenticated', session: this.mapAuthResponse(response.body) };
+    }
+
+    if (response.status === 202 && isMfaChallengeResponse(response.body)) {
+      this._pendingMfaChallenge.set(response.body);
+      return { kind: 'mfaRequired', expiresAtUtc: response.body.expiresAtUtc };
+    }
+
+    throw new Error('Unexpected login response contract.');
+  }
+
+  private mapAuthResponse(response: AuthResponse): AuthSession {
+    return {
+      user: {
+        userId: response.userId,
+        fullName: response.fullName,
+        email: response.email,
+        role: normalizeRole(response.role),
+        brandId: response.brandId,
+      },
+      tenantId: tenantIdFromToken(response.token),
+      token: response.token,
+      expiresAtUtc: response.expiresAtUtc,
+    };
+  }
+
+  private persistSession(session: AuthSession): void {
+    this.sessionState.resetAll();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    this._session.set(session);
   }
 
   homePathFor(role: UserRole): string {

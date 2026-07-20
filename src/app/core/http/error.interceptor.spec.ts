@@ -10,7 +10,11 @@ import { HANDLE_ERROR_LOCALLY } from './local-error-handling';
 describe('errorInterceptor', () => {
   let http: HttpClient;
   let httpTesting: HttpTestingController;
-  let auth: { logout: ReturnType<typeof vi.fn> };
+  let authenticated: boolean;
+  let auth: {
+    logout: ReturnType<typeof vi.fn>;
+    isAuthenticated: () => boolean;
+  };
   let notifications: {
     warn: ReturnType<typeof vi.fn>;
     error: ReturnType<typeof vi.fn>;
@@ -18,7 +22,13 @@ describe('errorInterceptor', () => {
 
   beforeEach(() => {
     TestBed.resetTestingModule();
-    auth = { logout: vi.fn() };
+    authenticated = true;
+    auth = {
+      logout: vi.fn(() => {
+        authenticated = false;
+      }),
+      isAuthenticated: () => authenticated,
+    };
     notifications = { warn: vi.fn(), error: vi.fn() };
 
     TestBed.configureTestingModule({
@@ -38,6 +48,7 @@ describe('errorInterceptor', () => {
   it('lets public auth errors be handled by their components', () => {
     for (const path of [
       '/api/auth/login',
+      '/api/auth/mfa/verify',
       '/api/auth/forgot-password',
       '/api/auth/reset-password',
     ]) {
@@ -112,6 +123,46 @@ describe('errorInterceptor', () => {
     expect(notifications.warn).toHaveBeenCalledWith('Volvé a ingresar', 'Sesión no vigente');
     expect(auth.logout).toHaveBeenCalled();
     expect(notifications.error).not.toHaveBeenCalled();
+  });
+
+  it('still handles session-invalid errors globally for locally handled MFA forms', () => {
+    http
+      .post(
+        '/api/auth/mfa/disable',
+        {},
+        {
+          context: new HttpContext().set(HANDLE_ERROR_LOCALLY, true),
+        },
+      )
+      .subscribe({ error: () => {} });
+
+    httpTesting
+      .expectOne('/api/auth/mfa/disable')
+      .flush(
+        {
+          message: 'La sesión no tiene autenticación en dos pasos válida.',
+          code: 'session_invalid',
+        },
+        { status: 403, statusText: 'Forbidden' },
+      );
+
+    expect(auth.logout).toHaveBeenCalledTimes(1);
+    expect(notifications.warn).toHaveBeenCalledWith('Volvé a ingresar', 'Sesión no vigente');
+  });
+
+  it('deduplicates invalid-session notifications after the first response clears auth state', () => {
+    http.get('/api/one').subscribe({ error: () => {} });
+    http.get('/api/two').subscribe({ error: () => {} });
+
+    httpTesting
+      .expectOne('/api/one')
+      .flush({ code: 'session_invalid' }, { status: 403, statusText: 'Forbidden' });
+    httpTesting
+      .expectOne('/api/two')
+      .flush({ code: 'session_invalid' }, { status: 403, statusText: 'Forbidden' });
+
+    expect(auth.logout).toHaveBeenCalledTimes(1);
+    expect(notifications.warn).toHaveBeenCalledTimes(1);
   });
 
   it('still logs out on legacy session-invalid 403s that only carry the known message', () => {

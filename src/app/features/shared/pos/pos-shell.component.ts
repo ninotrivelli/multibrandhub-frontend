@@ -7,6 +7,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
 
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -26,12 +27,15 @@ import { RecentSalesListComponent } from './components/recent-sales-list.compone
 import { SaleReviewDialogComponent } from './components/sale-review-dialog.component';
 import { ReturnDialogComponent } from './return/return-dialog.component';
 
+type PendingStaleCashOperation = { kind: 'sale' } | { kind: 'return'; saleId: string | null };
+
 @Component({
   selector: 'app-pos-shell',
   imports: [
     ButtonModule,
     DialogModule,
     LucideAngularModule,
+    RouterLink,
     ProductSearchPanelComponent,
     CartPanelComponent,
     RecentSalesListComponent,
@@ -58,6 +62,8 @@ export class PosShellComponent {
   protected readonly returnDialogVisible = signal(false);
   protected readonly returnPreselectedSaleId = signal<string | null>(null);
   protected readonly cashClosedPromptVisible = signal(false);
+  protected readonly staleCashPromptVisible = signal(false);
+  protected readonly pendingStaleCashOperation = signal<PendingStaleCashOperation | null>(null);
   protected readonly noCashRegisterOpen = computed(
     () =>
       this.cashRegister.currentLoaded() &&
@@ -72,6 +78,11 @@ export class PosShellComponent {
   // Each role opens/closes the register under its own route.
   protected readonly cashRegisterPath = computed(() =>
     this.auth.role() === 'Seller' ? '/seller/cash-register' : '/admin/cash-register',
+  );
+  protected readonly staleCashRegister = this.cashRegister.hasStaleOpenRegister;
+  protected readonly cashRegisterAgeText = this.cashRegister.currentAgeText;
+  protected readonly pendingOperationLabel = computed(() =>
+    this.pendingStaleCashOperation()?.kind === 'return' ? 'devolución' : 'venta',
   );
 
   private readonly searchPanel = viewChild(ProductSearchPanelComponent);
@@ -102,6 +113,10 @@ export class PosShellComponent {
       this.cashClosedPromptVisible.set(true);
       return;
     }
+    if (this.staleCashRegister()) {
+      this.requestStaleCashConfirmation({ kind: 'sale' });
+      return;
+    }
     this.openSaleReview();
   }
 
@@ -116,13 +131,28 @@ export class PosShellComponent {
   }
 
   protected openManualReturn(): void {
-    this.returnPreselectedSaleId.set(null);
-    this.returnDialogVisible.set(true);
+    this.requestReturn(null);
   }
 
   protected openReturnForSale(saleId: string): void {
-    this.returnPreselectedSaleId.set(saleId);
-    this.returnDialogVisible.set(true);
+    this.requestReturn(saleId);
+  }
+
+  protected proceedWithStaleCashRegister(): void {
+    const operation = this.pendingStaleCashOperation();
+    this.staleCashPromptVisible.set(false);
+    this.pendingStaleCashOperation.set(null);
+
+    if (operation?.kind === 'sale') {
+      this.openSaleReview();
+    } else if (operation?.kind === 'return') {
+      this.openReturnDialog(operation.saleId);
+    }
+  }
+
+  protected onStaleCashPromptVisibleChange(visible: boolean): void {
+    this.staleCashPromptVisible.set(visible);
+    if (!visible) this.pendingStaleCashOperation.set(null);
   }
 
   protected onReturnDialogVisibleChange(value: boolean): void {
@@ -166,5 +196,23 @@ export class PosShellComponent {
     // Refetch so decremented/restored stock and the new ticket show up.
     this.searchPanel()?.refresh();
     this.recentList()?.refresh();
+  }
+
+  private requestReturn(saleId: string | null): void {
+    if (this.staleCashRegister()) {
+      this.requestStaleCashConfirmation({ kind: 'return', saleId });
+      return;
+    }
+    this.openReturnDialog(saleId);
+  }
+
+  private openReturnDialog(saleId: string | null): void {
+    this.returnPreselectedSaleId.set(saleId);
+    this.returnDialogVisible.set(true);
+  }
+
+  private requestStaleCashConfirmation(operation: PendingStaleCashOperation): void {
+    this.pendingStaleCashOperation.set(operation);
+    this.staleCashPromptVisible.set(true);
   }
 }

@@ -6,6 +6,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { UserRole } from './auth.types';
 import { AuthService } from './auth.service';
 import { authGuard } from './auth.guard';
+import { mfaChallengeGuard } from './mfa-challenge.guard';
 import { roleGuard } from './role.guard';
 
 @Component({ template: 'Login' })
@@ -20,10 +21,11 @@ class AdminStubComponent {}
 @Component({ template: 'Seller' })
 class SellerStubComponent {}
 
-function authStub(role: UserRole | null) {
+function authStub(role: UserRole | null, pendingMfa = false) {
   return {
     isAuthenticated: () => role !== null,
     role: () => role,
+    hasPendingMfaChallenge: () => pendingMfa,
     homePathFor: (r: UserRole) => {
       if (r === 'BrandManager') return '/brand-manager';
       if (r === 'Seller') return '/seller';
@@ -33,14 +35,19 @@ function authStub(role: UserRole | null) {
 }
 
 describe('auth and role guards', () => {
-  async function setup(role: UserRole | null): Promise<RouterTestingHarness> {
+  async function setup(role: UserRole | null, pendingMfa = false): Promise<RouterTestingHarness> {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
-        { provide: AuthService, useValue: authStub(role) },
+        { provide: AuthService, useValue: authStub(role, pendingMfa) },
         provideRouter([
           { path: 'login', component: LoginStubComponent },
           { path: 'protected', component: ProtectedStubComponent, canActivate: [authGuard] },
+          {
+            path: 'login/mfa',
+            component: ProtectedStubComponent,
+            canActivate: [mfaChallengeGuard],
+          },
           { path: 'admin', component: AdminStubComponent, canActivate: [roleGuard(['Admin'])] },
           { path: 'seller', component: SellerStubComponent },
           { path: 'brand-manager', component: ProtectedStubComponent },
@@ -80,5 +87,15 @@ describe('auth and role guards', () => {
     await harness.navigateByUrl('/admin', SellerStubComponent);
 
     expect(harness.routeNativeElement?.textContent).toContain('Seller');
+  });
+
+  it('allows the MFA route only while an in-memory challenge exists', async () => {
+    let harness = await setup(null, true);
+    await harness.navigateByUrl('/login/mfa', ProtectedStubComponent);
+    expect(harness.routeNativeElement?.textContent).toContain('Protected');
+
+    harness = await setup(null, false);
+    await harness.navigateByUrl('/login/mfa', LoginStubComponent);
+    expect(harness.routeNativeElement?.textContent).toContain('Login');
   });
 });

@@ -1,0 +1,125 @@
+<main class="min-h-screen flex items-center justify-center bg-surface-50 dark:bg-surface-900 p-4">
+  <section
+    class="w-full max-w-md bg-surface-0 dark:bg-surface-800 rounded-2xl shadow-md border border-surface-200 dark:border-surface-700 p-6 sm:p-8"
+  >
+    <header class="mb-6 text-center">
+      <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-0">
+        Verificación en dos pasos
+      </h1>
+      <p class="text-surface-600 dark:text-surface-300 text-sm mt-1">
+        Confirmá que sos vos para completar el ingreso.
+      </p>
+    </header>
+
+    @if (expired()) {
+      <div class="flex flex-col gap-4 text-center">
+        <p-message severity="warn" variant="outlined" closable="false">
+          El desafío de autenticación venció. Iniciá sesión nuevamente.
+        </p-message>
+        <button pButton type="button" label="Volver al login" (click)="returnToLogin()"></button>
+      </div>
+    } @else {
+      <div class="mb-5 flex flex-col gap-2">
+        <span class="text-sm font-medium text-surface-700 dark:text-surface-200">
+          ¿Cómo querés verificarte?
+        </span>
+        <div class="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Método de verificación">
+          <button
+            type="button"
+            role="radio"
+            [attr.aria-checked]="method() === 'Authenticator'"
+            class="min-h-11 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            [class.border-primary]="method() === 'Authenticator'"
+            [class.bg-primary]="method() === 'Authenticator'"
+            [class.text-primary-contrast]="method() === 'Authenticator'"
+            [class.border-surface-300]="method() !== 'Authenticator'"
+            [class.dark:border-surface-600]="method() !== 'Authenticator'"
+            (click)="selectMethod('Authenticator')"
+          >
+            App autenticadora
+          </button>
+          <button
+            type="button"
+            role="radio"
+            [attr.aria-checked]="method() === 'RecoveryCode'"
+            class="min-h-11 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            [class.border-primary]="method() === 'RecoveryCode'"
+            [class.bg-primary]="method() === 'RecoveryCode'"
+            [class.text-primary-contrast]="method() === 'RecoveryCode'"
+            [class.border-surface-300]="method() !== 'RecoveryCode'"
+            [class.dark:border-surface-600]="method() !== 'RecoveryCode'"
+            (click)="selectMethod('RecoveryCode')"
+          >
+            Código de recuperación
+          </button>
+        </div>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4">
+        <div class="flex flex-col gap-1">
+          <label for="mfaCode" class="text-sm font-medium text-surface-700 dark:text-surface-200">
+            {{ method() === 'Authenticator' ? 'Código de 6 dígitos' : 'Código de recuperación' }}
+          </label>
+          <input
+            #codeInput
+            pInputText
+            id="mfaCode"
+            type="text"
+            formControlName="code"
+            [attr.inputmode]="method() === 'Authenticator' ? 'numeric' : 'text'"
+            [attr.autocomplete]="method() === 'Authenticator' ? 'one-time-code' : 'off'"
+            [attr.maxlength]="method() === 'Authenticator' ? 6 : 40"
+            [invalid]="isInvalid()"
+            [placeholder]="method() === 'Authenticator' ? '123456' : 'XXXX-XXXX-XXXX-XXXX'"
+            spellcheck="false"
+            autocapitalize="characters"
+            fluid
+          />
+          @if (isInvalid()) {
+            <p-message severity="error" size="small" variant="simple">
+              @if (method() === 'Authenticator') {
+                Ingresá los 6 dígitos de tu app autenticadora.
+              } @else {
+                Ingresá un código de recuperación válido.
+              }
+            </p-message>
+          }
+        </div>
+
+        <p class="text-sm text-surface-500 dark:text-surface-400" aria-live="polite">
+          El desafío vence en <strong>{{ remainingLabel() }}</strong
+          >.
+        </p>
+
+        @if (submitError()) {
+          <p-message severity="error" variant="outlined" closable="false">
+            {{ submitError() }}
+          </p-message>
+        }
+        @if (rateLimited() && retryLabel(); as remaining) {
+          <p-message severity="warn" variant="outlined" closable="false">
+            Podés volver a intentar en {{ remaining }}.
+          </p-message>
+        }
+
+        <button
+          pButton
+          type="submit"
+          label="Verificar"
+          [loading]="submitting()"
+          [disabled]="submitting() || rateLimited()"
+          class="w-full"
+        ></button>
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          [text]="true"
+          label="Volver al login"
+          [disabled]="submitting()"
+          (click)="returnToLogin()"
+        ></button>
+      </form>
+    }
+  </section>
+</main>
