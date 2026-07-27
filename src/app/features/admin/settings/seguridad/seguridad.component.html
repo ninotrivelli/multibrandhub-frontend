@@ -1,0 +1,137 @@
+<div class="flex max-w-3xl flex-col gap-4">
+  <header>
+    <h2 class="text-xl font-semibold text-surface-900 dark:text-surface-0">Seguridad</h2>
+    <p class="text-sm text-surface-500 dark:text-surface-400">
+      Protegé tu cuenta administrativa con un segundo factor.
+    </p>
+  </header>
+
+  @if (loading() && !status()) {
+    <section
+      class="rounded-xl border border-surface-200 bg-surface-0 p-6 dark:border-surface-700 dark:bg-surface-800"
+    >
+      <div class="flex flex-col gap-3">
+        <p-skeleton height="1.5rem" width="45%" />
+        <p-skeleton height="1rem" width="80%" />
+        <p-skeleton height="2.5rem" width="10rem" />
+      </div>
+    </section>
+  } @else if (statusError() && !status()) {
+    <section
+      class="rounded-xl border border-surface-200 bg-surface-0 p-6 dark:border-surface-700 dark:bg-surface-800"
+    >
+      <p-message severity="error" variant="outlined" closable="false">
+        No pudimos cargar el estado de autenticación en dos pasos.
+      </p-message>
+      <button
+        pButton
+        type="button"
+        severity="secondary"
+        label="Reintentar"
+        class="mt-4"
+        (click)="loadStatus(true)"
+      ></button>
+    </section>
+  } @else if (status(); as current) {
+    <section
+      class="rounded-xl border border-surface-200 bg-surface-0 p-5 sm:p-6 dark:border-surface-700 dark:bg-surface-800"
+    >
+      <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div class="flex items-start gap-3">
+          <span
+            class="flex size-11 shrink-0 items-center justify-center rounded-full"
+            [class.bg-green-100]="current.enabled"
+            [class.text-green-700]="current.enabled"
+            [class.bg-surface-100]="!current.enabled"
+            [class.text-surface-500]="!current.enabled"
+          >
+            <i-lucide
+              [img]="current.enabled ? icons.ShieldCheck : icons.ShieldOff"
+              class="size-5"
+            />
+          </span>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="font-semibold text-surface-900 dark:text-surface-0">
+                Autenticación en dos pasos
+              </h3>
+              <p-tag
+                [value]="current.enabled ? 'Activa' : 'Inactiva'"
+                [severity]="current.enabled ? 'success' : 'secondary'"
+              />
+            </div>
+            @if (current.enabled) {
+              <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                Activada el {{ current.enabledAtUtc | date: 'dd/MM/yyyy, HH:mm' }}.
+              </p>
+              <p class="mt-1 text-sm text-surface-700 dark:text-surface-200">
+                Códigos de recuperación disponibles:
+                <strong>{{ current.recoveryCodesRemaining }}</strong>
+              </p>
+            } @else if (current.enrollmentAvailable) {
+              <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                Vas a necesitar tu contraseña y una aplicación autenticadora.
+              </p>
+            } @else {
+              <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                La activación no está habilitada actualmente para cuentas nuevas.
+              </p>
+            }
+          </div>
+        </div>
+
+        @if (!current.enabled && current.enrollmentAvailable) {
+          <button pButton type="button" label="Activar MFA" (click)="openSetup()">
+            <i-lucide [img]="icons.KeyRound" class="mr-2 size-4" />
+          </button>
+        }
+      </div>
+
+      @if (current.enabled) {
+        @if (!current.enrollmentAvailable) {
+          <p-message severity="info" variant="outlined" closable="false" styleClass="mt-5">
+            Las nuevas activaciones están pausadas, pero tu MFA sigue activo y podés administrarlo
+            normalmente.
+          </p-message>
+        }
+        @if (current.recoveryCodesRemaining <= 2) {
+          <p-message severity="warn" variant="outlined" closable="false" styleClass="mt-5">
+            Te quedan pocos códigos de recuperación. Regeneralos antes de quedarte sin acceso
+            alternativo.
+          </p-message>
+        }
+        <div
+          class="mt-5 flex flex-col gap-2 border-t border-surface-200 pt-5 sm:flex-row dark:border-surface-700"
+        >
+          <button
+            pButton
+            type="button"
+            severity="secondary"
+            label="Regenerar códigos"
+            (click)="openReauthentication('regenerate')"
+          >
+            <i-lucide [img]="icons.RefreshCw" class="mr-2 size-4" />
+          </button>
+          <button
+            pButton
+            type="button"
+            severity="danger"
+            [outlined]="true"
+            label="Desactivar MFA"
+            (click)="openReauthentication('disable')"
+          >
+            <i-lucide [img]="icons.Power" class="mr-2 size-4" />
+          </button>
+        </div>
+      }
+    </section>
+  }
+</div>
+
+<app-mfa-setup-dialog [visible]="setupVisible()" (visibleChange)="setupVisible.set($event)" />
+
+<app-mfa-reauth-dialog
+  [visible]="reauthVisible()"
+  [mode]="reauthMode()"
+  (visibleChange)="reauthVisible.set($event)"
+/>

@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, finalize, tap } from 'rxjs';
+import { Observable, finalize, interval, tap } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { SessionStateRegistry } from '../session/session-state-registry.service';
@@ -13,6 +14,7 @@ import {
   OpenCashRegisterRequest,
   PagedResult,
 } from './cash-register.types';
+import { cashRegisterAgeDays, cashRegisterAgeText } from './cash-register.utils';
 
 export const CASH_REGISTER_HISTORY_DEFAULT_PAGE_SIZE = 10;
 
@@ -26,6 +28,7 @@ export class CashRegisterService {
   private readonly _currentLoaded = signal(false);
   private readonly _currentLoading = signal(false);
   private readonly _currentError = signal<string | null>(null);
+  private readonly _clock = signal(Date.now());
 
   private readonly _selectedReport = signal<CashRegisterSessionResponse | null>(null);
   private readonly _reportLoading = signal(false);
@@ -43,6 +46,16 @@ export class CashRegisterService {
   readonly currentLoading = this._currentLoading.asReadonly();
   readonly currentError = this._currentError.asReadonly();
   readonly hasOpenRegister = computed(() => this._current()?.status === 'Open');
+  readonly currentAgeDays = computed(() => {
+    const session = this._current();
+    if (!session || session.status !== 'Open') return null;
+    return cashRegisterAgeDays(session.openedAtUtc, new Date(this._clock()));
+  });
+  readonly currentAgeText = computed(() => {
+    const ageDays = this.currentAgeDays();
+    return ageDays === null ? null : cashRegisterAgeText(ageDays);
+  });
+  readonly hasStaleOpenRegister = computed(() => (this.currentAgeDays() ?? 0) > 0);
 
   readonly selectedReport = this._selectedReport.asReadonly();
   readonly reportLoading = this._reportLoading.asReadonly();
@@ -58,6 +71,9 @@ export class CashRegisterService {
 
   constructor() {
     this.sessionState.registerResetter(() => this.resetSessionState());
+    interval(60_000)
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this._clock.set(Date.now()));
   }
 
   loadCurrent(): Observable<CashRegisterSessionResponse | null> {

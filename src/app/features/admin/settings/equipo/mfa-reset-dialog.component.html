@@ -1,0 +1,174 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [closable]="!submitting()"
+  [closeOnEscape]="!submitting()"
+  [dismissableMask]="false"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '40rem', maxWidth: '96vw' }"
+  [header]="target() ? 'Resetear MFA — ' + target()!.fullName : 'Resetear MFA'"
+>
+  <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4">
+    <p-message severity="warn" variant="outlined" closable="false">
+      Esta acción elimina la configuración MFA del usuario e invalida todas sus sesiones. El motivo
+      quedará registrado para auditoría.
+    </p-message>
+
+    <div class="flex flex-col gap-1">
+      <label
+        for="resetMfaPassword"
+        class="text-sm font-medium text-surface-700 dark:text-surface-200"
+      >
+        Tu contraseña actual
+      </label>
+      <p-password
+        inputId="resetMfaPassword"
+        formControlName="currentPassword"
+        [feedback]="false"
+        [toggleMask]="true"
+        autocomplete="current-password"
+        [invalid]="isInvalid('currentPassword')"
+        fluid
+      />
+      @if (isInvalid('currentPassword')) {
+        <p-message severity="error" size="small" variant="simple">
+          Tu contraseña actual es obligatoria.
+        </p-message>
+      }
+    </div>
+
+    @if (actorMfaEnabled()) {
+      <div class="flex flex-col gap-2">
+        <span class="text-sm font-medium text-surface-700 dark:text-surface-200"
+          >Tu segundo factor</span
+        >
+        <div class="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Método de segundo factor">
+          <button
+            type="button"
+            role="radio"
+            [attr.aria-checked]="method() === 'Authenticator'"
+            class="min-h-11 rounded-lg border px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            [class.border-primary]="method() === 'Authenticator'"
+            [class.bg-primary]="method() === 'Authenticator'"
+            [class.text-primary-contrast]="method() === 'Authenticator'"
+            [class.border-surface-300]="method() !== 'Authenticator'"
+            (click)="selectMethod('Authenticator')"
+          >
+            App autenticadora
+          </button>
+          <button
+            type="button"
+            role="radio"
+            [attr.aria-checked]="method() === 'RecoveryCode'"
+            class="min-h-11 rounded-lg border px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            [class.border-primary]="method() === 'RecoveryCode'"
+            [class.bg-primary]="method() === 'RecoveryCode'"
+            [class.text-primary-contrast]="method() === 'RecoveryCode'"
+            [class.border-surface-300]="method() !== 'RecoveryCode'"
+            (click)="selectMethod('RecoveryCode')"
+          >
+            Código de recuperación
+          </button>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label
+          for="resetMfaCode"
+          class="text-sm font-medium text-surface-700 dark:text-surface-200"
+        >
+          {{ method() === 'Authenticator' ? 'Código de 6 dígitos' : 'Código de recuperación' }}
+        </label>
+        <input
+          pInputText
+          id="resetMfaCode"
+          type="text"
+          formControlName="verificationCode"
+          [attr.inputmode]="method() === 'Authenticator' ? 'numeric' : 'text'"
+          [attr.autocomplete]="method() === 'Authenticator' ? 'one-time-code' : 'off'"
+          [attr.maxlength]="method() === 'Authenticator' ? 6 : 40"
+          [invalid]="isInvalid('verificationCode')"
+          [placeholder]="method() === 'Authenticator' ? '123456' : 'XXXX-XXXX-XXXX-XXXX'"
+          spellcheck="false"
+          fluid
+        />
+        @if (isInvalid('verificationCode')) {
+          <p-message severity="error" size="small" variant="simple">
+            {{
+              method() === 'Authenticator'
+                ? 'Ingresá los 6 dígitos.'
+                : 'Ingresá un código de recuperación.'
+            }}
+          </p-message>
+        }
+      </div>
+    }
+
+    <div class="flex flex-col gap-1">
+      <label
+        for="resetMfaReason"
+        class="text-sm font-medium text-surface-700 dark:text-surface-200"
+      >
+        Motivo del reset
+      </label>
+      <textarea
+        pTextarea
+        id="resetMfaReason"
+        formControlName="reason"
+        rows="4"
+        maxlength="500"
+        [invalid]="isInvalid('reason')"
+        placeholder="Ej: El administrador perdió acceso al dispositivo corporativo."
+        fluid
+      ></textarea>
+      <div class="flex justify-between gap-2 text-xs text-surface-500 dark:text-surface-400">
+        <span>Mínimo 10 caracteres.</span>
+        <span>{{ form.controls.reason.value.length }}/500</span>
+      </div>
+      @if (isInvalid('reason')) {
+        <p-message severity="error" size="small" variant="simple">
+          @if (form.controls.reason.hasError('required')) {
+            El motivo es obligatorio.
+          } @else if (form.controls.reason.hasError('minlength')) {
+            El motivo debe tener al menos 10 caracteres.
+          } @else {
+            El motivo no puede superar los 500 caracteres.
+          }
+        </p-message>
+      }
+    </div>
+
+    @if (submitError()) {
+      <p-message severity="error" variant="outlined" closable="false">{{
+        submitError()
+      }}</p-message>
+    }
+    @if (rateLimited() && retryLabel(); as remaining) {
+      <p-message severity="warn" variant="outlined" closable="false">
+        Podés volver a intentar en {{ remaining }}.
+      </p-message>
+    }
+
+    <div class="flex justify-end gap-2">
+      <button
+        pButton
+        type="button"
+        severity="secondary"
+        [text]="true"
+        label="Cancelar"
+        [disabled]="submitting()"
+        (click)="cancel()"
+      ></button>
+      <button
+        pButton
+        type="submit"
+        severity="danger"
+        label="Resetear MFA"
+        [loading]="submitting()"
+        [disabled]="submitting() || rateLimited()"
+      ></button>
+    </div>
+  </form>
+</p-dialog>

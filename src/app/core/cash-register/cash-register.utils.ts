@@ -1,16 +1,51 @@
-import {
-  ArrowRightLeft,
-  Banknote,
-  CreditCard,
-  LucideIconData,
-  Smartphone,
-} from 'lucide-angular';
+import { ArrowRightLeft, Banknote, CreditCard, LucideIconData, Smartphone } from 'lucide-angular';
 
 import { PaymentMethod } from '../sales/sales.types';
 import {
   CashRegisterPaymentTotalResponse,
   CashRegisterReconciliationLineResponse,
 } from './cash-register.types';
+
+export const CASH_REGISTER_TIME_ZONE = 'America/Montevideo';
+
+/**
+ * Returns the number of Uruguay calendar-day boundaries crossed since the
+ * register was opened. This intentionally differs from elapsed 24-hour
+ * periods: a register opened shortly before midnight is "desde ayer" after
+ * the local date changes.
+ */
+export function cashRegisterAgeDays(openedAtUtc: string, now = new Date()): number {
+  const openedAt = parseBackendUtcDate(openedAtUtc);
+  if (Number.isNaN(openedAt.getTime()) || Number.isNaN(now.getTime())) return 0;
+
+  return Math.max(0, uruguayDayOrdinal(now) - uruguayDayOrdinal(openedAt));
+}
+
+export function cashRegisterAgeText(ageDays: number): string {
+  if (ageDays <= 0) return 'hoy';
+  if (ageDays === 1) return 'desde ayer';
+  return `hace ${ageDays} días`;
+}
+
+function parseBackendUtcDate(iso: string): Date {
+  const value = iso.trim();
+  const hasTimezone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(value);
+  return new Date(hasTimezone ? value : `${value}Z`);
+}
+
+function uruguayDayOrdinal(date: Date): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: CASH_REGISTER_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  const value = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+
+  return Math.floor(Date.UTC(value('year'), value('month') - 1, value('day')) / 86_400_000);
+}
 
 // POS terminals report credit and debit card sales as a single figure, so the
 // cash register UI collapses both into one "Tarjeta" line. This is a display

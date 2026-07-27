@@ -19,7 +19,36 @@
     </button>
   </header>
 
-  @if (noCashRegisterOpen()) {
+  @if (staleCashRegister()) {
+    <section
+      class="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/30 md:flex-row md:items-center md:justify-between"
+    >
+      <div class="flex items-start gap-3">
+        <i-lucide
+          [img]="icons.AlertTriangle"
+          class="mt-0.5 size-5 shrink-0 text-red-600 dark:text-red-300"
+        />
+        <div>
+          <h2 class="text-sm font-semibold text-red-900 dark:text-red-100">
+            Caja abierta {{ cashRegisterAgeText() }}
+          </h2>
+          <p class="text-sm text-red-800 dark:text-red-200">
+            Esta caja pertenece a una jornada anterior. Cerrala para comenzar un nuevo día.
+          </p>
+        </div>
+      </div>
+      <a
+        pButton
+        [routerLink]="cashRegisterPath()"
+        severity="danger"
+        [outlined]="true"
+        class="self-start md:self-auto"
+      >
+        <i-lucide [img]="icons.Receipt" class="size-4 mr-2" />
+        <span>Ir a cerrar caja</span>
+      </a>
+    </section>
+  } @else if (noCashRegisterOpen()) {
     <section
       class="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30 md:flex-row md:items-center md:justify-between"
     >
@@ -40,7 +69,7 @@
       @if (canOpenCashRegister()) {
         <a
           pButton
-          [href]="cashRegisterPath()"
+          [routerLink]="cashRegisterPath()"
           severity="warn"
           [outlined]="true"
           class="self-start md:self-auto"
@@ -101,11 +130,50 @@
       (click)="proceedWithoutCashRegister()"
     ></button>
     @if (canOpenCashRegister()) {
-      <a pButton [href]="cashRegisterPath()" class="justify-center">
+      <a pButton [routerLink]="cashRegisterPath()" class="justify-center">
         <i-lucide [img]="icons.Receipt" class="size-4 mr-2" />
         <span>Ir a abrir caja</span>
       </a>
     }
+  </div>
+</p-dialog>
+
+<!-- Caja de una jornada anterior · confirmación por operación -->
+<p-dialog
+  [visible]="staleCashPromptVisible()"
+  (visibleChange)="onStaleCashPromptVisibleChange($event)"
+  [modal]="true"
+  [draggable]="false"
+  [dismissableMask]="true"
+  [style]="{ width: '34rem', maxWidth: '94vw' }"
+  header="La caja pertenece a una jornada anterior"
+>
+  <div class="flex items-start gap-3">
+    <span
+      class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-200"
+    >
+      <i-lucide [img]="icons.AlertTriangle" class="size-5" />
+    </span>
+    <p class="text-sm text-surface-600 dark:text-surface-300">
+      La caja está abierta {{ cashRegisterAgeText() }}. Si continuás, esta
+      {{ pendingOperationLabel() }} quedará asociada a una jornada anterior. Cerrala para comenzar
+      un nuevo día.
+    </p>
+  </div>
+
+  <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+    <button
+      pButton
+      type="button"
+      severity="secondary"
+      [text]="true"
+      label="Continuar igualmente"
+      (click)="proceedWithStaleCashRegister()"
+    ></button>
+    <a pButton [routerLink]="cashRegisterPath()" severity="danger" class="justify-center">
+      <i-lucide [img]="icons.Receipt" class="size-4 mr-2" />
+      <span>Ir a cerrar caja</span>
+    </a>
   </div>
 </p-dialog>
 

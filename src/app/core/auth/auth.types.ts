@@ -5,6 +5,53 @@ export interface LoginRequest {
   password: string;
 }
 
+export type MfaVerificationMethod = 'Authenticator' | 'RecoveryCode';
+
+export interface MfaChallengeResponse {
+  status: 'MfaRequired';
+  challengeToken: string;
+  expiresAtUtc: string;
+}
+
+export interface VerifyMfaRequest {
+  challengeToken: string;
+  code: string;
+  method: MfaVerificationMethod;
+}
+
+export interface MfaStatusResponse {
+  enrollmentAvailable: boolean;
+  enabled: boolean;
+  enabledAtUtc: string | null;
+  recoveryCodesRemaining: number;
+}
+
+export interface StartMfaSetupRequest {
+  currentPassword: string;
+}
+
+export interface MfaSetupResponse {
+  manualEntryKey: string;
+  otpAuthUri: string;
+  expiresAtUtc: string;
+}
+
+export interface ConfirmMfaSetupRequest {
+  code: string;
+}
+
+export interface MfaReauthenticationRequest {
+  currentPassword: string;
+  verificationCode: string;
+  method: MfaVerificationMethod;
+}
+
+export interface MfaRecoveryCodesResponse {
+  recoveryCodes: string[];
+  enabledAtUtc: string | null;
+  sessionInvalidated: boolean;
+}
+
 export interface ForgotPasswordRequest {
   email: string;
 }
@@ -43,6 +90,10 @@ export interface AuthSession {
   token: string;
   expiresAtUtc: string;
 }
+
+export type LoginOutcome =
+  | { kind: 'authenticated'; session: AuthSession }
+  | { kind: 'mfaRequired'; expiresAtUtc: string };
 
 // JWT claims as emitted by the backend's JwtTokenGenerator. .NET's
 // JwtSecurityTokenHandler.DefaultOutboundClaimTypeMap shortens some

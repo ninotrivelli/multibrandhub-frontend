@@ -2,6 +2,7 @@ import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { catchError, throwError } from 'rxjs';
 
+import { isAnonymousAuthRequest } from '../auth/auth-endpoints';
 import { AuthService } from '../auth/auth.service';
 import { NotificationService } from '../notifications/notification.service';
 import { HANDLE_ERROR_LOCALLY } from './local-error-handling';
@@ -27,15 +28,20 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
-      if (req.context.get(HANDLE_ERROR_LOCALLY)) return throwError(() => err);
+      const body = (err.error ?? {}) as BackendErrorBody;
+      const detail = body.message ?? 'No tenés permisos para realizar esta acción.';
 
-      if (err.status === 401) {
-        notifications.warn('Volvé a ingresar', 'Sesión expirada');
-        auth.logout();
+      if (err.status === 401 && !isAnonymousAuthRequest(req.url)) {
+        invalidateSessionOnce(auth, notifications, 'Sesión expirada');
         return throwError(() => err);
       }
 
-      const body = (err.error ?? {}) as BackendErrorBody;
+      if (err.status === 403 && isSessionInvalidForbidden(body, detail)) {
+        invalidateSessionOnce(auth, notifications, 'Sesión no vigente');
+        return throwError(() => err);
+      }
+
+      if (req.context.get(HANDLE_ERROR_LOCALLY)) return throwError(() => err);
 
       if (err.status === 400 && Array.isArray(body.errors) && body.errors.length > 0) {
         const detail = body.errors.map((e) => e.message).join(' • ');
@@ -44,23 +50,26 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       }
 
       if (err.status === 403) {
-        const detail = body.message ?? 'No tenés permisos para realizar esta acción.';
-        if (isSessionInvalidForbidden(body, detail)) {
-          notifications.warn('Volvé a ingresar', 'Sesión no vigente');
-          auth.logout();
-          return throwError(() => err);
-        }
-
         notifications.error(detail, 'Acción no permitida');
         return throwError(() => err);
       }
 
-      const detail = body.message ?? 'Ocurrió un error inesperado';
-      notifications.error(detail);
+      const genericDetail = body.message ?? 'Ocurrió un error inesperado';
+      notifications.error(genericDetail);
       return throwError(() => err);
     }),
   );
 };
+
+function invalidateSessionOnce(
+  auth: AuthService,
+  notifications: NotificationService,
+  summary: string,
+): void {
+  if (!auth.isAuthenticated()) return;
+  notifications.warn('Volvé a ingresar', summary);
+  auth.logout();
+}
 
 // Backend discriminator for tenant/session-invalid 403s (ApiErrorCodes.SessionInvalid,
 // emitted by ExceptionHandlingMiddleware for SessionInvalidException).
@@ -85,4 +94,6 @@ const SESSION_INVALID_FORBIDDEN_MESSAGES = new Set([
   'La marca del token no está vigente.',
   'El local no está activo.',
   'La sesión dejó de estar vigente.',
+  'La sesión no tiene autenticación en dos pasos válida.',
+  'La configuración de autenticación en dos pasos no es válida.',
 ]);

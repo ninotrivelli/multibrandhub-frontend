@@ -50,6 +50,51 @@ Then log in normally. Remove it to return to the default localhost tenant:
 localStorage.removeItem('mbh.devTenantHost');
 ```
 
+### Testing MFA locally
+
+MFA enrollment is disabled by default. To enable it **only for the local backend process**,
+open PowerShell from this frontend repository and run:
+
+```powershell
+Push-Location ..\..\Backend\MultiBrandHub
+$env:Mfa__EnrollmentEnabled = 'true'
+dotnet run --project MultiBrandHub.API --launch-profile https
+```
+
+This environment variable does not edit backend files and does not change the Azure setting.
+Remove it from the current shell after testing with:
+
+```powershell
+$env:Mfa__EnrollmentEnabled = $null
+Pop-Location
+```
+
+Run the frontend separately with `npm start`. The default `localhost` development tenant seeds
+these administrative accounts with password `Password!123mbh`:
+
+- Admin: `admin@multibrand.com`
+- SuperAdmin: `superadmin-ninos-demo@multibrandhub.com`
+
+Recommended manual verification:
+
+1. Log in as Admin and open `Configuración → Seguridad`.
+2. Activate MFA, scan the local QR with Google Authenticator, Microsoft Authenticator, or another
+   TOTP app, then confirm a six-digit code.
+3. Copy or download all ten recovery codes, acknowledge that they were saved, and verify that the
+   app returns to login.
+4. Log in once with the Authenticator and once with a recovery code. A used recovery code must not
+   work again.
+5. Regenerate recovery codes and confirm the current session stays open and the counter refreshes.
+6. Log in as SuperAdmin and use `Configuración → Equipo → Administradores y MFA` to reset the
+   Admin's MFA with an audit reason. Self-reset must remain disabled.
+7. Re-enroll the Admin, disable MFA, and confirm the previous session is cleared immediately.
+8. Restart the backend without the environment override. A non-enrolled account must show that new
+   activations are unavailable; an already-enrolled account must still require and manage MFA.
+
+Challenges, setup keys, QR object URLs, TOTP values, and recovery codes should never appear in
+browser storage, route URLs, console output, or network requests other than their documented MFA
+endpoint bodies.
+
 ## Build
 
 ```bash

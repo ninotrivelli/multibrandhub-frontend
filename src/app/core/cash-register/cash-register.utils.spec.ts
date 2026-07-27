@@ -1,11 +1,39 @@
 import { makeCashRegisterLine, makeCashRegisterPaymentTotal } from '../../../testing/builders';
 import {
+  cashRegisterAgeDays,
+  cashRegisterAgeText,
   groupPaymentTotals,
   groupReconciliationLines,
   groupReconciliationLinesForBrand,
   paymentGroupLabel,
   paymentGroupOf,
 } from './cash-register.utils';
+
+describe('cash-register age', () => {
+  it('counts Uruguay calendar days instead of elapsed 24-hour periods', () => {
+    const shortlyAfterMidnight = new Date('2026-07-20T03:05:00Z'); // 00:05 in Uruguay
+
+    expect(cashRegisterAgeDays('2026-07-20T02:55:00Z', shortlyAfterMidnight)).toBe(1);
+    expect(cashRegisterAgeText(1)).toBe('desde ayer');
+  });
+
+  it('returns today, two days, and ten days with the expected labels', () => {
+    const now = new Date('2026-07-20T15:00:00Z');
+
+    expect(cashRegisterAgeDays('2026-07-20T11:00:00Z', now)).toBe(0);
+    expect(cashRegisterAgeText(0)).toBe('hoy');
+    expect(cashRegisterAgeDays('2026-07-18T11:00:00Z', now)).toBe(2);
+    expect(cashRegisterAgeText(2)).toBe('hace 2 días');
+    expect(cashRegisterAgeDays('2026-07-10T11:00:00Z', now)).toBe(10);
+    expect(cashRegisterAgeText(10)).toBe('hace 10 días');
+  });
+
+  it('treats backend timestamps without an offset as UTC', () => {
+    const now = new Date('2026-07-20T15:00:00Z');
+
+    expect(cashRegisterAgeDays('2026-07-19T11:00:00', now)).toBe(1);
+  });
+});
 
 describe('cash-register payment grouping', () => {
   it('maps credit and debit to the Card group and keeps others as-is', () => {
@@ -61,8 +89,16 @@ describe('cash-register payment grouping', () => {
 
     it('keeps reported/variance null when no card line reported anything', () => {
       const [card] = groupPaymentTotals([
-        makeCashRegisterPaymentTotal({ paymentMethod: 'CreditCard', reportedAmount: null, varianceAmount: null }),
-        makeCashRegisterPaymentTotal({ paymentMethod: 'DebitCard', reportedAmount: null, varianceAmount: null }),
+        makeCashRegisterPaymentTotal({
+          paymentMethod: 'CreditCard',
+          reportedAmount: null,
+          varianceAmount: null,
+        }),
+        makeCashRegisterPaymentTotal({
+          paymentMethod: 'DebitCard',
+          reportedAmount: null,
+          varianceAmount: null,
+        }),
       ]);
 
       expect(card.group).toBe('Card');
@@ -147,8 +183,12 @@ describe('cash-register payment grouping', () => {
       expect(b1Card.varianceAmount).toBe(-50);
 
       // Other brands/methods stay independent.
-      expect(grouped.find((l) => l.brandId === 'b1' && l.group === 'Cash')!.systemNetAmount).toBe(1000);
-      expect(grouped.find((l) => l.brandId === 'b2' && l.group === 'Card')!.systemNetAmount).toBe(700);
+      expect(grouped.find((l) => l.brandId === 'b1' && l.group === 'Cash')!.systemNetAmount).toBe(
+        1000,
+      );
+      expect(grouped.find((l) => l.brandId === 'b2' && l.group === 'Card')!.systemNetAmount).toBe(
+        700,
+      );
     });
 
     it('filters by brand before grouping', () => {

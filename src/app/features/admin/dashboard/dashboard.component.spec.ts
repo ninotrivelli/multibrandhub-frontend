@@ -1,4 +1,4 @@
-import { computed, signal } from '@angular/core';
+import { WritableSignal, computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -12,6 +12,7 @@ import {
 } from '../../../../testing/builders';
 import { AuthService } from '../../../core/auth/auth.service';
 import { CashRegisterService } from '../../../core/cash-register/cash-register.service';
+import { CashRegisterSessionResponse } from '../../../core/cash-register/cash-register.types';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { SalesService } from '../../../core/sales/sales.service';
 import { TasksService } from '../../../core/tasks/tasks.service';
@@ -20,6 +21,9 @@ import { AdminDashboardComponent } from './dashboard.component';
 
 describe('AdminDashboardComponent', () => {
   let fixture: ComponentFixture<AdminDashboardComponent>;
+  let cash: WritableSignal<CashRegisterSessionResponse | null>;
+  let cashAgeText: WritableSignal<string | null>;
+  let hasStaleOpenRegister: WritableSignal<boolean>;
   let sales: {
     getSummary: ReturnType<typeof vi.fn>;
     getDashboard: ReturnType<typeof vi.fn>;
@@ -33,9 +37,11 @@ describe('AdminDashboardComponent', () => {
     const kpiLoading = signal(false);
     const immobilizedCount = signal(2);
     const immobilizedLoading = signal(false);
-    const cash = signal(makeCashRegisterSession());
+    cash = signal(makeCashRegisterSession());
     const cashLoaded = signal(true);
     const cashLoading = signal(false);
+    cashAgeText = signal<string | null>('hoy');
+    hasStaleOpenRegister = signal(false);
     const generalPendingTasks = signal([
       makeStoreTask({ id: 'task-high', description: 'Reponer bolsas', priority: 'High' }),
     ]);
@@ -87,6 +93,8 @@ describe('AdminDashboardComponent', () => {
             current: cash.asReadonly(),
             currentLoaded: cashLoaded.asReadonly(),
             currentLoading: cashLoading.asReadonly(),
+            currentAgeText: cashAgeText.asReadonly(),
+            hasStaleOpenRegister: hasStaleOpenRegister.asReadonly(),
             loadCurrent: vi.fn(() => of(cash())),
           },
         },
@@ -152,5 +160,16 @@ describe('AdminDashboardComponent', () => {
     expect(text).toContain('Mostrando Tareas personales');
     expect(text).toContain('Revisar pagos de proveedores');
     expect(text).not.toContain('Reponer bolsas');
+  });
+
+  it('shows the exact age and a danger alert for an old open register', () => {
+    cash.set(makeCashRegisterSession({ openedAtUtc: '2026-07-09T11:00:00Z' }));
+    cashAgeText.set('hace 10 días');
+    hasStaleOpenRegister.set(true);
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Caja abierta hace 10 días');
+    expect(text).toContain('Cerrala para comenzar una nueva jornada');
   });
 });

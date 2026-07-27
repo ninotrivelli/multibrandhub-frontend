@@ -6,7 +6,7 @@ import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { makeAuthResponse, makeAuthSession, makeJwt } from '../../../testing/builders';
 import { SessionStateRegistry } from '../session/session-state-registry.service';
-import { AuthSession } from './auth.types';
+import { AuthSession, LoginOutcome } from './auth.types';
 import { AuthService } from './auth.service';
 
 const STORAGE_KEY = 'mbh.token';
@@ -97,7 +97,7 @@ describe('AuthService', () => {
   });
 
   it('logs in, normalizes numeric roles, stores the session, and exposes computed state', () => {
-    let actual: AuthSession | undefined;
+    let actual: LoginOutcome | undefined;
     const resetter = vi.fn();
     sessionState.registerResetter(resetter);
 
@@ -119,13 +119,85 @@ describe('AuthService', () => {
       }),
     );
 
-    expect(actual?.user.role).toBe('Admin');
-    expect(actual?.tenantId).toBe('tenant-login');
+    expect(actual?.kind).toBe('authenticated');
+    const session = actual?.kind === 'authenticated' ? actual.session : undefined;
+    expect(session?.user.role).toBe('Admin');
+    expect(session?.tenantId).toBe('tenant-login');
     expect(service.role()).toBe('Admin');
     expect(service.tenantId()).toBe('tenant-login');
-    expect(service.token()).toBe(actual?.token);
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')).toEqual(actual);
+    expect(service.token()).toBe(session?.token);
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')).toEqual(session);
     expect(resetter).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps an MFA login challenge only in memory and does not authenticate on 202', () => {
+    let actual: LoginOutcome | undefined;
+
+    service.login({ email: 'admin@test.com', password: 'secret123' }).subscribe((outcome) => {
+      actual = outcome;
+    });
+
+    const request = http.expectOne(`${environment.apiBaseUrl}/auth/login`);
+    request.flush(
+      {
+        status: 'MfaRequired',
+        challengeToken: 'raw-sensitive-challenge',
+        expiresAtUtc: '2026-07-20T18:00:00Z',
+      },
+      { status: 202, statusText: 'Accepted' },
+    );
+
+    expect(actual).toEqual({ kind: 'mfaRequired', expiresAtUtc: '2026-07-20T18:00:00Z' });
+    expect(service.isAuthenticated()).toBe(false);
+    expect(service.hasPendingMfaChallenge()).toBe(true);
+    expect(service.pendingMfaExpiresAtUtc()).toBe('2026-07-20T18:00:00Z');
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it('verifies an in-memory MFA challenge and persists the resulting normal session', () => {
+    service.login({ email: 'admin@test.com', password: 'secret123' }).subscribe();
+    http.expectOne(`${environment.apiBaseUrl}/auth/login`).flush(
+      {
+        status: 'MfaRequired',
+        challengeToken: 'challenge-token',
+        expiresAtUtc: '2099-07-20T18:00:00Z',
+      },
+      { status: 202, statusText: 'Accepted' },
+    );
+
+    let actual: AuthSession | undefined;
+    service.verifyMfa('123456', 'Authenticator').subscribe((session) => (actual = session));
+
+    const request = http.expectOne(`${environment.apiBaseUrl}/auth/mfa/verify`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({
+      challengeToken: 'challenge-token',
+      code: '123456',
+      method: 'Authenticator',
+    });
+    request.flush(makeAuthResponse({ tenantId: 'tenant-mfa', role: 'Admin' }));
+
+    expect(actual?.tenantId).toBe('tenant-mfa');
+    expect(service.isAuthenticated()).toBe(true);
+    expect(service.hasPendingMfaChallenge()).toBe(false);
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')).toEqual(actual);
+  });
+
+  it('fails closed when login returns a status/body combination outside the contract', () => {
+    const error = vi.fn();
+    service.login({ email: 'admin@test.com', password: 'secret123' }).subscribe({ error });
+
+    http
+      .expectOne(`${environment.apiBaseUrl}/auth/login`)
+      .flush(
+        { status: 'MfaRequired', expiresAtUtc: '2099-07-20T18:00:00Z' },
+        { status: 202, statusText: 'Accepted' },
+      );
+
+    expect(error).toHaveBeenCalled();
+    expect(service.isAuthenticated()).toBe(false);
+    expect(service.hasPendingMfaChallenge()).toBe(false);
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 
   it('logs out by clearing the auth session and all registered session state', () => {

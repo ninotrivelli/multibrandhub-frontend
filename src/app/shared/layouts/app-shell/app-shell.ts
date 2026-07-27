@@ -20,11 +20,11 @@ import { NAV_CONFIG } from './nav-config';
     AvatarModule,
     TagModule,
     LucideAngularModule,
-    NavigationDrawerComponent
+    NavigationDrawerComponent,
   ],
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.css',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShell {
   private readonly auth = inject(AuthService);
@@ -49,6 +49,8 @@ export class AppShell {
   protected readonly showCashStatus = computed(() => !!this.config()?.showCashRegisterStatus);
   protected readonly cashLoaded = this.cashRegister.currentLoaded;
   protected readonly cashOpen = this.cashRegister.hasOpenRegister;
+  protected readonly cashAgeText = this.cashRegister.currentAgeText;
+  protected readonly hasStaleOpenRegister = this.cashRegister.hasStaleOpenRegister;
 
   protected readonly initials = computed((): string => {
     const name = this.user()?.fullName ?? '';

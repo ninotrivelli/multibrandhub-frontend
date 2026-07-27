@@ -29,6 +29,9 @@ describe('PosShellComponent', () => {
       currentLoaded: signal(true),
       currentLoading: signal(false),
       currentError: signal(null),
+      currentAgeDays: signal(null),
+      currentAgeText: signal(null),
+      hasStaleOpenRegister: signal(false),
       loadCurrent: vi.fn(() => of(null)),
     };
 
@@ -155,6 +158,53 @@ describe('PosShellComponent', () => {
 
     expect((component as any).cashClosedPromptVisible()).toBe(false);
     expect((component as any).saleReviewVisible()).toBe(true);
+  });
+
+  it('warns on every sale attempt when the open register belongs to a previous day', () => {
+    cashRegister.current.set({ status: 'Open', openedAtUtc: '2026-07-09T11:00:00Z' });
+    cashRegister.currentAgeDays.set(10);
+    cashRegister.currentAgeText.set('hace 10 días');
+    cashRegister.hasStaleOpenRegister.set(true);
+    cart.add(makeProduct({ id: 'p1', currentStock: 5 }));
+    cart.setCardBrand('Visa');
+
+    (component as any).onSubmitSale();
+
+    expect((component as any).staleCashPromptVisible()).toBe(true);
+    expect((component as any).saleReviewVisible()).toBe(false);
+
+    (component as any).proceedWithStaleCashRegister();
+
+    expect((component as any).saleReviewVisible()).toBe(true);
+
+    (component as any).saleReviewVisible.set(false);
+    (component as any).onSubmitSale();
+
+    expect((component as any).staleCashPromptVisible()).toBe(true);
+    expect((component as any).saleReviewVisible()).toBe(false);
+  });
+
+  it('warns before manual and preselected returns, then preserves the requested return', () => {
+    cashRegister.current.set({ status: 'Open', openedAtUtc: '2026-07-18T11:00:00Z' });
+    cashRegister.currentAgeDays.set(1);
+    cashRegister.currentAgeText.set('desde ayer');
+    cashRegister.hasStaleOpenRegister.set(true);
+
+    (component as any).openManualReturn();
+    expect((component as any).staleCashPromptVisible()).toBe(true);
+    expect((component as any).returnDialogVisible()).toBe(false);
+
+    (component as any).proceedWithStaleCashRegister();
+    expect((component as any).returnDialogVisible()).toBe(true);
+    expect((component as any).returnPreselectedSaleId()).toBeNull();
+
+    (component as any).returnDialogVisible.set(false);
+    (component as any).openReturnForSale('sale-42');
+    expect((component as any).staleCashPromptVisible()).toBe(true);
+
+    (component as any).proceedWithStaleCashRegister();
+    expect((component as any).returnDialogVisible()).toBe(true);
+    expect((component as any).returnPreselectedSaleId()).toBe('sale-42');
   });
 
   it('continues to the sale review after confirming the closed-register prompt', () => {

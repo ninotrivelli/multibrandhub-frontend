@@ -38,7 +38,6 @@ import {
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { CashRegisterService } from '../../../core/cash-register/cash-register.service';
-import { CashRegisterSessionResponse } from '../../../core/cash-register/cash-register.types';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { SalesService } from '../../../core/sales/sales.service';
 import {
@@ -185,6 +184,8 @@ export class AdminDashboardComponent implements OnInit {
   protected readonly cashCurrent = this.cashRegister.current;
   protected readonly cashLoaded = this.cashRegister.currentLoaded;
   protected readonly cashLoading = this.cashRegister.currentLoading;
+  protected readonly cashAgeText = this.cashRegister.currentAgeText;
+  protected readonly hasStaleOpenRegister = this.cashRegister.hasStaleOpenRegister;
   protected readonly tasksLoading = this.tasks.loading;
 
   protected readonly salesLoading = computed(() => this.todayLoading() || this.dashboardLoading());
@@ -270,9 +271,9 @@ export class AdminDashboardComponent implements OnInit {
       };
     }
 
-    if (this.isOpenFromPreviousDay(session)) {
+    if (this.hasStaleOpenRegister()) {
       return {
-        label: 'Caja abierta desde ayer',
+        label: `Caja abierta ${this.cashAgeText()}`,
         detail: `Abierta ${this.formatDateTime(session.openedAtUtc)}.`,
         severity: 'danger',
       };
@@ -314,11 +315,11 @@ export class AdminDashboardComponent implements OnInit {
         routerLink: '/admin/cash-register',
         actionLabel: 'Abrir caja',
       });
-    } else if (cash && this.isOpenFromPreviousDay(cash)) {
+    } else if (cash && this.hasStaleOpenRegister()) {
       items.push({
         id: 'cash-old',
-        title: 'Caja abierta desde ayer',
-        detail: 'Conviene revisar el cierre antes de seguir vendiendo.',
+        title: `Caja abierta ${this.cashAgeText()}`,
+        detail: 'Cerrala para comenzar una nueva jornada antes de seguir operando.',
         severity: 'danger',
         icon: Receipt,
         routerLink: '/admin/cash-register',
@@ -581,10 +582,6 @@ export class AdminDashboardComponent implements OnInit {
       else next.delete(id);
       return next;
     });
-  }
-
-  private isOpenFromPreviousDay(session: CashRegisterSessionResponse): boolean {
-    return formatUruguayDate(parseBackendUtcDate(session.openedAtUtc)) < this.today;
   }
 
   private formatTime(iso: string): string {

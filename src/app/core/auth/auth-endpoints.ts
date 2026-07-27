@@ -3,6 +3,7 @@ import { isApiRequest } from '../http/api-url';
 
 const ANONYMOUS_AUTH_PATHS = [
   '/auth/login',
+  '/auth/mfa/verify',
   '/auth/forgot-password',
   '/auth/reset-password',
 ] as const;

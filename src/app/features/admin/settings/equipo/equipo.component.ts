@@ -20,11 +20,20 @@ import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { ConfirmationService } from 'primeng/api';
-import { AlertTriangle, Pencil, Plus, KeyRound, UserMinus, UserCheck } from 'lucide-angular';
+import {
+  AlertTriangle,
+  Pencil,
+  Plus,
+  KeyRound,
+  ShieldOff,
+  UserMinus,
+  UserCheck,
+} from 'lucide-angular';
 import { LucideAngularModule } from 'lucide-angular';
 
 import { UserRole } from '../../../../core/auth/auth.types';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { MfaService } from '../../../../core/auth/mfa.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { UsersService } from '../../../../core/users/users.service';
 import { UserResponse } from '../../../../core/users/users.types';
@@ -33,6 +42,7 @@ import {
   ResetPasswordDialogComponent,
   ResetPasswordTarget,
 } from '../../../../shared/components/reset-password-dialog/reset-password-dialog.component';
+import { MfaResetDialogComponent } from './mfa-reset-dialog.component';
 
 interface RoleFilterOption {
   label: string;
@@ -70,6 +80,7 @@ const ROLE_SEVERITY: Record<UserRole, 'info' | 'success' | 'warn' | 'secondary'>
     LucideAngularModule,
     UserFormDialogComponent,
     ResetPasswordDialogComponent,
+    MfaResetDialogComponent,
   ],
   providers: [ConfirmationService],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -80,10 +91,19 @@ export class AdminEquipoComponent implements OnInit {
   private readonly notifications = inject(NotificationService);
   private readonly confirmation = inject(ConfirmationService);
   private readonly auth = inject(AuthService);
+  private readonly mfa = inject(MfaService);
 
   protected readonly currentUser = this.auth.user;
 
-  protected readonly icons = { Pencil, Plus, KeyRound, UserMinus, UserCheck, AlertTriangle };
+  protected readonly icons = {
+    Pencil,
+    Plus,
+    KeyRound,
+    ShieldOff,
+    UserMinus,
+    UserCheck,
+    AlertTriangle,
+  };
 
   // SuperAdmin is hidden from the list, so it's not a filterable role.
   protected readonly roleOptions: RoleFilterOption[] = [
@@ -119,15 +139,29 @@ export class AdminEquipoComponent implements OnInit {
     });
   });
 
+  protected readonly showMfaAdministration = computed(
+    () => this.currentUser()?.role === 'SuperAdmin',
+  );
+  protected readonly adminMfaTargets = computed(() =>
+    this.allUsers().filter((user) => user.role === 'Admin' || user.role === 'SuperAdmin'),
+  );
+  protected readonly actorMfaStatus = this.mfa.status;
+  protected readonly mfaStatusLoading = this.mfa.loadingStatus;
+
   protected readonly dialogVisible = signal(false);
   protected readonly dialogMode = signal<'create' | 'edit'>('create');
   protected readonly dialogEditing = signal<UserResponse | null>(null);
 
   protected readonly resetDialogVisible = signal(false);
   protected readonly resetTarget = signal<ResetPasswordTarget | null>(null);
+  protected readonly mfaResetDialogVisible = signal(false);
+  protected readonly mfaResetTarget = signal<UserResponse | null>(null);
 
   ngOnInit(): void {
     this.refresh();
+    if (this.showMfaAdministration()) {
+      this.mfa.loadStatus().subscribe({ error: () => {} });
+    }
   }
 
   protected refresh(): void {
@@ -211,6 +245,21 @@ export class AdminEquipoComponent implements OnInit {
 
   protected onResetVisibleChange(value: boolean): void {
     this.resetDialogVisible.set(value);
+  }
+
+  protected canResetMfa(target: UserResponse): boolean {
+    const me = this.currentUser();
+    return (
+      me?.role === 'SuperAdmin' &&
+      target.id !== me.userId &&
+      (target.role === 'Admin' || target.role === 'SuperAdmin')
+    );
+  }
+
+  protected openMfaReset(target: UserResponse): void {
+    if (!this.canResetMfa(target) || !this.actorMfaStatus()) return;
+    this.mfaResetTarget.set(target);
+    this.mfaResetDialogVisible.set(true);
   }
 
   protected onSaved(): void {

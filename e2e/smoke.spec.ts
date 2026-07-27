@@ -10,6 +10,7 @@ import {
   mockSmokeApi,
   type SmokeWatchers,
 } from './support/smoke-app';
+import { smokeOldCashRegister } from '../src/testing/smoke-fixtures';
 import type { SmokeRole } from '../src/testing/smoke-fixtures';
 
 let watchers: SmokeWatchers;
@@ -25,6 +26,31 @@ test.afterEach(async () => {
 });
 
 test.describe('auth and role guards', () => {
+  test('completes MFA login with Authenticator and recovery code without authenticating the 202 response', async ({
+    page,
+  }) => {
+    for (const method of ['Authenticator', 'RecoveryCode'] as const) {
+      await installSession(page, null);
+      await page.goto('/login');
+      await page.getByLabel('Email').fill('admin@multibrand.com');
+      await page.getByLabel('Contraseña').fill('Password!123mbh');
+      await page.getByRole('button', { name: 'Ingresar' }).click();
+
+      await expect(page).toHaveURL(/\/login\/mfa$/);
+      await expect(page.getByRole('heading', { name: 'Verificación en dos pasos' })).toBeVisible();
+
+      if (method === 'RecoveryCode') {
+        await page.getByRole('radio', { name: 'Código de recuperación' }).click();
+        await page.getByLabel('Código de recuperación').fill('AAAA-BBBB-CCCC-DDDD');
+      } else {
+        await page.getByLabel('Código de 6 dígitos').fill('123456');
+      }
+
+      await page.getByRole('button', { name: 'Verificar' }).click();
+      await expectRouteReady(page, /\/admin\/dashboard$/, 'Inicio');
+    }
+  });
+
   test('allows anonymous access to password recovery routes and removes the reset token', async ({
     page,
   }) => {
@@ -205,6 +231,48 @@ test.describe('deep smoke interactions', () => {
     await expect(page.getByText('Salidas manuales')).toBeVisible();
   });
 
+  test('old cash register age is visible and warns before sales and returns', async ({ page }) => {
+    await page.route('**/api/cash-register/current', async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { 'access-control-allow-origin': '*', 'content-type': 'application/json' },
+        json: smokeOldCashRegister,
+      });
+    });
+
+    await gotoAs(page, 'Admin', '/admin/dashboard');
+    await expect(
+      page
+        .locator('app-shell > div > div > header .p-tag-danger')
+        .filter({ hasText: 'Caja abierta hace 10 días' }),
+    ).toBeVisible();
+    await expect(page.locator('main').getByText('Caja abierta hace 10 días').first()).toBeVisible();
+
+    await gotoAs(page, 'Admin', '/admin/pos');
+    await expect(page.getByRole('heading', { name: 'Caja abierta hace 10 días' })).toBeVisible();
+    await page.getByRole('button', { name: 'Agregar a la venta' }).first().click();
+    await page.getByRole('combobox', { name: 'Seleccioná la tarjeta' }).click();
+    await page.getByRole('option', { name: 'Visa' }).click();
+    await page.getByRole('button', { name: 'Ingresar Venta' }).click();
+    await expect(
+      page.getByRole('dialog', { name: 'La caja pertenece a una jornada anterior' }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Continuar igualmente' }).click();
+    await expect(page.getByRole('dialog', { name: 'Revisar venta' })).toBeVisible();
+
+    await gotoAs(page, 'Admin', '/admin/pos');
+    await page.getByRole('button', { name: 'Ingresar devolución' }).click();
+    await expect(
+      page.getByRole('dialog', { name: 'La caja pertenece a una jornada anterior' }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Continuar igualmente' }).click();
+    await expect(page.getByRole('dialog', { name: 'Ingresar devolución' })).toBeVisible();
+
+    await gotoAs(page, 'Admin', '/admin/cash-register');
+    await expect(page.getByRole('heading', { name: 'Caja abierta hace 10 días' })).toBeVisible();
+    await expect(page.getByText('Requiere cierre')).toBeVisible();
+  });
+
   test('inventory permissions differ correctly by role', async ({ page }) => {
     await gotoAs(page, 'BrandManager', '/brand-manager/inventory');
     await expect(page.getByRole('heading', { name: 'Mi Stock' })).toBeVisible();
@@ -236,6 +304,10 @@ test.describe('deep smoke interactions', () => {
     await page.getByRole('tab', { name: 'Ajustes Generales' }).click();
     await expect(page.getByRole('heading', { name: 'Ajustes Generales' })).toBeVisible();
     await expect(page.getByLabel('Ajustes Generales').getByText('Local Smoke')).toBeVisible();
+
+    await page.getByRole('tab', { name: 'Seguridad' }).click();
+    await expect(page.getByRole('heading', { name: 'Seguridad' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Activar MFA' })).toBeVisible();
   });
 
   test('self-service settings opens password dialog and changes theme', async ({ page }) => {

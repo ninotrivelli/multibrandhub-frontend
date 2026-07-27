@@ -396,6 +396,13 @@ export const smokeCashRegisterSummary = makeCashRegisterSummary({
   returnCount: smokeClosedCashRegister.returnCount,
 });
 
+export const smokeOldCashRegister = makeCashRegisterSession({
+  id: 'cash-smoke-old',
+  openedAtUtc: '2026-05-28T12:00:00Z',
+  openedByUserId: 'user-seller',
+  openedByUserName: 'Venta Mostrador',
+});
+
 export function makeSmokeSession(role: SmokeRole): AuthSession {
   const user = SMOKE_USERS_BY_ROLE[role];
   return makeAuthSession({
@@ -422,6 +429,42 @@ export function resolveSmokeApiResponse(request: SmokeApiRequest): SmokeApiRespo
   }
   if (method === 'GET' && path === '/api/users') {
     return { status: 200, body: page(smokeUsers, url) };
+  }
+  if (method === 'GET' && path === '/api/auth/mfa/status') {
+    return {
+      status: 200,
+      body: {
+        enrollmentAvailable: true,
+        enabled: false,
+        enabledAtUtc: null,
+        recoveryCodesRemaining: 0,
+      },
+    };
+  }
+  if (method === 'POST' && path === '/api/auth/login') {
+    return {
+      status: 202,
+      body: {
+        status: 'MfaRequired',
+        challengeToken: 'smoke-mfa-challenge',
+        expiresAtUtc: '2099-07-20T18:00:00Z',
+      },
+    };
+  }
+  if (method === 'POST' && path === '/api/auth/mfa/verify') {
+    const session = makeSmokeSession('Admin');
+    return {
+      status: 200,
+      body: {
+        userId: session.user.userId,
+        fullName: session.user.fullName,
+        email: session.user.email,
+        role: session.user.role,
+        brandId: session.user.brandId,
+        token: session.token,
+        expiresAtUtc: session.expiresAtUtc,
+      },
+    };
   }
   if (method === 'GET' && path === '/api/product-categories') {
     return { status: 200, body: smokeCategories };

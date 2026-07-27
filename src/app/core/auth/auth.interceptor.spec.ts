@@ -36,7 +36,12 @@ describe('authInterceptor', () => {
   });
 
   it('does not attach bearer tokens to public auth endpoints or anonymous requests', () => {
-    for (const path of ['/auth/login', '/auth/forgot-password', '/auth/reset-password']) {
+    for (const path of [
+      '/auth/login',
+      '/auth/mfa/verify',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+    ]) {
       const url = `${environment.apiBaseUrl}${path}`;
       http.post(url, {}).subscribe();
       const req = httpTesting.expectOne(url);

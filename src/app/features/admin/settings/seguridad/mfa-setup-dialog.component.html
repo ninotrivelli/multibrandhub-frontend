@@ -1,0 +1,190 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [closable]="!submitting() && step() !== 'recovery'"
+  [closeOnEscape]="!submitting() && step() !== 'recovery'"
+  [dismissableMask]="false"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '42rem', maxWidth: '96vw' }"
+  header="Activar autenticación en dos pasos"
+>
+  @if (step() === 'password') {
+    <form [formGroup]="passwordForm" (ngSubmit)="startSetup()" class="flex flex-col gap-4">
+      <p class="text-sm text-surface-600 dark:text-surface-300">
+        Confirmá tu contraseña actual para generar una clave compatible con Google Authenticator,
+        Microsoft Authenticator y otras aplicaciones TOTP.
+      </p>
+
+      <div class="flex flex-col gap-1">
+        <label
+          for="mfaCurrentPassword"
+          class="text-sm font-medium text-surface-700 dark:text-surface-200"
+        >
+          Contraseña actual
+        </label>
+        <p-password
+          inputId="mfaCurrentPassword"
+          formControlName="currentPassword"
+          [feedback]="false"
+          [toggleMask]="true"
+          autocomplete="current-password"
+          [invalid]="
+            passwordForm.controls.currentPassword.invalid &&
+            passwordForm.controls.currentPassword.touched
+          "
+          fluid
+        />
+        @if (
+          passwordForm.controls.currentPassword.invalid &&
+          passwordForm.controls.currentPassword.touched
+        ) {
+          <p-message severity="error" size="small" variant="simple">
+            La contraseña actual es obligatoria.
+          </p-message>
+        }
+      </div>
+
+      @if (submitError()) {
+        <p-message severity="error" variant="outlined" closable="false">{{
+          submitError()
+        }}</p-message>
+      }
+      @if (rateLimited() && retryLabel(); as remaining) {
+        <p-message severity="warn" variant="outlined" closable="false">
+          Podés volver a intentar en {{ remaining }}.
+        </p-message>
+      }
+
+      <div class="flex justify-end gap-2">
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          [text]="true"
+          label="Cancelar"
+          [disabled]="submitting()"
+          (click)="cancel()"
+        ></button>
+        <button
+          pButton
+          type="submit"
+          label="Continuar"
+          [loading]="submitting()"
+          [disabled]="submitting() || rateLimited()"
+        ></button>
+      </div>
+    </form>
+  } @else if (step() === 'setup') {
+    <form [formGroup]="codeForm" (ngSubmit)="confirmSetup()" class="flex flex-col gap-4">
+      <div class="grid gap-5 md:grid-cols-[16rem_1fr] md:items-center">
+        @if (qrUrl(); as url) {
+          <div
+            class="flex justify-center rounded-xl border border-surface-200 bg-white p-3 dark:border-surface-700"
+          >
+            <img
+              [src]="url"
+              alt="Código QR para configurar la aplicación autenticadora"
+              class="size-56 max-w-full"
+            />
+          </div>
+        }
+
+        <div class="flex flex-col gap-3">
+          <div>
+            <h3 class="font-semibold text-surface-900 dark:text-surface-0">Escaneá el código QR</h3>
+            <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
+              Si no podés escanearlo, ingresá esta clave manual en tu aplicación.
+            </p>
+          </div>
+          @if (manualEntryKey(); as key) {
+            <div class="flex items-center gap-2 rounded-lg bg-surface-100 p-3 dark:bg-surface-900">
+              <code
+                class="min-w-0 flex-1 break-all font-mono text-sm text-surface-900 dark:text-surface-0"
+                >{{ key }}</code
+              >
+              <button
+                pButton
+                type="button"
+                severity="secondary"
+                [text]="true"
+                [rounded]="true"
+                ariaLabel="Copiar clave manual"
+                (click)="copyManualKey()"
+              >
+                <i-lucide [img]="icons.Copy" class="size-4" />
+              </button>
+            </div>
+          }
+          <p class="text-sm text-surface-500 dark:text-surface-400" aria-live="polite">
+            Esta configuración vence en <strong>{{ remainingLabel() }}</strong
+            >.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label
+          for="mfaSetupCode"
+          class="text-sm font-medium text-surface-700 dark:text-surface-200"
+        >
+          Código de 6 dígitos
+        </label>
+        <input
+          pInputText
+          id="mfaSetupCode"
+          type="text"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          maxlength="6"
+          formControlName="code"
+          [invalid]="codeForm.controls.code.invalid && codeForm.controls.code.touched"
+          placeholder="123456"
+          fluid
+        />
+        @if (codeForm.controls.code.invalid && codeForm.controls.code.touched) {
+          <p-message severity="error" size="small" variant="simple">
+            Ingresá los 6 dígitos de tu app autenticadora.
+          </p-message>
+        }
+      </div>
+
+      @if (submitError()) {
+        <p-message severity="error" variant="outlined" closable="false">{{
+          submitError()
+        }}</p-message>
+      }
+      @if (rateLimited() && retryLabel(); as remaining) {
+        <p-message severity="warn" variant="outlined" closable="false">
+          Podés volver a intentar en {{ remaining }}.
+        </p-message>
+      }
+
+      <div class="flex justify-end gap-2">
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          [text]="true"
+          label="Cancelar"
+          [disabled]="submitting()"
+          (click)="cancel()"
+        ></button>
+        <button
+          pButton
+          type="submit"
+          label="Activar MFA"
+          [loading]="submitting()"
+          [disabled]="submitting() || rateLimited()"
+        ></button>
+      </div>
+    </form>
+  } @else {
+    <app-recovery-codes-panel
+      [codes]="recoveryCodes()"
+      [sessionInvalidated]="sessionInvalidated()"
+      (completed)="finishRecoveryCodes()"
+    />
+  }
+</p-dialog>

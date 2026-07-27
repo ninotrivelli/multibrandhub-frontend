@@ -1,4 +1,4 @@
-import { UserRole } from '../auth/auth.types';
+import { MfaVerificationMethod, UserRole } from '../auth/auth.types';
 
 export interface UserResponse {
   id: string;
@@ -30,6 +30,13 @@ export interface UpdateUserRequest {
 
 export interface ResetPasswordRequest {
   newPassword: string;
+}
+
+export interface ResetUserMfaRequest {
+  currentPassword: string;
+  verificationCode: string | null;
+  method: MfaVerificationMethod | null;
+  reason: string;
 }
 
 export interface PagedResult<T> {
