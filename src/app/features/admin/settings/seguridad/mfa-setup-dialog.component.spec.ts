@@ -14,14 +14,10 @@ describe('MfaSetupDialogComponent', () => {
     startSetup: ReturnType<typeof vi.fn>;
     confirmSetup: ReturnType<typeof vi.fn>;
   };
-  let originalCreateObjectUrl: typeof URL.createObjectURL;
-  let originalRevokeObjectUrl: typeof URL.revokeObjectURL;
 
   beforeEach(async () => {
-    originalCreateObjectUrl = URL.createObjectURL;
-    originalRevokeObjectUrl = URL.revokeObjectURL;
-    URL.createObjectURL = vi.fn(() => 'blob:mfa-qr');
-    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mfa-qr');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
 
     auth = { clearSession: vi.fn() };
     mfa = {
@@ -57,9 +53,8 @@ describe('MfaSetupDialogComponent', () => {
   });
 
   afterEach(() => {
-    fixture.destroy();
-    URL.createObjectURL = originalCreateObjectUrl;
-    URL.revokeObjectURL = originalRevokeObjectUrl;
+    fixture?.destroy();
+    vi.restoreAllMocks();
   });
 
   it('generates the QR locally, drops setup material after confirmation, and clears the JWT', () => {
