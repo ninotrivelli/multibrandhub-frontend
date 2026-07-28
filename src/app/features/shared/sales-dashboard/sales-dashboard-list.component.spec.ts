@@ -2,14 +2,15 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SalesDashboardListComponent } from './sales-dashboard-list.component';
 import { makeSalesDashboardSale, paged } from '../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../testing/primeng-test-providers';
 
 describe('SalesDashboardListComponent', () => {
   let fixture: ComponentFixture<SalesDashboardListComponent>;
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     TestBed.configureTestingModule({ imports: [SalesDashboardListComponent] });
-    TestBed.overrideComponent(SalesDashboardListComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(SalesDashboardListComponent);

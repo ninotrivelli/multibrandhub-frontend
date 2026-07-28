@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { makeProduct } from '../../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../../testing/primeng-test-providers';
 import { PosCartStore } from '../pos-cart.store';
 import { SaleReviewDialogComponent } from './sale-review-dialog.component';
 
@@ -11,11 +12,11 @@ describe('SaleReviewDialogComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     TestBed.configureTestingModule({
       imports: [SaleReviewDialogComponent],
       providers: [PosCartStore],
     });
-    TestBed.overrideComponent(SaleReviewDialogComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(SaleReviewDialogComponent);

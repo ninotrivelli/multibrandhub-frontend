@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
 import { makeAuthUser, makeUser } from '../../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../../testing/primeng-test-providers';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { AuthUser } from '../../../../core/auth/auth.types';
 import { MfaService } from '../../../../core/auth/mfa.service';
@@ -19,6 +20,7 @@ describe('AdminEquipoComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     currentUser = signal<AuthUser | null>(makeAuthUser({ role: 'Admin' }));
     userItems = signal<UserResponse[]>([]);
 
@@ -48,7 +50,6 @@ describe('AdminEquipoComponent', () => {
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn() } },
       ],
     });
-    TestBed.overrideComponent(AdminEquipoComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(AdminEquipoComponent);

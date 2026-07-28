@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { makeAuthUser, makeBrand } from '../../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../../testing/primeng-test-providers';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { AuthUser, UserRole } from '../../../../core/auth/auth.types';
 import { NotificationService } from '../../../../core/notifications/notification.service';
@@ -23,6 +24,7 @@ describe('ProductImportDialogComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     role = signal<UserRole>('Admin');
     user = signal<AuthUser | null>(makeAuthUser({ role: 'Admin', brandId: 'brand-own' }));
     products = {
@@ -39,7 +41,6 @@ describe('ProductImportDialogComponent', () => {
         { provide: NotificationService, useValue: notifications },
       ],
     });
-    TestBed.overrideComponent(ProductImportDialogComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(ProductImportDialogComponent);

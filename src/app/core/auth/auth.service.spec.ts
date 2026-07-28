@@ -6,7 +6,14 @@ import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { makeAuthResponse, makeAuthSession, makeJwt } from '../../../testing/builders';
 import { SessionStateRegistry } from '../session/session-state-registry.service';
-import { AuthSession, LoginOutcome } from './auth.types';
+import {
+  AuthSession,
+  EMAIL_CLAIM_URI,
+  LoginOutcome,
+  NAMEID_CLAIM_URI,
+  ROLE_CLAIM_URI,
+  UserRole,
+} from './auth.types';
 import { AuthService } from './auth.service';
 
 const STORAGE_KEY = 'mbh.token';
@@ -94,6 +101,60 @@ describe('AuthService', () => {
     service.restoreSession();
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     expect(service.session()).toBeNull();
+  });
+
+  it('ignores absent storage and clears malformed JWTs or tokens without numeric expiry', () => {
+    service.restoreSession();
+    expect(service.session()).toBeNull();
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...makeAuthSession(), token: 'not-a-jwt' }));
+    service.restoreSession();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...makeAuthSession(), token: makeJwt({ exp: undefined }) }),
+    );
+    service.restoreSession();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it('rejects every user claim mismatch, missing role, and unknown numeric role', () => {
+    const session = makeAuthSession();
+    const mismatchedTokens = [
+      makeJwt({ sub: 'other-user' }),
+      makeJwt({ email: 'other@test.com' }),
+      makeJwt({ role: 'Seller' }),
+      makeJwt({ role: undefined }),
+      makeJwt({ role: 99 as never }),
+      makeJwt({ brandId: 'other-brand' }),
+    ];
+
+    for (const token of mismatchedTokens) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...session, token }));
+      service.restoreSession();
+      expect(service.session()).toBeNull();
+      expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    }
+  });
+
+  it('restores tokens using array and full-URI identity claims', () => {
+    const session = makeAuthSession();
+    const token = makeJwt({
+      sub: undefined,
+      nameid: undefined,
+      email: undefined,
+      role: undefined,
+      [NAMEID_CLAIM_URI]: ['user-admin'],
+      [EMAIL_CLAIM_URI]: ['admin@local.test'],
+      [ROLE_CLAIM_URI]: ['Admin'],
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...session, token }));
+
+    service.restoreSession();
+
+    expect(service.session()?.user.userId).toBe('user-admin');
+    expect(service.role()).toBe('Admin');
   });
 
   it('logs in, normalizes numeric roles, stores the session, and exposes computed state', () => {
@@ -200,6 +261,78 @@ describe('AuthService', () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 
+  it('rejects each malformed authenticated login field', () => {
+    const valid = makeAuthResponse();
+    const malformedBodies: Array<object | null> = [
+      null,
+      { ...valid, userId: 123 },
+      { ...valid, fullName: null },
+      { ...valid, email: false },
+      { ...valid, role: 'Owner' },
+      { ...valid, brandId: undefined },
+      { ...valid, token: '' },
+      { ...valid, expiresAtUtc: 123 },
+    ];
+
+    for (const body of malformedBodies) {
+      const error = vi.fn();
+      service.login({ email: 'admin@test.com', password: 'secret123' }).subscribe({ error });
+      http.expectOne(`${environment.apiBaseUrl}/auth/login`).flush(body);
+      expect(error).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('rejects malformed MFA challenge fields', () => {
+    const malformedBodies: object[] = [
+      { status: 'Other', challengeToken: 'token', expiresAtUtc: '2099-01-01T00:00:00Z' },
+      { status: 'MfaRequired', challengeToken: '', expiresAtUtc: '2099-01-01T00:00:00Z' },
+      { status: 'MfaRequired', challengeToken: 'token', expiresAtUtc: 123 },
+    ];
+
+    for (const body of malformedBodies) {
+      const error = vi.fn();
+      service.login({ email: 'admin@test.com', password: 'secret123' }).subscribe({ error });
+      http
+        .expectOne(`${environment.apiBaseUrl}/auth/login`)
+        .flush(body, { status: 202, statusText: 'Accepted' });
+      expect(error).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('fails MFA verification without a pending challenge or with a malformed response', () => {
+    const missingChallengeError = vi.fn();
+    service.verifyMfa('123456', 'Authenticator').subscribe({ error: missingChallengeError });
+    expect(missingChallengeError).toHaveBeenCalledWith(expect.any(Error));
+
+    service.login({ email: 'admin@test.com', password: 'secret123' }).subscribe();
+    http.expectOne(`${environment.apiBaseUrl}/auth/login`).flush(
+      {
+        status: 'MfaRequired',
+        challengeToken: 'challenge-token',
+        expiresAtUtc: '2099-07-20T18:00:00Z',
+      },
+      { status: 202, statusText: 'Accepted' },
+    );
+    const malformedResponseError = vi.fn();
+    service.verifyMfa('123456', 'Authenticator').subscribe({ error: malformedResponseError });
+    http.expectOne(`${environment.apiBaseUrl}/auth/mfa/verify`).flush({ token: '' });
+    expect(malformedResponseError).toHaveBeenCalledTimes(1);
+    expect(service.hasPendingMfaChallenge()).toBe(true);
+  });
+
+  it('fails authenticated mapping when the JWT omits tenantId', () => {
+    const error = vi.fn();
+    const response = makeAuthResponse();
+    service.login({ email: 'admin@test.com', password: 'secret123' }).subscribe({ error });
+
+    http
+      .expectOne(`${environment.apiBaseUrl}/auth/login`)
+      .flush({ ...response, token: makeJwt({ tenantId: undefined }) });
+
+    expect(error).toHaveBeenCalledWith(expect.any(Error));
+    expect(service.session()).toBeNull();
+  });
+
   it('logs out by clearing the auth session and all registered session state', () => {
     const resetter = vi.fn();
     const session = makeAuthSession();
@@ -250,5 +383,6 @@ describe('AuthService', () => {
     expect(service.homePathFor('Admin')).toBe('/admin');
     expect(service.homePathFor('BrandManager')).toBe('/brand-manager');
     expect(service.homePathFor('Seller')).toBe('/seller');
+    expect(service.homePathFor('Unknown' as UserRole)).toBe('/login');
   });
 });

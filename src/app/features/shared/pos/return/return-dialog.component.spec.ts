@@ -3,6 +3,7 @@ import { of } from 'rxjs';
 
 import { SalesService } from '../../../../core/sales/sales.service';
 import { makeSale, paged } from '../../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../../testing/primeng-test-providers';
 import { ReturnDialogComponent } from './return-dialog.component';
 
 describe('ReturnDialogComponent', () => {
@@ -15,6 +16,7 @@ describe('ReturnDialogComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     sales = {
       getById: vi.fn(() => of(makeSale({ id: 'sale-preselected' }))),
       searchOnce: vi.fn(() => of(paged([]))),
@@ -25,7 +27,6 @@ describe('ReturnDialogComponent', () => {
       imports: [ReturnDialogComponent],
       providers: [{ provide: SalesService, useValue: sales }],
     });
-    TestBed.overrideComponent(ReturnDialogComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(ReturnDialogComponent);

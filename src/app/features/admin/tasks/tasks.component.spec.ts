@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
 
 import { makeStoreTask, paged } from '../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../testing/primeng-test-providers';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { TasksService } from '../../../core/tasks/tasks.service';
 import { StoreTaskResponse } from '../../../core/tasks/tasks.types';
@@ -15,8 +16,11 @@ describe('AdminTasksComponent', () => {
     loading: ReturnType<typeof signal<boolean>>;
     generalPending: ReturnType<typeof signal<StoreTaskResponse[]>>;
     personalPending: ReturnType<typeof signal<StoreTaskResponse[]>>;
+    completed: ReturnType<typeof signal<StoreTaskResponse[]>>;
+    completedTotalCount: ReturnType<typeof signal<number>>;
     completedPage: ReturnType<typeof signal<number>>;
     completedPageSize: ReturnType<typeof signal<number>>;
+    loadingCompleted: ReturnType<typeof signal<boolean>>;
     loadPending: ReturnType<typeof vi.fn>;
     loadCompleted: ReturnType<typeof vi.fn>;
     complete: ReturnType<typeof vi.fn>;
@@ -25,14 +29,18 @@ describe('AdminTasksComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     tasksService = {
       loading: signal(false),
       generalPending: signal<StoreTaskResponse[]>([makeStoreTask({ id: 'task-general' })]),
       personalPending: signal<StoreTaskResponse[]>([
         makeStoreTask({ id: 'task-personal', scope: 'Personal' }),
       ]),
+      completed: signal<StoreTaskResponse[]>([]),
+      completedTotalCount: signal(0),
       completedPage: signal(1),
       completedPageSize: signal(10),
+      loadingCompleted: signal(false),
       loadPending: vi.fn(() => of([])),
       loadCompleted: vi.fn(() => of(paged([]))),
       complete: vi.fn(() => of(void 0)),
@@ -46,7 +54,6 @@ describe('AdminTasksComponent', () => {
         { provide: NotificationService, useValue: notifications },
       ],
     });
-    TestBed.overrideComponent(AdminTasksComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(AdminTasksComponent);

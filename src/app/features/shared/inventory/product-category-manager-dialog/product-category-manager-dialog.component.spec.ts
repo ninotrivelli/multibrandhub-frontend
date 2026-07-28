@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { makeCategory } from '../../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../../testing/primeng-test-providers';
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { ProductCategoriesService } from '../../../../core/product-categories/product-categories.service';
 import { ProductCategoryResponse } from '../../../../core/product-categories/product-categories.types';
@@ -23,6 +24,7 @@ describe('ProductCategoryManagerDialogComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     items = signal([makeCategory({ id: 'cat-tops', name: 'Tops' })]);
     const loading = signal(false);
     categories = {
@@ -44,7 +46,6 @@ describe('ProductCategoryManagerDialogComponent', () => {
         { provide: NotificationService, useValue: notifications },
       ],
     });
-    TestBed.overrideComponent(ProductCategoryManagerDialogComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(ProductCategoryManagerDialogComponent);

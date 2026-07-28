@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { makeProduct } from '../../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../../testing/primeng-test-providers';
 import { PosCartStore } from '../pos-cart.store';
 import { CartPanelComponent } from './cart-panel.component';
 
@@ -11,11 +12,11 @@ describe('CartPanelComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     TestBed.configureTestingModule({
       imports: [CartPanelComponent],
       providers: [PosCartStore],
     });
-    TestBed.overrideComponent(CartPanelComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(CartPanelComponent);

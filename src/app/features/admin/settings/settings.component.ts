@@ -12,7 +12,7 @@ import { AdminSeguridadComponent } from './seguridad/seguridad.component';
 type SettingsTab = 'marcas' | 'equipo' | 'ajustes' | 'seguridad';
 
 const VALID_TABS: SettingsTab[] = ['marcas', 'equipo', 'ajustes', 'seguridad'];
-const DEFAULT_TAB: SettingsTab = 'equipo';
+const DEFAULT_TAB: SettingsTab = 'marcas';
 
 @Component({
   selector: 'app-admin-settings',

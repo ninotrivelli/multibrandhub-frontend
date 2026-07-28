@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
+import { primeNgTestProviders } from '../../../../testing/primeng-test-providers';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { UsersService } from '../../../core/users/users.service';
@@ -15,6 +16,7 @@ describe('ResetPasswordDialogComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     users = { resetPassword: vi.fn(() => of(undefined)) };
     auth = { logout: vi.fn() };
     notifications = { success: vi.fn(), error: vi.fn() };
@@ -27,7 +29,6 @@ describe('ResetPasswordDialogComponent', () => {
         { provide: NotificationService, useValue: notifications },
       ],
     });
-    TestBed.overrideComponent(ResetPasswordDialogComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(ResetPasswordDialogComponent);

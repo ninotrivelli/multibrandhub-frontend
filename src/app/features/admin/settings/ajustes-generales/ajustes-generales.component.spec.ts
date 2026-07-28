@@ -2,6 +2,7 @@ import { signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
+import { primeNgTestProviders } from '../../../../../testing/primeng-test-providers';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { UserRole } from '../../../../core/auth/auth.types';
 import { NotificationService } from '../../../../core/notifications/notification.service';
@@ -18,6 +19,7 @@ describe('AdminAjustesGeneralesComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     role = signal<UserRole>('Admin');
     profile = signal<StoreProfileResponse | null>({
       storeName: 'MultiBrandHub Centro',
@@ -55,7 +57,6 @@ describe('AdminAjustesGeneralesComponent', () => {
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn() } },
       ],
     });
-    TestBed.overrideComponent(AdminAjustesGeneralesComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(AdminAjustesGeneralesComponent);

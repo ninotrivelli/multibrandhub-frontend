@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
 import { makeAuthUser, makeBrand } from '../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../testing/primeng-test-providers';
 import { AuthService } from '../../../core/auth/auth.service';
 import { AuthUser } from '../../../core/auth/auth.types';
 import { BrandsService } from '../../../core/brands/brands.service';
@@ -15,6 +16,7 @@ describe('ConfiguracionComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     user = signal<AuthUser | null>(
       makeAuthUser({
         userId: 'manager-1',
@@ -39,7 +41,6 @@ describe('ConfiguracionComponent', () => {
         },
       ],
     });
-    TestBed.overrideComponent(ConfiguracionComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(ConfiguracionComponent);

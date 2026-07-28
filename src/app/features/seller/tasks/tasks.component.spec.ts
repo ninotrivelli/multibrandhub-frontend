@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
 import { makeStoreTask } from '../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../testing/primeng-test-providers';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { TasksService } from '../../../core/tasks/tasks.service';
 import { StoreTaskResponse } from '../../../core/tasks/tasks.types';
@@ -14,7 +15,11 @@ describe('SellerTasksComponent', () => {
   let tasksService: {
     loading: ReturnType<typeof signal<boolean>>;
     generalPending: ReturnType<typeof signal<StoreTaskResponse[]>>;
+    completed: ReturnType<typeof signal<StoreTaskResponse[]>>;
+    completedTotalCount: ReturnType<typeof signal<number>>;
+    completedPage: ReturnType<typeof signal<number>>;
     completedPageSize: ReturnType<typeof signal<number>>;
+    loadingCompleted: ReturnType<typeof signal<boolean>>;
     loadPending: ReturnType<typeof vi.fn>;
     loadCompleted: ReturnType<typeof vi.fn>;
     complete: ReturnType<typeof vi.fn>;
@@ -23,10 +28,15 @@ describe('SellerTasksComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     tasksService = {
       loading: signal(false),
       generalPending: signal<StoreTaskResponse[]>([makeStoreTask({ id: 'task-general' })]),
+      completed: signal<StoreTaskResponse[]>([]),
+      completedTotalCount: signal(0),
+      completedPage: signal(1),
       completedPageSize: signal(10),
+      loadingCompleted: signal(false),
       loadPending: vi.fn(() => of([])),
       loadCompleted: vi.fn(() => of([])),
       complete: vi.fn(() => of(void 0)),
@@ -40,7 +50,6 @@ describe('SellerTasksComponent', () => {
         { provide: NotificationService, useValue: notifications },
       ],
     });
-    TestBed.overrideComponent(SellerTasksComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(SellerTasksComponent);

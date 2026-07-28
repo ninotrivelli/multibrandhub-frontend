@@ -1,8 +1,9 @@
 import { Signal, WritableSignal, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 import { makeAuthUser, makeBrand, makeSettlement, paged } from '../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../testing/primeng-test-providers';
 import { AuthService } from '../../../core/auth/auth.service';
 import { AuthUser } from '../../../core/auth/auth.types';
 import { BrandsService } from '../../../core/brands/brands.service';
@@ -31,9 +32,14 @@ describe('SettlementsShellComponent', () => {
     finalize: ReturnType<typeof vi.fn>;
     markPaid: ReturnType<typeof vi.fn>;
   };
+  let notifications: {
+    success: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
 
     currentUser = signal<AuthUser | null>(makeAuthUser({ role: 'Admin', brandId: 'brand-own' }));
     brandItems = signal<BrandResponse[]>([
@@ -58,6 +64,10 @@ describe('SettlementsShellComponent', () => {
       finalize: vi.fn(() => of(makeSettlement())),
       markPaid: vi.fn(() => of(makeSettlement())),
     };
+    notifications = {
+      success: vi.fn(),
+      error: vi.fn(),
+    };
 
     TestBed.configureTestingModule({
       imports: [SettlementsShellComponent],
@@ -78,15 +88,11 @@ describe('SettlementsShellComponent', () => {
         },
         {
           provide: NotificationService,
-          useValue: {
-            success: vi.fn(),
-            error: vi.fn(),
-          },
+          useValue: notifications,
         },
       ],
     });
 
-    TestBed.overrideComponent(SettlementsShellComponent, { set: { template: '' } });
     await TestBed.compileComponents();
   });
 
@@ -312,6 +318,290 @@ describe('SettlementsShellComponent', () => {
     expect(
       (component as any).versionTagLabel(makeSettlement({ versionNumber: 1, isCurrent: false })),
     ).toBe('v1 · Anterior');
+  });
+
+  it('sorts brand options, marks archived brands and resolves the selected brand', () => {
+    brandItems.set([
+      makeBrand({ id: 'z', name: 'Zafiro' }),
+      makeBrand({ id: 'a', name: 'Ámbar', status: 'Archived' }),
+    ]);
+    create('admin');
+
+    expect((component as any).brandOptions()).toEqual([
+      { label: 'Ámbar (dada de baja)', value: 'a' },
+      { label: 'Zafiro', value: 'z' },
+    ]);
+
+    (component as any).onBrandFilterChange('z');
+    expect((component as any).selectedBrand()).toEqual(expect.objectContaining({ id: 'z' }));
+    expect((component as any).page()).toBe(1);
+  });
+
+  it('applies period, status, superseded and lazy pagination filters', () => {
+    create('admin');
+
+    (component as any).setPeriodPreset('previousMonth');
+    expect((component as any).periodPreset()).toBe('previousMonth');
+
+    (component as any).setCustomStartDate('2026-07-20');
+    (component as any).setCustomEndDate('2026-07-10');
+    (component as any).onStatusFilterChange('Finalized');
+    (component as any).onIncludeSupersededChange(true);
+    (component as any).onLazyLoad({ first: 40, rows: 20 });
+
+    expect((component as any).periodPreset()).toBe('custom');
+    expect((component as any).startDate()).toBe('2026-07-10');
+    expect((component as any).endDate()).toBe('2026-07-20');
+    expect((component as any).selectedStatus()).toBe('Finalized');
+    expect((component as any).includeSuperseded()).toBe(true);
+    expect((component as any).page()).toBe(3);
+
+    const before = (component as any).startDate();
+    (component as any).setCustomStartDate('');
+    (component as any).setCustomEndDate('');
+    expect((component as any).startDate()).toBe(before);
+  });
+
+  it('handles missing BrandManager scope without sending a search', () => {
+    currentUser.set(makeAuthUser({ role: 'BrandManager', brandId: null }));
+    create('brand-manager');
+
+    expect((component as any).missingBrandScope()).toBe(true);
+    expect((component as any).currentRequest()).toBeNull();
+    expect(settlements.searchSaved).not.toHaveBeenCalled();
+
+    (component as any).refresh();
+    expect(settlements.searchSaved).not.toHaveBeenCalled();
+  });
+
+  it('loads brands when the cache is empty and tolerates its backend error', () => {
+    brands.hasItems.mockReturnValue(false);
+    brands.list.mockReturnValue(throwError(() => new Error('network')));
+
+    create('admin');
+
+    expect(brands.list).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 100,
+      includeArchived: true,
+    });
+  });
+
+  it('exposes saved-search failures and resets loading', () => {
+    settlements.searchSaved.mockReturnValue(throwError(() => new Error('network')));
+
+    create('admin');
+
+    expect((component as any).error()).toBe(
+      'No se pudieron cargar las liquidaciones. Probá de nuevo.',
+    );
+    expect((component as any).loading()).toBe(false);
+  });
+
+  it('generates a settlement with normalized notes and refreshes the list', () => {
+    settlements.generate.mockReturnValue(of([makeSettlement(), makeSettlement({ id: 's2' })]));
+    create('admin');
+    settlements.searchSaved.mockClear();
+
+    (component as any).openGenerateDialog();
+    (component as any).generateNotes.set('  Cierre mensual  ');
+    (component as any).confirmGenerate();
+
+    expect(settlements.generate).toHaveBeenCalledWith({
+      from: (component as any).startDate(),
+      to: (component as any).endDate(),
+      brandId: undefined,
+      notes: 'Cierre mensual',
+    });
+    expect((component as any).generateDialogVisible()).toBe(false);
+    expect((component as any).generating()).toBe(false);
+    expect(notifications.success).toHaveBeenCalledWith(
+      'Se generaron/recalcularon 2 liquidaciones.',
+    );
+    expect(settlements.searchSaved).toHaveBeenCalled();
+  });
+
+  it('guards generation by role and keeps the dialog locked while submitting', () => {
+    currentUser.set(makeAuthUser({ role: 'BrandManager', brandId: 'brand-a' }));
+    create('brand-manager');
+
+    (component as any).openGenerateDialog();
+    (component as any).confirmGenerate();
+    expect((component as any).generateDialogVisible()).toBe(false);
+    expect(settlements.generate).not.toHaveBeenCalled();
+
+    (component as any).generating.set(true);
+    (component as any).onGenerateDialogVisibleChange(false);
+    expect((component as any).generateDialogVisible()).toBe(false);
+  });
+
+  it('opens details, loads versions and resets the complete detail state on close', () => {
+    const current = makeSettlement({ id: 'current' });
+    const previous = makeSettlement({ id: 'previous', isCurrent: false });
+    settlements.getSavedById.mockReturnValue(of(current));
+    settlements.getVersions.mockReturnValue(of([current, previous]));
+    create('admin');
+
+    (component as any).openDetail(current);
+    expect((component as any).selectedSettlement()).toEqual(current);
+    expect((component as any).detailVisible()).toBe(true);
+
+    (component as any).toggleVersions();
+    expect(settlements.getVersions).toHaveBeenCalledWith('current');
+    expect((component as any).versions()).toEqual([current, previous]);
+    expect((component as any).versionsVisible()).toBe(true);
+
+    (component as any).selectVersion(previous);
+    expect((component as any).selectedSettlement()).toEqual(previous);
+
+    (component as any).onDetailVisibleChange(false);
+    expect((component as any).selectedSettlement()).toBeNull();
+    expect((component as any).versions()).toBeNull();
+    expect((component as any).versionsVisible()).toBe(false);
+  });
+
+  it('reports detail and version request failures', () => {
+    settlements.getSavedById.mockReturnValue(throwError(() => new Error('detail')));
+    settlements.getVersions.mockReturnValue(throwError(() => new Error('versions')));
+    create('admin');
+
+    (component as any).openDetail(makeSettlement({ id: 'broken' }));
+    expect((component as any).detailError()).toBe(
+      'No se pudo cargar el detalle de la liquidación.',
+    );
+    expect((component as any).detailLoading()).toBe(false);
+
+    (component as any).selectedSettlement.set(makeSettlement({ id: 'broken' }));
+    (component as any).toggleVersions();
+    expect(notifications.error).toHaveBeenCalledWith('No se pudieron cargar las versiones.');
+    expect((component as any).versionsLoading()).toBe(false);
+  });
+
+  it('finalizes an eligible row and updates an opened detail', () => {
+    const draft = makeSettlement({ id: 'draft', status: 'Draft', isCurrent: true });
+    const finalized = makeSettlement({ id: 'draft', status: 'Finalized', isCurrent: true });
+    settlements.finalize.mockReturnValue(of(finalized));
+    create('admin');
+    settlements.searchSaved.mockClear();
+    (component as any).selectedSettlement.set(draft);
+
+    (component as any).finalize(draft);
+
+    expect(settlements.finalize).toHaveBeenCalledWith('draft');
+    expect((component as any).mutatingSettlementId()).toBeNull();
+    expect((component as any).selectedSettlement()).toEqual(finalized);
+    expect(notifications.success).toHaveBeenCalledWith(
+      'La liquidación quedó finalizada.',
+      'Liquidación finalizada',
+    );
+    expect(settlements.searchSaved).toHaveBeenCalled();
+  });
+
+  it('clears mutation state when finalization fails and rejects ineligible rows', () => {
+    settlements.finalize.mockReturnValue(throwError(() => new Error('network')));
+    create('admin');
+    const draft = makeSettlement({ id: 'draft', status: 'Draft', isCurrent: true });
+
+    (component as any).finalize(draft);
+    expect((component as any).mutatingSettlementId()).toBeNull();
+
+    (component as any).finalize(makeSettlement({ status: 'Paid' }));
+    expect(settlements.finalize).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks a finalized settlement as paid with normalized optional values', () => {
+    const target = makeSettlement({ id: 'final', status: 'Finalized', isCurrent: true });
+    const paid = makeSettlement({ id: 'final', status: 'Paid', isCurrent: true });
+    settlements.markPaid.mockReturnValue(of(paid));
+    create('admin');
+
+    (component as any).openMarkPaid(target);
+    (component as any).paidAtLocal.set('2026-07-27T16:45');
+    (component as any).paymentReference.set('  TRANS-123  ');
+    (component as any).paymentNotes.set('   ');
+    (component as any).confirmMarkPaid();
+
+    expect(settlements.markPaid).toHaveBeenCalledWith('final', {
+      paymentReference: 'TRANS-123',
+      notes: null,
+      paidAtUtc: new Date('2026-07-27T16:45').toISOString(),
+    });
+    expect((component as any).markPaidDialogVisible()).toBe(false);
+    expect((component as any).markPaidTarget()).toBeNull();
+    expect(notifications.success).toHaveBeenCalledWith(
+      'La liquidación quedó marcada como pagada.',
+      'Pago registrado',
+    );
+  });
+
+  it('validates payment lengths and clears payment state after backend errors', () => {
+    const target = makeSettlement({ id: 'final', status: 'Finalized', isCurrent: true });
+    settlements.markPaid.mockReturnValue(throwError(() => new Error('network')));
+    create('admin');
+    (component as any).openMarkPaid(target);
+
+    (component as any).paymentReference.set('x'.repeat(101));
+    expect((component as any).canConfirmMarkPaid()).toBe(false);
+    (component as any).confirmMarkPaid();
+    expect(settlements.markPaid).not.toHaveBeenCalled();
+
+    (component as any).paymentReference.set('');
+    (component as any).paymentNotes.set('');
+    (component as any).paidAtLocal.set('');
+    (component as any).confirmMarkPaid();
+    expect(settlements.markPaid).toHaveBeenCalledWith('final', {
+      paymentReference: null,
+      notes: null,
+    });
+    expect((component as any).markingPaid()).toBe(false);
+  });
+
+  it('covers presentation helpers and financial balance explanations', () => {
+    create('admin');
+    const positive = makeSettlement({ amountBrandOwesStore: 10 });
+    const neutral = makeSettlement({ amountBrandOwesStore: 0 });
+
+    expect((component as any).statusLabel('Draft')).toBe('Borrador');
+    expect((component as any).statusSeverity('Finalized')).toBe('info');
+    expect((component as any).directionSeverity('BrandOwesStore')).toBe('warn');
+    expect((component as any).formatCurrency(1234)).toContain('1.234');
+    expect((component as any).formatAbsoluteCurrency(-1234)).toContain('1.234');
+    expect((component as any).formatPercent(12.5)).toContain('12,5%');
+    expect((component as any).platformFeeFormula(positive)).toContain('=');
+    expect((component as any).balanceExplanation(positive)).toContain('La marca debe pagar');
+    expect((component as any).balanceExplanation(neutral)).toContain('No queda saldo pendiente');
+    expect((component as any).formatDateTime(null)).toBe('—');
+    expect((component as any).formatDateTime('2026-07-27T12:00:00Z')).not.toBe('—');
+    expect((component as any).periodLabel(positive)).toContain(' al ');
+    expect((component as any).versionGroupLabel(positive)).toContain('Versión 1');
+    expect((component as any).contractLabel(positive)).toBe('Mixto');
+    expect((component as any).isMutating(positive)).toBe(false);
+    expect((component as any).isOwnBrand('brand-own')).toBe(true);
+  });
+
+  it('computes the newest loaded generation time and legacy generation grouping', () => {
+    create('admin');
+    (component as any).saved.set(
+      paged([
+        makeSettlement({
+          id: 'old',
+          generatedAtUtc: '2026-06-01T10:00:00Z',
+          generationBatchId: null,
+        }),
+        makeSettlement({
+          id: 'new',
+          generatedAtUtc: '2026-06-02T10:00:00Z',
+          generationBatchId: null,
+        }),
+      ]),
+    );
+
+    expect((component as any).lastCalculatedAtUtc()).toBe('2026-06-02T10:00:00Z');
+    expect((component as any).tableRows()[0].generationGroupKey).toContain('legacy:');
+
+    (component as any).saved.set(null);
+    expect((component as any).lastCalculatedAtUtc()).toBeNull();
+    expect((component as any).tablePaginatorTotalRecords()).toBe(0);
   });
 });
 

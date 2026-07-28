@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
 import { makeAuthUser, makeBrand, makeUser } from '../../../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../../../testing/primeng-test-providers';
 import { AuthService } from '../../../../../core/auth/auth.service';
 import { AuthUser } from '../../../../../core/auth/auth.types';
 import { BrandsService } from '../../../../../core/brands/brands.service';
@@ -22,6 +23,7 @@ describe('UserFormDialogComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     currentUser = signal<AuthUser | null>(makeAuthUser({ role: 'Admin' }));
     users = {
       create: vi.fn((body: any) => of(makeUser({ ...body, id: 'created-user' }))),
@@ -46,7 +48,6 @@ describe('UserFormDialogComponent', () => {
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn() } },
       ],
     });
-    TestBed.overrideComponent(UserFormDialogComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(UserFormDialogComponent);

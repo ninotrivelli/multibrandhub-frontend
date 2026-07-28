@@ -1,7 +1,8 @@
 import { signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 import {
   makeAuthUser,
@@ -326,6 +327,197 @@ describe('ProductFormDialogComponent', () => {
 
     expect(products.validateSku).toHaveBeenCalledTimes(2);
     expect((component as any).form.controls.sku.value).toBe('ZEND-BUZOVE-M-NEGRO-002');
+  });
+
+  it('exposes active selector options and image-action presentation states', () => {
+    fixture.componentRef.setInput('mode', 'edit');
+    fixture.componentRef.setInput(
+      'editing',
+      makeProduct({ imageUrl: ' https://cdn.test/existing.webp ' }),
+    );
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+
+    expect((component as any).brandOptions()).toEqual([{ label: 'Zendra', value: 'brand-own' }]);
+    expect((component as any).categoryOptions()).toHaveLength(2);
+    expect((component as any).selectedCategoryName()).toBe('Tops');
+    expect((component as any).hasExistingCustomImage()).toBe(true);
+    expect((component as any).imagePreviewUrl()).toBe('https://cdn.test/existing.webp');
+    expect((component as any).imageActionLabel()).toBe('Cambiar foto');
+    expect((component as any).canRemoveImage()).toBe(true);
+
+    (component as any).clearExistingImage.set(true);
+    expect((component as any).hasExistingCustomImage()).toBe(false);
+    expect((component as any).imageActionLabel()).toBe('Subir foto');
+  });
+
+  it('normalizes SKU input and surfaces touched validation state', () => {
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+
+    (component as any).normalizeSkuInput('sku-bajo');
+    expect((component as any).form.controls.sku.value).toBe('SKU-BAJO');
+    expect((component as any).isInvalid('name')).toBe(false);
+
+    (component as any).form.controls.name.markAsTouched();
+    expect((component as any).isInvalid('name')).toBe(true);
+  });
+
+  it('rejects oversized images and safely ignores empty file inputs', () => {
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+
+    (component as any).onImageInputChange({
+      target: { files: [], value: '' },
+    } as unknown as Event);
+    expect(notifications.error).not.toHaveBeenCalled();
+
+    const oversized = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'large.png', {
+      type: 'image/png',
+    });
+    const input = { files: [oversized], value: 'large.png' };
+    (component as any).onImageInputChange({ target: input } as unknown as Event);
+
+    expect(notifications.error).toHaveBeenCalledWith('La foto supera los 5 MB.');
+    expect(input.value).toBe('');
+    expect((component as any).selectedImageFile()).toBeNull();
+  });
+
+  it('guards close and submit actions while busy and marks invalid forms', async () => {
+    const visibleChange = vi.fn();
+    component.visibleChange.subscribe(visibleChange);
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+
+    (component as any).submitting.set(true);
+    (component as any).onVisibleChange(false);
+    (component as any).cancel();
+    await (component as any).submit();
+    expect(visibleChange).not.toHaveBeenCalled();
+
+    (component as any).submitting.set(false);
+    await (component as any).submit();
+    expect((component as any).form.controls.name.touched).toBe(true);
+
+    (component as any).cancel();
+    expect(visibleChange).toHaveBeenCalledWith(false);
+  });
+
+  it('reports missing brand and backend SKU-validation failures', async () => {
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+    (component as any).form.patchValue({
+      name: 'Producto',
+      brandId: 'missing-brand',
+      categoryId: 'cat-tops',
+    });
+
+    await (component as any).generateSku();
+    expect(notifications.error).toHaveBeenCalledWith(
+      'No encontramos la marca seleccionada. Probá de nuevo.',
+    );
+
+    (component as any).form.patchValue({ brandId: 'brand-own' });
+    products.validateSku.mockReturnValueOnce(throwError(() => new Error('network')));
+    await (component as any).generateSku();
+    expect(notifications.error).toHaveBeenCalledWith(
+      'No se pudo validar el SKU. Probá de nuevo o ingresalo a mano.',
+    );
+    expect((component as any).skuGenerating()).toBe(false);
+  });
+
+  it.each([
+    {
+      error: new HttpErrorResponse({
+        status: 400,
+        error: { errors: [{ message: 'SKU duplicado' }, { message: 'Nombre inválido' }] },
+      }),
+      expected: 'SKU duplicado • Nombre inválido',
+    },
+    {
+      error: new HttpErrorResponse({ status: 400, error: { message: 'Error de producto' } }),
+      expected: 'Error de producto',
+    },
+    {
+      error: new HttpErrorResponse({ status: 500, error: null }),
+      expected: 'No se pudo guardar. Probá de nuevo.',
+    },
+  ])('maps product save errors to actionable form copy', async ({ error, expected }) => {
+    products.create.mockReturnValueOnce(throwError(() => error));
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+    fillCreateForm();
+
+    await (component as any).submit();
+
+    expect((component as any).submitting()).toBe(false);
+    expect((component as any).submitError()).toBe(expected);
+  });
+
+  it('keeps the saved product when image upload fails and warns the user', async () => {
+    products.uploadImage.mockReturnValueOnce(throwError(() => new Error('storage')));
+    const saved = vi.fn();
+    component.saved.subscribe(saved);
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+    fillCreateForm();
+    (component as any).onImageInputChange({
+      target: {
+        files: [new File(['image'], 'valid.png', { type: 'image/png' })],
+        value: 'valid.png',
+      },
+    } as unknown as Event);
+
+    await (component as any).submit();
+
+    expect(notifications.warn).toHaveBeenCalledWith(
+      'El artículo se guardó, pero no pudimos actualizar la foto. Probá de nuevo desde editar.',
+    );
+    expect(saved).toHaveBeenCalledWith(expect.objectContaining({ id: 'created-product' }));
+    expect((component as any).uploadingImage()).toBe(false);
+  });
+
+  it('reactivates archived products for operational roles and handles errors', () => {
+    const archived = makeProduct({ id: 'archived', name: 'Archivado', isActive: false });
+    const saved = vi.fn();
+    const visibleChange = vi.fn();
+    component.saved.subscribe(saved);
+    component.visibleChange.subscribe(visibleChange);
+    fixture.componentRef.setInput('mode', 'edit');
+    fixture.componentRef.setInput('editing', archived);
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+
+    expect((component as any).canReactivateEditing()).toBe(true);
+    (component as any).reactivateEditing();
+    expect(products.reactivate).toHaveBeenCalledWith('archived');
+    expect(notifications.success).toHaveBeenCalled();
+    expect(saved).toHaveBeenCalled();
+    expect(visibleChange).toHaveBeenCalledWith(false);
+
+    products.reactivate.mockReturnValueOnce(
+      throwError(
+        () => new HttpErrorResponse({ status: 400, error: { message: 'No se puede reactivar' } }),
+      ),
+    );
+    (component as any).reactivateEditing();
+    expect((component as any).reactivating()).toBe(false);
+    expect((component as any).submitError()).toBe('No se puede reactivar');
+  });
+
+  it('does not reactivate active products or archived products for BrandManager', () => {
+    fixture.componentRef.setInput('mode', 'edit');
+    fixture.componentRef.setInput('editing', makeProduct({ isActive: true }));
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+
+    (component as any).reactivateEditing();
+    expect(products.reactivate).not.toHaveBeenCalled();
+
+    role.set('BrandManager');
+    fixture.componentRef.setInput('editing', makeProduct({ isActive: false }));
+    fixture.detectChanges();
+    expect((component as any).canReactivateEditing()).toBe(false);
   });
 
   function fillCreateForm(): void {
