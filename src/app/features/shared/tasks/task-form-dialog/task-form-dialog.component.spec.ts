@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
 import { makeStoreTask } from '../../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../../testing/primeng-test-providers';
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { TasksService } from '../../../../core/tasks/tasks.service';
 import { CreateStoreTaskRequest } from '../../../../core/tasks/tasks.types';
@@ -15,6 +16,7 @@ describe('TaskFormDialogComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     tasks = {
       create: vi.fn((body: CreateStoreTaskRequest) =>
         of(makeStoreTask({ ...body, id: 'task-created' })),
@@ -29,7 +31,6 @@ describe('TaskFormDialogComponent', () => {
         { provide: NotificationService, useValue: notifications },
       ],
     });
-    TestBed.overrideComponent(TaskFormDialogComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(TaskFormDialogComponent);

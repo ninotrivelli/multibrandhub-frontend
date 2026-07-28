@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
 import { makeBrand, makeCategory } from '../../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../../testing/primeng-test-providers';
 import { BrandsService } from '../../../../core/brands/brands.service';
 import { ProductCategoriesService } from '../../../../core/product-categories/product-categories.service';
 import { ProductsService } from '../products.service';
@@ -23,6 +24,7 @@ describe('StockSearchTabComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     products = {
       items: signal([]),
       totalCount: signal(0),
@@ -44,7 +46,6 @@ describe('StockSearchTabComponent', () => {
         },
       ],
     });
-    TestBed.overrideComponent(StockSearchTabComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(StockSearchTabComponent);

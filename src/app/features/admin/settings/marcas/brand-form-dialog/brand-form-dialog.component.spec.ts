@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
 import { makeBrand } from '../../../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../../../testing/primeng-test-providers';
 import { BrandsService } from '../../../../../core/brands/brands.service';
 import { NotificationService } from '../../../../../core/notifications/notification.service';
 import { BrandFormDialogComponent } from './brand-form-dialog.component';
@@ -13,6 +14,7 @@ describe('BrandFormDialogComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     brands = {
       create: vi.fn((body: any) => of(makeBrand({ ...body, id: 'brand-created' }))),
       update: vi.fn((id: string, body: any) => of(makeBrand({ ...body, id }))),
@@ -25,7 +27,6 @@ describe('BrandFormDialogComponent', () => {
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn() } },
       ],
     });
-    TestBed.overrideComponent(BrandFormDialogComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(BrandFormDialogComponent);

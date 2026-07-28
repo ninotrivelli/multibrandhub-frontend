@@ -6,6 +6,7 @@ import { brandHeaderStyle } from '../../../../core/brands/brand-colors';
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { SalesService } from '../../../../core/sales/sales.service';
 import { makeSale, makeSaleDetail } from '../../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../../testing/primeng-test-providers';
 import { SaleDetailDialogComponent } from './sale-detail-dialog.component';
 
 describe('SaleDetailDialogComponent', () => {
@@ -15,6 +16,7 @@ describe('SaleDetailDialogComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     sales = {
       getById: vi.fn(() =>
         of(
@@ -43,7 +45,6 @@ describe('SaleDetailDialogComponent', () => {
         { provide: NotificationService, useValue: notifications },
       ],
     });
-    TestBed.overrideComponent(SaleDetailDialogComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(SaleDetailDialogComponent);

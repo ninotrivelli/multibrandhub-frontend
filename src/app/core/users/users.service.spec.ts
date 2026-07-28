@@ -61,4 +61,79 @@ describe('UsersService', () => {
     expect(request.request.context.get(HANDLE_ERROR_LOCALLY)).toBe(true);
     request.flush(null, { status: 204, statusText: 'No Content' });
   });
+
+  it('lists, reads, creates, updates, deactivates, resets, and deletes users', () => {
+    const first = makeUser({ id: 'user-1', fullName: 'Primera Persona', isActive: true });
+    const second = makeUser({ id: 'user-2', fullName: 'Segunda Persona', isActive: true });
+
+    service.list({ page: 2, pageSize: 20 }).subscribe();
+    const list = http.expectOne(
+      (request) =>
+        request.url === baseUrl &&
+        request.params.get('page') === '2' &&
+        request.params.get('pageSize') === '20',
+    );
+    list.flush(paged([first, second], { page: 2, pageSize: 20, totalCount: 2 }));
+    expect(service.items()).toEqual([first, second]);
+    expect(service.totalCount()).toBe(2);
+    expect(service.hasItems()).toBe(true);
+
+    service.getById(first.id).subscribe((user) => expect(user).toEqual(first));
+    http.expectOne(`${baseUrl}/${first.id}`).flush(first);
+
+    const createBody = {
+      fullName: 'Nueva Persona',
+      email: 'nueva@example.com',
+      password: 'Password!123',
+      role: 'Seller' as const,
+      brandId: null,
+    };
+    const created = makeUser({ id: 'user-created', ...createBody });
+    service.create(createBody).subscribe();
+    const create = http.expectOne(baseUrl);
+    expect(create.request.method).toBe('POST');
+    expect(create.request.body).toEqual(createBody);
+    create.flush(created);
+    expect(service.items()[0]).toEqual(created);
+
+    const updateBody = {
+      fullName: 'Primera Actualizada',
+      email: first.email,
+      role: first.role,
+      isActive: true,
+      brandId: first.brandId,
+    };
+    const updated = { ...first, ...updateBody };
+    service.update(first.id, updateBody).subscribe();
+    const update = http.expectOne(`${baseUrl}/${first.id}`);
+    expect(update.request.method).toBe('PUT');
+    update.flush(updated);
+    expect(service.items().find((user) => user.id === first.id)).toEqual(updated);
+
+    service.deactivate(first.id).subscribe();
+    const deactivate = http.expectOne(`${baseUrl}/${first.id}/deactivate`);
+    expect(deactivate.request.method).toBe('PATCH');
+    deactivate.flush(null);
+    expect(service.items().find((user) => user.id === first.id)?.isActive).toBe(false);
+
+    service.resetPassword(second.id, 'AnotherPassword!123').subscribe();
+    const password = http.expectOne(`${baseUrl}/${second.id}/password`);
+    expect(password.request.method).toBe('PATCH');
+    expect(password.request.body).toEqual({ newPassword: 'AnotherPassword!123' });
+    password.flush(null);
+
+    service.delete(second.id).subscribe();
+    const remove = http.expectOne(`${baseUrl}/${second.id}`);
+    expect(remove.request.method).toBe('DELETE');
+    remove.flush(null);
+    expect(service.items().some((user) => user.id === second.id)).toBe(false);
+  });
+
+  it('stops loading after a current-session list error', () => {
+    service.list().subscribe({ error: () => undefined });
+    const request = http.expectOne((candidate) => candidate.url === baseUrl);
+    expect(service.loading()).toBe(true);
+    request.flush('error', { status: 500, statusText: 'Server Error' });
+    expect(service.loading()).toBe(false);
+  });
 });

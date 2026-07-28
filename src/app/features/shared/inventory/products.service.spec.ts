@@ -238,4 +238,117 @@ describe('ProductsService', () => {
     expect(service.immobilizedItems()).toEqual([immobilized]);
     expect(service.immobilizedTotal()).toBe(1);
   });
+
+  it('supports lookup, validation, detail, template, and single-status query contracts', () => {
+    service
+      .searchOnce({
+        stockStatus: 'Critical',
+        searchTerm: '   ',
+      })
+      .subscribe();
+    let req = http.expectOne((request) => request.url === `${baseUrl}/search`);
+    expect(req.request.params.get('stockStatus')).toBe('Critical');
+    expect(req.request.params.has('searchTerm')).toBe(false);
+    expect(req.request.params.get('page')).toBe('1');
+    expect(req.request.params.get('pageSize')).toBe('12');
+    req.flush(paged([]));
+
+    service.getById('product-1').subscribe();
+    req = http.expectOne(`${baseUrl}/product-1`);
+    expect(req.request.method).toBe('GET');
+    req.flush(makeProduct());
+
+    service.validateSku('SKU-001').subscribe();
+    req = http.expectOne((request) => request.url === `${baseUrl}/sku-validation`);
+    expect(req.request.params.get('sku')).toBe('SKU-001');
+    req.flush({ isAvailable: true });
+
+    service.downloadImportTemplate().subscribe();
+    req = http.expectOne(`${baseUrl}/import-template`);
+    expect(req.request.responseType).toBe('blob');
+    req.flush(new Blob(['template']));
+  });
+
+  it('loads every aggregate inventory page and preserves backend order', () => {
+    const first = makeProduct({ id: 'first' });
+    const second = makeProduct({ id: 'second' });
+    const third = makeProduct({ id: 'third' });
+    let result: any[] = [];
+
+    service.loadAll('brand-own').subscribe((items) => (result = items));
+    const firstReq = http.expectOne(
+      (request) =>
+        request.url === `${baseUrl}/search` &&
+        request.params.get('page') === '1' &&
+        request.params.get('brandId') === 'brand-own',
+    );
+    firstReq.flush(paged([first], { totalCount: 201, page: 1, pageSize: 100 }));
+
+    const remaining = http.match((request) => request.url === `${baseUrl}/search`);
+    expect(remaining).toHaveLength(2);
+    const page2 = remaining.find((request) => request.request.params.get('page') === '2')!;
+    const page3 = remaining.find((request) => request.request.params.get('page') === '3')!;
+    page2.flush(paged([second], { totalCount: 201, page: 2, pageSize: 100 }));
+    page3.flush(paged([third], { totalCount: 201, page: 3, pageSize: 100 }));
+
+    expect(result.map((item) => item.id)).toEqual(['first', 'second', 'third']);
+    expect(service.allItems().map((item) => item.id)).toEqual(['first', 'second', 'third']);
+    expect(service.allItemsLoading()).toBe(false);
+  });
+
+  it('reactivates archived cached products and applies stock deltas to every cache', () => {
+    const archived = makeProduct({
+      id: 'archived',
+      isActive: false,
+      archivedAtUtc: '2026-07-01T00:00:00Z',
+      currentStock: 2,
+    });
+    service.search({ includeInactive: true }).subscribe();
+    http
+      .expectOne((request) => request.url === `${baseUrl}/search`)
+      .flush(paged([archived], { totalCount: 1 }));
+    service.loadAll().subscribe();
+    http
+      .expectOne((request) => request.url === `${baseUrl}/search`)
+      .flush(paged([archived], { totalCount: 1 }));
+
+    service.archive(archived.id).subscribe();
+    let req = http.expectOne(`${baseUrl}/${archived.id}/archive`);
+    req.flush(archived);
+    expect(service.items()[0]?.id).toBe('archived');
+    expect(service.totalCount()).toBe(0);
+    expect(service.allItems()).toEqual([]);
+
+    const reactivated = makeProduct({ ...archived, isActive: true, archivedAtUtc: null });
+    service.reactivate(archived.id).subscribe();
+    req = http.expectOne(`${baseUrl}/${archived.id}/reactivate`);
+    req.flush(reactivated);
+    expect(service.items()[0]?.isActive).toBe(true);
+
+    service.applyStockDelta('archived', 3);
+    expect(service.items()[0]?.currentStock).toBe(5);
+    service.applyStockDelta('missing', 10);
+    expect(service.items()[0]?.currentStock).toBe(5);
+  });
+
+  it('clears all loading flags after failed searches and aggregate requests', () => {
+    service.search({}).subscribe({ error: () => undefined });
+    let req = http.expectOne((request) => request.url === `${baseUrl}/search`);
+    req.flush('error', { status: 500, statusText: 'Server Error' });
+    expect(service.loading()).toBe(false);
+
+    service.searchImmobilized({ days: 30 }).subscribe({ error: () => undefined });
+    req = http.expectOne((request) => request.url === `${baseUrl}/immobilized-stock`);
+    expect(req.request.params.get('page')).toBe('1');
+    expect(req.request.params.get('pageSize')).toBe('12');
+    expect(req.request.params.has('brandId')).toBe(false);
+    req.flush('error', { status: 500, statusText: 'Server Error' });
+    expect(service.loading()).toBe(false);
+
+    service.loadImmobilizedCount(undefined, 30).subscribe({ error: () => undefined });
+    req = http.expectOne((request) => request.url === `${baseUrl}/immobilized-stock`);
+    expect(req.request.params.has('brandId')).toBe(false);
+    req.flush('error', { status: 500, statusText: 'Server Error' });
+    expect(service.immobilizedLoading()).toBe(false);
+  });
 });

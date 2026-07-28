@@ -117,6 +117,21 @@ For a single non-watch run, use:
 npm run test:ci
 ```
 
+This command runs the complete Vitest suite with V8 coverage, including production TypeScript and
+the external Angular templates exercised through their components. CI fails if statements,
+branches, functions, or lines fall below the global **80%** threshold. The current evidence
+baseline is:
+
+- Statements: **88.59%**
+- Branches: **82.23%**
+- Functions: **85.49%**
+- Lines: **90.27%**
+- Unit/component tests: **505**
+
+The generated evidence is available locally at `coverage/MultiBrandHub/index.html` (interactive
+HTML) and `coverage/MultiBrandHub/lcov.info` (LCOV). GitHub Actions also publishes the same folder
+as the `frontend-coverage` artifact, including when the test job fails.
+
 Mocked browser smoke tests run the Angular app in Chromium, inject a valid fake session,
 mock the backend at the browser boundary, and fail on uncaught runtime errors,
 `console.error`, blank routed screens, or unexpected API calls:

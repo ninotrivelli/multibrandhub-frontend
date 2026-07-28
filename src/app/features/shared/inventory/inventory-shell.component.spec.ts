@@ -4,6 +4,7 @@ import { convertToParamMap, ParamMap, ActivatedRoute } from '@angular/router';
 import { defer, of } from 'rxjs';
 
 import { makeAuthUser } from '../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../testing/primeng-test-providers';
 import { AuthService } from '../../../core/auth/auth.service';
 import { AuthUser, UserRole } from '../../../core/auth/auth.types';
 import { BrandsService } from '../../../core/brands/brands.service';
@@ -21,6 +22,7 @@ describe('InventoryShellComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     role = signal<UserRole>('Admin');
     user = signal<AuthUser | null>(makeAuthUser({ role: 'Admin', brandId: 'brand-own' }));
     routeParamMap = convertToParamMap({});
@@ -41,21 +43,45 @@ describe('InventoryShellComponent', () => {
         {
           provide: ProductsService,
           useValue: {
+            items: signal([]),
+            totalCount: signal(0),
+            loading: signal(false),
+            kpiCounts: signal({ total: 0, critical: 0, outOfStock: 0 }),
+            kpiLoading: signal(false),
+            allItems: signal([]),
+            allItemsLoading: signal(false),
+            immobilizedItems: signal([]),
+            immobilizedTotal: signal(0),
+            immobilizedCount: signal(0),
+            immobilizedLoading: signal(false),
             loadKpiCounts: vi.fn(() => of({ total: 0, critical: 0, outOfStock: 0 })),
             loadAll: vi.fn(() => of([])),
             loadImmobilizedCount: vi.fn(() => of(0)),
+            search: vi.fn(() => of({ items: [], totalCount: 0, page: 1, pageSize: 20 })),
             archive: vi.fn(),
           },
         },
         {
           provide: BrandsService,
-          useValue: { list: vi.fn(() => of({ items: [], totalCount: 0, page: 1, pageSize: 100 })) },
+          useValue: {
+            items: signal([]),
+            loading: signal(false),
+            hasItems: signal(false),
+            list: vi.fn(() => of({ items: [], totalCount: 0, page: 1, pageSize: 100 })),
+          },
         },
-        { provide: ProductCategoriesService, useValue: { list: vi.fn(() => of([])) } },
+        {
+          provide: ProductCategoriesService,
+          useValue: {
+            items: signal([]),
+            loading: signal(false),
+            list: vi.fn(() => of([])),
+            create: vi.fn(),
+          },
+        },
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn() } },
       ],
     });
-    TestBed.overrideComponent(InventoryShellComponent, { set: { template: '' } });
     await TestBed.compileComponents();
   });
 

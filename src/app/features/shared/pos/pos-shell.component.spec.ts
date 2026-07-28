@@ -1,8 +1,10 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import { makeProduct, makeSale, paged } from '../../../../testing/builders';
+import { primeNgTestProviders } from '../../../../testing/primeng-test-providers';
 import { AuthService } from '../../../core/auth/auth.service';
 import { BrandsService } from '../../../core/brands/brands.service';
 import { CashRegisterService } from '../../../core/cash-register/cash-register.service';
@@ -22,6 +24,7 @@ describe('PosShellComponent', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: primeNgTestProviders() });
     sales = { create: vi.fn(() => of(makeSale())) };
     notifications = { success: vi.fn() };
     cashRegister = {
@@ -38,6 +41,7 @@ describe('PosShellComponent', () => {
     TestBed.configureTestingModule({
       imports: [PosShellComponent],
       providers: [
+        provideRouter([]),
         {
           provide: AuthService,
           useValue: {
@@ -48,18 +52,27 @@ describe('PosShellComponent', () => {
           provide: SalesService,
           useValue: {
             create: sales.create,
+            recentItems: signal([]),
+            recentTotal: signal(0),
+            recentLoading: signal(false),
+            search: vi.fn(() => of(paged([]))),
+            getById: vi.fn(),
+            cancel: vi.fn(),
           },
         },
         {
           provide: BrandsService,
           useValue: {
             hasItems: signal(false).asReadonly(),
+            items: signal([]),
             list: vi.fn(() => of(paged([]))),
           },
         },
         {
           provide: ProductCategoriesService,
           useValue: {
+            items: signal([]),
+            loading: signal(false),
             list: vi.fn(() => of([])),
           },
         },
@@ -67,7 +80,6 @@ describe('PosShellComponent', () => {
         { provide: NotificationService, useValue: notifications },
       ],
     });
-    TestBed.overrideComponent(PosShellComponent, { set: { template: '' } });
     await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(PosShellComponent);
