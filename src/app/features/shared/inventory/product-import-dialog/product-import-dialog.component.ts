@@ -8,13 +8,14 @@ import {
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
-import { FileUploadModule } from 'primeng/fileupload';
+import { FileUpload, FileUploadModule } from 'primeng/fileupload';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
@@ -67,6 +68,7 @@ export class ProductImportDialogComponent {
   private readonly auth = inject(AuthService);
   private readonly products = inject(ProductsService);
   private readonly notifications = inject(NotificationService);
+  private readonly fileInput = viewChild<FileUpload>('fileInput');
 
   readonly visible = input.required<boolean>();
   readonly brands = input.required<BrandResponse[]>();
@@ -203,6 +205,7 @@ export class ProductImportDialogComponent {
   }
 
   private resetState(): void {
+    this.fileInput()?.clear();
     this.submitting.set(false);
     this.downloadingTemplate.set(false);
     this.rowErrors.set([]);

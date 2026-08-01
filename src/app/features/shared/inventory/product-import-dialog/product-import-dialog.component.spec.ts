@@ -1,6 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { FileUpload } from 'primeng/fileupload';
 import { of, throwError } from 'rxjs';
 
 import { makeAuthUser, makeBrand } from '../../../../../testing/builders';
@@ -69,6 +71,32 @@ describe('ProductImportDialogComponent', () => {
       fileInput,
     );
     expect((component as any).selectedFile()?.name).toBe('productos.csv');
+  });
+
+  it('clears the PrimeNG file selection when the dialog is reopened', () => {
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+
+    const fileUpload = fixture.debugElement.query(By.directive(FileUpload))
+      .componentInstance as FileUpload;
+    const file = new File(['SKU,Nombre'], 'productos-anteriores.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+
+    fileUpload.onFileSelect({ type: 'change', target: { files: [file] } } as any);
+    fixture.detectChanges();
+
+    expect(fileUpload.files).toEqual([file]);
+    expect(fixture.nativeElement.textContent).toContain('productos-anteriores.xlsx');
+
+    fixture.componentRef.setInput('visible', false);
+    fixture.detectChanges();
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+
+    expect(fileUpload.files).toEqual([]);
+    expect((component as any).selectedFile()).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('productos-anteriores.xlsx');
   });
 
   it('locks BrandManager imports to their own brand defensively if rendered', () => {
