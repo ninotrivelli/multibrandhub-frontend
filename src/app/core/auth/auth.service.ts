@@ -1,7 +1,8 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpClient, HttpContext, HttpResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, map, tap, throwError } from 'rxjs';
+import { Observable, filter, fromEvent, map, tap, throwError } from 'rxjs';
 import { jwtDecode } from 'jwt-decode';
 
 import { environment } from '../../../environments/environment';
@@ -103,6 +104,30 @@ function isRoleWire(value: unknown): value is RoleWire {
   );
 }
 
+function isUserRole(value: unknown): value is UserRole {
+  return (
+    value === 'SuperAdmin' || value === 'Admin' || value === 'BrandManager' || value === 'Seller'
+  );
+}
+
+function isAuthSession(value: unknown): value is AuthSession {
+  if (!isRecord(value) || !isRecord(value['user'])) return false;
+
+  const user = value['user'];
+  return (
+    typeof user['userId'] === 'string' &&
+    typeof user['fullName'] === 'string' &&
+    typeof user['email'] === 'string' &&
+    isUserRole(user['role']) &&
+    (typeof user['brandId'] === 'string' || user['brandId'] === null) &&
+    typeof value['tenantId'] === 'string' &&
+    value['tenantId'].length > 0 &&
+    typeof value['token'] === 'string' &&
+    value['token'].length > 0 &&
+    typeof value['expiresAtUtc'] === 'string'
+  );
+}
+
 function isAuthResponse(value: unknown): value is AuthResponse {
   if (!isRecord(value)) return false;
   return (
@@ -132,6 +157,7 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly sessionState = inject(SessionStateRegistry);
+  private readonly destroyRef = inject(DestroyRef);
 
   private readonly _session = signal<AuthSession | null>(null);
   private readonly _pendingMfaChallenge = signal<MfaChallengeResponse | null>(null);
@@ -147,42 +173,30 @@ export class AuthService {
   );
   readonly hasPendingMfaChallenge = computed(() => this._pendingMfaChallenge() !== null);
 
+  constructor() {
+    fromEvent<StorageEvent>(window, 'storage')
+      .pipe(
+        filter(
+          (event) =>
+            event.storageArea === localStorage && (event.key === STORAGE_KEY || event.key === null),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => this.syncSessionFromStorage());
+  }
+
   restoreSession(): void {
     this.clearPendingMfaChallenge();
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
 
-    let parsed: AuthSession;
-    try {
-      parsed = JSON.parse(raw) as AuthSession;
-    } catch {
+    const session = this.parseStoredSession(raw);
+    if (!session) {
       this.clearSession();
       return;
     }
 
-    let claims: JwtClaims;
-    try {
-      claims = jwtDecode<JwtClaims>(parsed.token);
-    } catch {
-      this.clearSession();
-      return;
-    }
-
-    // Use the JWT's own `exp` claim as the source of truth, not the
-    // separately-stored expiresAtUtc (which a tamperer could rewrite).
-    const expMs = typeof claims.exp === 'number' ? claims.exp * 1000 : 0;
-    if (expMs <= Date.now()) {
-      this.clearSession();
-      return;
-    }
-
-    if (!claimsMatchSession(claims, parsed)) {
-      this.clearSession();
-      return;
-    }
-
-    this.sessionState.resetAll();
-    this._session.set(parsed);
+    this.replaceSessionState(session);
   }
 
   login(req: LoginRequest): Observable<LoginOutcome> {
@@ -298,6 +312,51 @@ export class AuthService {
   private persistSession(session: AuthSession): void {
     this.sessionState.resetAll();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    this._session.set(session);
+  }
+
+  private syncSessionFromStorage(): void {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const session = raw ? this.parseStoredSession(raw) : null;
+
+    if (!session) {
+      this.clearSession();
+      void this.router.navigateByUrl('/login', { replaceUrl: true });
+      return;
+    }
+
+    this.replaceSessionState(session);
+    void this.router.navigateByUrl(this.homePathFor(session.user.role), { replaceUrl: true });
+  }
+
+  private parseStoredSession(raw: string): AuthSession | null {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+
+    if (!isAuthSession(parsed)) return null;
+
+    let claims: JwtClaims;
+    try {
+      claims = jwtDecode<JwtClaims>(parsed.token);
+    } catch {
+      return null;
+    }
+
+    // Use the JWT's own `exp` claim as the source of truth, not the
+    // separately-stored expiresAtUtc (which a tamperer could rewrite).
+    const expMs = typeof claims.exp === 'number' ? claims.exp * 1000 : 0;
+    if (expMs <= Date.now()) return null;
+
+    return claimsMatchSession(claims, parsed) ? parsed : null;
+  }
+
+  private replaceSessionState(session: AuthSession): void {
+    this.clearPendingMfaChallenge();
+    this.sessionState.resetAll();
     this._session.set(session);
   }
 

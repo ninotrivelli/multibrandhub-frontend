@@ -10,7 +10,11 @@ import {
   mockSmokeApi,
   type SmokeWatchers,
 } from './support/smoke-app';
-import { smokeOldCashRegister } from '../src/testing/smoke-fixtures';
+import {
+  SMOKE_STORAGE_KEY,
+  makeSmokeSession,
+  smokeOldCashRegister,
+} from '../src/testing/smoke-fixtures';
 import type { SmokeRole } from '../src/testing/smoke-fixtures';
 
 let watchers: SmokeWatchers;
@@ -84,6 +88,46 @@ test.describe('auth and role guards', () => {
 
     await gotoAs(page, 'Admin', '/seller/pos');
     await expectRouteReady(page, /\/admin\/dashboard$/, 'Inicio');
+  });
+
+  test('synchronizes login, user replacement, and logout across tabs', async ({
+    page,
+    context,
+  }) => {
+    await installSession(page, null);
+    await page.goto('/login');
+
+    const peer = await context.newPage();
+    const peerWatchers = collectSmokeWatchers(peer);
+    await installSmokeClock(peer);
+    await mockSmokeApi(peer, peerWatchers);
+    await peer.goto('/login');
+
+    await page.getByLabel('Email').fill('admin@multibrand.com');
+    await page.getByLabel('Contraseña').fill('Password!123mbh');
+    await page.getByRole('button', { name: 'Ingresar' }).click();
+
+    await expect(page).toHaveURL(/\/login\/mfa$/);
+    await expect(peer).toHaveURL(/\/login$/);
+    await page.getByLabel('Código de 6 dígitos').fill('123456');
+    await page.getByRole('button', { name: 'Verificar' }).click();
+
+    await expectRouteReady(page, /\/admin\/dashboard$/, 'Inicio');
+    await expectRouteReady(peer, /\/admin\/dashboard$/, 'Inicio');
+
+    await page.evaluate(({ key, session }) => localStorage.setItem(key, JSON.stringify(session)), {
+      key: SMOKE_STORAGE_KEY,
+      session: makeSmokeSession('BrandManager'),
+    });
+
+    await expectRouteReady(peer, /\/brand-manager\/dashboard$/, 'Mi Resumen');
+
+    await page.evaluate((key) => localStorage.removeItem(key), SMOKE_STORAGE_KEY);
+
+    await expect(peer).toHaveURL(/\/login$/);
+    await expect(peer.getByText('Ingresá con tu cuenta')).toBeVisible();
+    expectSmokeClean(peerWatchers);
+    await peer.close();
   });
 });
 
