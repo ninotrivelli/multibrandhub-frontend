@@ -162,6 +162,17 @@ describe('AdminDashboardComponent', () => {
     expect(text).not.toContain('Reponer bolsas');
   });
 
+  it('shows the pointer cursor on the pending task scope buttons', () => {
+    const taskScopeButtons = fixture.nativeElement.querySelectorAll(
+      '[data-testid^="admin-dashboard-tasks-"]',
+    ) as NodeListOf<HTMLButtonElement>;
+
+    expect(taskScopeButtons).toHaveLength(2);
+    taskScopeButtons.forEach((button) =>
+      expect(button.classList.contains('cursor-pointer')).toBe(true),
+    );
+  });
+
   it('shows the exact age and a danger alert for an old open register', () => {
     cash.set(makeCashRegisterSession({ openedAtUtc: '2026-07-09T11:00:00Z' }));
     cashAgeText.set('hace 10 días');
