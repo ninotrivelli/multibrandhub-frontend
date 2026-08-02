@@ -12,8 +12,8 @@ import { SalesService } from '../../../core/sales/sales.service';
 import {
   makeAuthUser,
   makeBrand,
-  makeSaleSearch,
   makeSalesDashboard,
+  makeSalesDashboardSale,
   paged,
 } from '../../../../testing/builders';
 import { primeNgTestProviders } from '../../../../testing/primeng-test-providers';
@@ -39,7 +39,7 @@ describe('SalesDashboardShellComponent', () => {
     routeParamMap = convertToParamMap({});
     sales = {
       getDashboard: vi.fn(() => of(makeSalesDashboard())),
-      searchOnce: vi.fn(() => of(paged([makeSaleSearch()]))),
+      searchOnce: vi.fn(),
     };
     const brandItems = signal([makeBrand({ id: 'brand-own', name: 'Zendra' })]);
     brands = {
@@ -248,54 +248,40 @@ describe('SalesDashboardShellComponent', () => {
     expect(sales.getDashboard).toHaveBeenCalled();
   });
 
-  it('surfaces dashboard and history request errors and clears loading flags', () => {
+  it('surfaces dashboard request errors and clears the loading flag', () => {
     sales.getDashboard.mockReturnValue(throwError(() => new Error('dashboard unavailable')));
-    sales.searchOnce.mockReturnValue(throwError(() => new Error('history unavailable')));
     const component = create('admin') as any;
 
     expect(component.loading()).toBe(false);
-    expect(component.historyLoading()).toBe(false);
-    expect(component.error()).toBe('No se pudo cargar el historial de ventas. Probá de nuevo.');
+    expect(component.error()).toBe('No se pudo cargar el panel de ventas. Probá de nuevo.');
   });
 
-  it('loads all pages and filters multi-brand history before local pagination', () => {
+  it('uses the dashboard paginated sales for multi-brand history', () => {
     const component = create('admin') as any;
-    sales.searchOnce.mockReset();
-    const first = makeSaleSearch({
+    const first = makeSalesDashboardSale({
       id: 'sale-first',
-      date: '2026-06-02T12:00:00Z',
-      createdAt: '2026-06-02T12:00:00Z',
       brands: [{ brandId: 'brand-a', brandName: 'A' }],
     });
-    const second = makeSaleSearch({
+    const second = makeSalesDashboardSale({
       id: 'sale-second',
-      date: '2026-06-02T12:00:00Z',
-      createdAt: '2026-06-02T13:00:00Z',
       brands: [{ brandId: 'brand-b', brandName: 'B' }],
     });
-    const ignored = makeSaleSearch({
-      id: 'sale-ignored',
-      brands: [{ brandId: 'brand-c', brandName: 'C' }],
+    const dashboard = makeSalesDashboard({
+      brandIds: ['brand-a', 'brand-b'],
+      sales: paged([first, second], { totalCount: 2, page: 1, pageSize: 10 }),
     });
-    sales.searchOnce
-      .mockReturnValueOnce(of(paged([first], { totalCount: 401, pageSize: 200 })))
-      .mockReturnValueOnce(of(paged([second], { page: 2, pageSize: 200 })))
-      .mockReturnValueOnce(of(paged([ignored], { page: 3, pageSize: 200 })));
+    sales.getDashboard.mockReturnValue(of(dashboard));
+    sales.getDashboard.mockClear();
+    sales.searchOnce.mockClear();
 
-    let result: any;
-    component
-      .loadHistory({
-        from: '2026-06-01',
-        to: '2026-06-30',
-        brandIds: ['brand-a', 'brand-b'],
-      })
-      .subscribe((value: unknown) => (result = value));
+    component.toggleBrand('brand-a');
+    component.toggleBrand('brand-b');
+    TestBed.flushEffects();
 
-    expect(sales.searchOnce).toHaveBeenCalledTimes(3);
-    expect(result.items.map((sale: { id: string }) => sale.id)).toEqual([
-      'sale-second',
-      'sale-first',
-    ]);
-    expect(result).toEqual(expect.objectContaining({ totalCount: 2, page: 1, pageSize: 10 }));
+    expect(sales.getDashboard).toHaveBeenCalledWith(
+      expect.objectContaining({ brandIds: ['brand-a', 'brand-b'], page: 1, pageSize: 10 }),
+    );
+    expect(component.dashboard().sales).toEqual(dashboard.sales);
+    expect(sales.searchOnce).not.toHaveBeenCalled();
   });
 });
