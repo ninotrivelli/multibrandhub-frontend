@@ -28,7 +28,14 @@
       class="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-200 sm:flex-row sm:items-center sm:justify-between"
     >
       <span>{{ message }}</span>
-      <button pButton type="button" severity="danger" [outlined]="true" label="Reintentar" (click)="retry()">
+      <button
+        pButton
+        type="button"
+        severity="danger"
+        [outlined]="true"
+        label="Reintentar"
+        (click)="retry()"
+      >
         <i-lucide [img]="icons.RefreshCw" class="size-4 mr-2" />
       </button>
     </div>
@@ -60,8 +67,8 @@
   </div>
 
   <app-sales-dashboard-list
-    [sales]="history()"
-    [loading]="loading() || historyLoading()"
+    [sales]="dashboard()?.sales ?? null"
+    [loading]="loading()"
     [page]="page()"
     [pageSize]="pageSize()"
     [hasFilter]="hasAnyFilter()"
