@@ -156,6 +156,9 @@ export class SettlementsShellComponent implements OnInit {
   protected readonly generateNotes = signal('');
   protected readonly generating = signal(false);
 
+  protected readonly sendEmailDialogVisible = signal(false);
+  protected readonly sendEmailTarget = signal<BrandSettlementSavedResponse | null>(null);
+
   protected readonly markPaidDialogVisible = signal(false);
   protected readonly markPaidTarget = signal<BrandSettlementSavedResponse | null>(null);
   protected readonly paidAtLocal = signal('');
@@ -207,6 +210,14 @@ export class SettlementsShellComponent implements OnInit {
 
   protected readonly selectedSettlementContactEmail = computed(() => {
     const contactEmail = this.selectedSettlementBrand()?.contactEmail?.trim();
+    return contactEmail || null;
+  });
+
+  protected readonly sendEmailRecipient = computed(() => {
+    const brandId = this.sendEmailTarget()?.brandId;
+    const contactEmail = this.brandsList()
+      .find((brand) => brand.id === brandId)
+      ?.contactEmail?.trim();
     return contactEmail || null;
   });
 
@@ -580,21 +591,38 @@ export class SettlementsShellComponent implements OnInit {
     return this.sendingEmailSettlementId() === row.id;
   }
 
-  protected sendSettlementEmail(row: BrandSettlementSavedResponse): void {
+  protected openSendEmailDialog(row: BrandSettlementSavedResponse): void {
+    if (!this.canSendEmail(row) || !this.selectedSettlementContactEmail()) return;
+
+    this.sendEmailTarget.set(row);
+    this.sendEmailDialogVisible.set(true);
+  }
+
+  protected onSendEmailDialogVisibleChange(value: boolean): void {
+    if (!value && this.sendingEmailSettlementId()) return;
+    this.sendEmailDialogVisible.set(value);
+    if (!value) this.sendEmailTarget.set(null);
+  }
+
+  protected confirmSendEmail(): void {
+    const target = this.sendEmailTarget();
     if (
-      !this.canSendEmail(row) ||
-      !this.selectedSettlementContactEmail() ||
+      !target ||
+      !this.canSendEmail(target) ||
+      !this.sendEmailRecipient() ||
       this.sendingEmailSettlementId()
     ) {
       return;
     }
 
-    this.sendingEmailSettlementId.set(row.id);
+    this.sendingEmailSettlementId.set(target.id);
     this.settlements
-      .sendEmail(row.id)
+      .sendEmail(target.id)
       .pipe(finalize(() => this.sendingEmailSettlementId.set(null)))
       .subscribe({
         next: (response) => {
+          this.sendEmailDialogVisible.set(false);
+          this.sendEmailTarget.set(null);
           this.notifications.success(
             `Liquidación enviada a ${response.recipientEmail}.`,
             'Email enviado',

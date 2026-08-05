@@ -633,16 +633,15 @@
           </button>
           @if (isAdmin()) {
             @if (canSendEmail(settlement)) {
-              <div class="flex flex-col gap-1 sm:items-end">
-                @if (selectedSettlementContactEmail(); as contactEmail) {
-                  <span class="text-xs text-surface-500 dark:text-surface-400">
-                    Destinatario: <span class="font-medium">{{ contactEmail }}</span>
-                  </span>
-                } @else {
-                  <span class="max-w-64 text-xs text-amber-700 dark:text-amber-300">
-                    Configurá un email de contacto en Marcas para poder enviarla.
-                  </span>
-                }
+              <span
+                class="inline-flex"
+                [pTooltip]="
+                  selectedSettlementContactEmail()
+                    ? ''
+                    : 'Configurá un email de contacto en Marcas para poder enviarla.'
+                "
+                tooltipPosition="top"
+              >
                 <button
                   pButton
                   type="button"
@@ -650,11 +649,11 @@
                   label="Enviar por email"
                   [loading]="isSendingEmail(settlement)"
                   [disabled]="!selectedSettlementContactEmail() || isSendingEmail(settlement)"
-                  (click)="sendSettlementEmail(settlement)"
+                  (click)="openSendEmailDialog(settlement)"
                 >
                   <i-lucide [img]="icons.Mail" class="size-4 mr-2" />
                 </button>
-              </div>
+              </span>
             }
             @if (canFinalize(settlement)) {
               <button
@@ -741,6 +740,59 @@
           </p-table>
         </div>
       }
+    </div>
+  }
+</p-dialog>
+
+<p-dialog
+  [visible]="sendEmailDialogVisible()"
+  (visibleChange)="onSendEmailDialogVisibleChange($event)"
+  [modal]="true"
+  [closable]="sendingEmailSettlementId() === null"
+  [closeOnEscape]="sendingEmailSettlementId() === null"
+  [dismissableMask]="sendingEmailSettlementId() === null"
+  [draggable]="false"
+  [style]="{ width: '28rem', maxWidth: '95vw' }"
+  header="Enviar liquidación por email"
+>
+  @if (sendEmailTarget(); as target) {
+    <div class="flex flex-col gap-4">
+      <p class="text-sm text-surface-600 dark:text-surface-300">
+        Se enviará el reporte de liquidación de
+        <span class="font-medium text-surface-900 dark:text-surface-0">{{ target.brandName }}</span>
+        a:
+      </p>
+
+      <div
+        class="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-surface-800 dark:text-surface-100"
+      >
+        <i-lucide [img]="icons.Mail" class="size-5 shrink-0 text-primary" />
+        <span class="min-w-0 break-all font-medium">{{ sendEmailRecipient() }}</span>
+      </div>
+
+      <p class="text-xs text-surface-500 dark:text-surface-400">
+        Se adjuntará el PDF oficial de la versión {{ target.versionNumber }}.
+      </p>
+
+      <div class="flex justify-end gap-2">
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          [text]="true"
+          label="Cancelar"
+          [disabled]="isSendingEmail(target)"
+          (click)="onSendEmailDialogVisibleChange(false)"
+        ></button>
+        <button
+          pButton
+          type="button"
+          label="Enviar reporte"
+          [loading]="isSendingEmail(target)"
+          [disabled]="!sendEmailRecipient() || isSendingEmail(target)"
+          (click)="confirmSendEmail()"
+        ></button>
+      </div>
     </div>
   }
 </p-dialog>
