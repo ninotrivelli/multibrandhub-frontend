@@ -209,7 +209,9 @@
       </ng-template>
 
       <ng-template pTemplate="groupheader" let-row>
-        <tr class="border-y border-primary/20 bg-primary/5 dark:border-primary/30 dark:bg-primary/10">
+        <tr
+          class="border-y border-primary/20 bg-primary/5 dark:border-primary/30 dark:bg-primary/10"
+        >
           <td colspan="11" class="!px-4 !py-3">
             <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
               <span
@@ -623,11 +625,37 @@
             severity="secondary"
             [outlined]="true"
             label="Descargar PDF"
+            [loading]="isDownloadingPdf(settlement)"
+            [disabled]="isDownloadingPdf(settlement)"
             (click)="downloadSettlementPdf()"
           >
             <i-lucide [img]="icons.FileDown" class="size-4 mr-2" />
           </button>
           @if (isAdmin()) {
+            @if (canSendEmail(settlement)) {
+              <div class="flex flex-col gap-1 sm:items-end">
+                @if (selectedSettlementContactEmail(); as contactEmail) {
+                  <span class="text-xs text-surface-500 dark:text-surface-400">
+                    Destinatario: <span class="font-medium">{{ contactEmail }}</span>
+                  </span>
+                } @else {
+                  <span class="max-w-64 text-xs text-amber-700 dark:text-amber-300">
+                    Configurá un email de contacto en Marcas para poder enviarla.
+                  </span>
+                }
+                <button
+                  pButton
+                  type="button"
+                  severity="secondary"
+                  label="Enviar por email"
+                  [loading]="isSendingEmail(settlement)"
+                  [disabled]="!selectedSettlementContactEmail() || isSendingEmail(settlement)"
+                  (click)="sendSettlementEmail(settlement)"
+                >
+                  <i-lucide [img]="icons.Mail" class="size-4 mr-2" />
+                </button>
+              </div>
+            }
             @if (canFinalize(settlement)) {
               <button
                 pButton
@@ -866,124 +894,3 @@
     </div>
   }
 </p-dialog>
-
-<!-- Print-only settlement report (hidden on screen; revealed by the print
-     stylesheet for "Descargar PDF"). -->
-@if (selectedSettlement(); as settlement) {
-  <div id="settlement-print" class="settlement-print" aria-hidden="true">
-    <div class="sp-doc">
-      <div class="sp-header">
-        <div>
-          <div class="sp-title">Reporte de liquidación</div>
-          <div class="sp-subtitle">
-            {{ settlement.brandName }} · {{ contractLabel(settlement) }}<br />
-            {{ periodLabel(settlement) }} · versión {{ settlement.versionNumber }}
-          </div>
-        </div>
-        <div class="sp-status">{{ statusLabel(settlement.status) }}</div>
-      </div>
-
-      <div class="sp-balance">
-        <div>
-          <div class="sp-balance-label">Saldo final</div>
-          <div>{{ directionLabel(settlement.settlementStatus) }}</div>
-        </div>
-        <div class="sp-balance-amount">
-          {{ formatCurrency(settlement.amountBrandOwesStore) }}
-        </div>
-      </div>
-
-      <div class="sp-section">
-        <div class="sp-section-title">Ventas</div>
-        <div class="sp-row">
-          <span class="sp-key">Ventas brutas</span>
-          <span class="sp-val">{{ formatCurrency(settlement.grossSalesAmount) }}</span>
-        </div>
-        <div class="sp-row">
-          <span class="sp-key">Devoluciones</span>
-          <span class="sp-val">{{ formatCurrency(settlement.returnsAmount) }}</span>
-        </div>
-        <div class="sp-row sp-total">
-          <span>Venta neta</span>
-          <span class="sp-val">{{ formatCurrency(settlement.netSalesAmount) }}</span>
-        </div>
-      </div>
-
-      <div class="sp-section">
-        <div class="sp-section-title">Qué cobra el local</div>
-        <div class="sp-row">
-          <span class="sp-key">Comisión</span>
-          <span class="sp-val">{{ formatCurrency(settlement.commissionAmount) }}</span>
-        </div>
-        <div class="sp-note">{{ commissionFormula(settlement) }}</div>
-        <div class="sp-row">
-          <span class="sp-key">Renta fija</span>
-          <span class="sp-val">{{ formatCurrency(settlement.fixedAmount) }}</span>
-        </div>
-        <div class="sp-row sp-total">
-          <span>Total a cobrar por el local</span>
-          <span class="sp-val">{{ formatCurrency(settlement.platformFee) }}</span>
-        </div>
-        <div class="sp-note">{{ platformFeeFormula(settlement) }}</div>
-      </div>
-
-      <div class="sp-section">
-        <div class="sp-section-title">Cómo se cobró la venta neta</div>
-        <div class="sp-row">
-          <span class="sp-key">Efectivo retenido por el local</span>
-          <span class="sp-val">{{ formatCurrency(settlement.cashCollectedByStore) }}</span>
-        </div>
-        <div class="sp-row">
-          <span class="sp-key">Cobrado con Tarjetas / Transferencia / Mercado Pago</span>
-          <span class="sp-val">{{ formatCurrency(settlement.nonCashCollectedByBrand) }}</span>
-        </div>
-        <div class="sp-note">{{ nonCashFormula(settlement) }}</div>
-      </div>
-
-      <div class="sp-section">
-        <div class="sp-section-title">Cálculo del saldo final</div>
-        <div class="sp-row">
-          <span class="sp-key">Fórmula</span>
-          <span class="sp-formula">{{ balanceFormula(settlement) }}</span>
-        </div>
-        <div class="sp-note">{{ balanceExplanation(settlement) }}</div>
-      </div>
-
-      <div class="sp-section">
-        <div class="sp-section-title">Auditoría</div>
-        <div class="sp-audit">
-          <div class="sp-row">
-            <span class="sp-key">Generada</span>
-            <span class="sp-val">{{ formatDateTime(settlement.generatedAtUtc) }}</span>
-          </div>
-          <div class="sp-row">
-            <span class="sp-key">Finalizada</span>
-            <span class="sp-val">{{ formatDateTime(settlement.finalizedAtUtc) }}</span>
-          </div>
-          <div class="sp-row">
-            <span class="sp-key">Pagada</span>
-            <span class="sp-val">{{ formatDateTime(settlement.paidAtUtc) }}</span>
-          </div>
-          <div class="sp-row">
-            <span class="sp-key">Referencia</span>
-            <span class="sp-val">{{ settlement.paymentReference ?? '—' }}</span>
-          </div>
-        </div>
-      </div>
-
-      @if (settlement.generationNotes || settlement.paymentNotes) {
-        <div class="sp-section">
-          <div class="sp-section-title">Notas</div>
-          @if (settlement.generationNotes) {
-            <div class="sp-note">Generación: {{ settlement.generationNotes }}</div>
-          }
-          @if (settlement.paymentNotes) {
-            <div class="sp-note">Pago: {{ settlement.paymentNotes }}</div>
-          }
-        </div>
-      }
-
-      <div class="sp-foot">MultiBrandHub · Reporte de liquidación</div>
-    </div>
-  </div>
-}

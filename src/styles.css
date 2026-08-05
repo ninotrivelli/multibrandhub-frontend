@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "tailwindcss-primeui";
+@import 'tailwindcss';
+@import 'tailwindcss-primeui';
 
 /* Drive Tailwind's `dark:` variant from the `.app-dark` class instead of the
  * default `prefers-color-scheme` media query, so Tailwind utilities stay in
@@ -9,12 +9,14 @@
 @custom-variant dark (&:where(.app-dark, .app-dark *));
 
 @theme {
-  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans:
+    'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
 }
 
 :root {
   font-family: var(--font-sans);
-  font-feature-settings: "cv11", "ss01", "ss03";
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
   /* Drive native browser widgets (scrollbars, input autofill) from the chosen
    * theme rather than the OS preference. Light by default; the `.app-dark`
    * theme flips it to dark below. */
@@ -35,163 +37,4 @@ body {
  * horizontally. */
 html {
   scrollbar-gutter: stable;
-}
-
-/* ---------------------------------------------------------------------------
- * Settlement report — print to PDF
- * The printable node (`#settlement-print`) is hidden on screen and revealed
- * only for print media, where every other element is hidden so the browser's
- * "Guardar como PDF" exports just the report. Styled with plain colors (no
- * theme tokens) so it always prints light and readable regardless of dark mode.
- * ------------------------------------------------------------------------- */
-.settlement-print {
-  display: none;
-}
-
-.settlement-print .sp-doc {
-  font-family: var(--font-sans);
-  color: #111827;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.settlement-print .sp-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 2px solid #111827;
-  padding-bottom: 10px;
-  margin-bottom: 16px;
-}
-
-.settlement-print .sp-title {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.settlement-print .sp-subtitle {
-  margin-top: 2px;
-  color: #4b5563;
-  font-size: 12px;
-}
-
-.settlement-print .sp-status {
-  border: 1px solid #9ca3af;
-  border-radius: 9999px;
-  padding: 2px 10px;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.settlement-print .sp-balance {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin-bottom: 18px;
-  background: #f9fafb;
-}
-
-.settlement-print .sp-balance-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #6b7280;
-}
-
-.settlement-print .sp-balance-amount {
-  font-size: 22px;
-  font-weight: 700;
-}
-
-.settlement-print .sp-section {
-  margin-bottom: 14px;
-  break-inside: avoid;
-}
-
-.settlement-print .sp-section-title {
-  font-size: 13px;
-  font-weight: 700;
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 4px;
-  margin-bottom: 6px;
-}
-
-.settlement-print .sp-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 3px 0;
-}
-
-.settlement-print .sp-row.sp-total {
-  border-top: 1px solid #e5e7eb;
-  margin-top: 4px;
-  padding-top: 6px;
-  font-weight: 700;
-}
-
-.settlement-print .sp-key {
-  color: #4b5563;
-}
-
-.settlement-print .sp-val {
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.settlement-print .sp-formula {
-  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
-  font-weight: 600;
-}
-
-.settlement-print .sp-note {
-  color: #4b5563;
-  font-size: 11px;
-  margin-top: 4px;
-}
-
-.settlement-print .sp-audit {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 24px;
-}
-
-.settlement-print .sp-foot {
-  margin-top: 18px;
-  border-top: 1px solid #e5e7eb;
-  padding-top: 8px;
-  color: #9ca3af;
-  font-size: 10px;
-  text-align: center;
-}
-
-@media print {
-  body * {
-    visibility: hidden !important;
-  }
-
-  #settlement-print,
-  #settlement-print * {
-    visibility: visible !important;
-  }
-
-  #settlement-print {
-    display: block !important;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
-
-  @page {
-    margin: 16mm;
-  }
 }

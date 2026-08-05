@@ -9,9 +9,10 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { HttpResponse } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { EMPTY, Subject, catchError, switchMap, tap } from 'rxjs';
+import { EMPTY, Subject, catchError, finalize, switchMap, tap } from 'rxjs';
 
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -29,6 +30,7 @@ import {
   Eye,
   FileDown,
   History,
+  Mail,
   LucideAngularModule,
   RefreshCw,
 } from 'lucide-angular';
@@ -113,6 +115,7 @@ export class SettlementsShellComponent implements OnInit {
     Eye,
     FileDown,
     History,
+    Mail,
     RefreshCw,
   };
 
@@ -135,6 +138,8 @@ export class SettlementsShellComponent implements OnInit {
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly mutatingSettlementId = signal<string | null>(null);
+  protected readonly downloadingPdfSettlementId = signal<string | null>(null);
+  protected readonly sendingEmailSettlementId = signal<string | null>(null);
   protected readonly existingCurrentForSelectedBrand = signal<BrandSettlementSavedResponse | null>(
     null,
   );
@@ -193,6 +198,16 @@ export class SettlementsShellComponent implements OnInit {
   protected readonly selectedBrand = computed(() => {
     const id = this.requestBrandId();
     return id ? (this.brandsList().find((brand) => brand.id === id) ?? null) : null;
+  });
+
+  protected readonly selectedSettlementBrand = computed(() => {
+    const brandId = this.selectedSettlement()?.brandId;
+    return brandId ? (this.brandsList().find((brand) => brand.id === brandId) ?? null) : null;
+  });
+
+  protected readonly selectedSettlementContactEmail = computed(() => {
+    const contactEmail = this.selectedSettlementBrand()?.contactEmail?.trim();
+    return contactEmail || null;
   });
 
   protected readonly brandOptions = computed<BrandOption[]>(() =>
@@ -503,28 +518,46 @@ export class SettlementsShellComponent implements OnInit {
     this.selectedSettlement.set(version);
   }
 
-  /**
-   * Front-end only "Descargar PDF": names the document so the browser's
-   * Save-as-PDF dialog defaults to a meaningful filename, then triggers the
-   * native print flow. The print stylesheet isolates `#settlement-print`.
-   */
   protected downloadSettlementPdf(): void {
     const settlement = this.selectedSettlement();
-    if (!settlement || typeof window === 'undefined') return;
+    if (!settlement || this.downloadingPdfSettlementId()) return;
 
-    const originalTitle = document.title;
-    document.title = this.printFileName(settlement);
-    const restore = (): void => {
-      document.title = originalTitle;
-      window.removeEventListener('afterprint', restore);
-    };
-    window.addEventListener('afterprint', restore);
-    window.print();
+    this.downloadingPdfSettlementId.set(settlement.id);
+    this.settlements
+      .downloadPdf(settlement.id)
+      .pipe(finalize(() => this.downloadingPdfSettlementId.set(null)))
+      .subscribe({
+        next: (response) => {
+          if (!response.body) {
+            this.notifications.error('No se pudo descargar el PDF. Probá de nuevo.');
+            return;
+          }
+
+          triggerBlobDownload(
+            response.body,
+            this.resolvePdfFileName(response, this.fallbackPdfFileName(settlement)),
+          );
+        },
+        error: () => {
+          // The global interceptor shows the backend error.
+        },
+      });
   }
 
-  private printFileName(settlement: BrandSettlementSavedResponse): string {
+  private fallbackPdfFileName(settlement: BrandSettlementSavedResponse): string {
     const brand = settlement.brandName.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
-    return `Liquidacion_${brand}_${dateOnly(settlement.from)}_v${settlement.versionNumber}`;
+    return `Liquidacion_${brand}_${dateOnly(settlement.from)}_v${settlement.versionNumber}.pdf`;
+  }
+
+  private resolvePdfFileName(response: HttpResponse<Blob>, fallbackFileName: string): string {
+    const header = response.headers.get('content-disposition');
+    if (!header) return fallbackFileName;
+
+    const fileNameStar = /filename\*=UTF-8''([^;]+)/i.exec(header)?.[1];
+    if (fileNameStar) return decodeURIComponent(fileNameStar.replaceAll('"', '').trim());
+
+    const fileName = /filename="?([^";]+)"?/i.exec(header)?.[1];
+    return fileName?.trim() || fallbackFileName;
   }
 
   protected canFinalize(row: BrandSettlementSavedResponse): boolean {
@@ -533,6 +566,44 @@ export class SettlementsShellComponent implements OnInit {
 
   protected canMarkPaid(row: BrandSettlementSavedResponse): boolean {
     return this.isAdmin() && row.isCurrent && row.status === 'Finalized';
+  }
+
+  protected canSendEmail(row: BrandSettlementSavedResponse): boolean {
+    return this.isAdmin() && row.isCurrent && (row.status === 'Finalized' || row.status === 'Paid');
+  }
+
+  protected isDownloadingPdf(row: BrandSettlementSavedResponse): boolean {
+    return this.downloadingPdfSettlementId() === row.id;
+  }
+
+  protected isSendingEmail(row: BrandSettlementSavedResponse): boolean {
+    return this.sendingEmailSettlementId() === row.id;
+  }
+
+  protected sendSettlementEmail(row: BrandSettlementSavedResponse): void {
+    if (
+      !this.canSendEmail(row) ||
+      !this.selectedSettlementContactEmail() ||
+      this.sendingEmailSettlementId()
+    ) {
+      return;
+    }
+
+    this.sendingEmailSettlementId.set(row.id);
+    this.settlements
+      .sendEmail(row.id)
+      .pipe(finalize(() => this.sendingEmailSettlementId.set(null)))
+      .subscribe({
+        next: (response) => {
+          this.notifications.success(
+            `Liquidación enviada a ${response.recipientEmail}.`,
+            'Email enviado',
+          );
+        },
+        error: () => {
+          // The global interceptor shows the backend error.
+        },
+      });
   }
 
   protected finalize(row: BrandSettlementSavedResponse): void {
@@ -762,4 +833,15 @@ export class SettlementsShellComponent implements OnInit {
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
   }
+}
+
+function triggerBlobDownload(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }

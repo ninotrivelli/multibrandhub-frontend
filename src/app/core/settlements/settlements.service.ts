@@ -1,10 +1,11 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import {
   BrandSettlementSavedResponse,
+  BrandSettlementEmailResponse,
   BrandSettlementRequest,
   BrandSettlementResponse,
   GenerateBrandSettlementRequest,
@@ -38,7 +39,10 @@ export class SettlementsService {
     return this.http.get<BrandSettlementSavedResponse[]>(`${this.baseUrl}/saved/${id}/versions`);
   }
 
-  getByBrand(brandId: string, request: BrandSettlementRequest): Observable<BrandSettlementResponse> {
+  getByBrand(
+    brandId: string,
+    request: BrandSettlementRequest,
+  ): Observable<BrandSettlementResponse> {
     return this.http.get<BrandSettlementResponse>(`${this.baseUrl}/${brandId}`, {
       params: this.buildBrandSettlementParams(request),
     });
@@ -58,6 +62,20 @@ export class SettlementsService {
     return this.http.post<BrandSettlementSavedResponse>(
       `${this.baseUrl}/saved/${id}/mark-paid`,
       request,
+    );
+  }
+
+  downloadPdf(id: string): Observable<HttpResponse<Blob>> {
+    return this.http.get(`${this.baseUrl}/saved/${id}/pdf`, {
+      observe: 'response',
+      responseType: 'blob',
+    });
+  }
+
+  sendEmail(id: string): Observable<BrandSettlementEmailResponse> {
+    return this.http.post<BrandSettlementEmailResponse>(
+      `${this.baseUrl}/saved/${id}/send-email`,
+      null,
     );
   }
 
