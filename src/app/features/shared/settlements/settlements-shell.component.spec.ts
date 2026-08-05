@@ -300,13 +300,17 @@ describe('SettlementsShellComponent', () => {
     );
   });
 
-  it('builds a sanitized PDF filename from brand, period start and version', () => {
+  it('builds a sanitized fallback PDF filename from brand, period start and version', () => {
     create('admin');
 
-    const name = (component as any).printFileName(
-      makeSettlement({ brandName: 'Kora Accesorios', from: '2026-06-01T00:00:00', versionNumber: 3 }),
+    const name = (component as any).fallbackPdfFileName(
+      makeSettlement({
+        brandName: 'Kora Accesorios',
+        from: '2026-06-01T00:00:00',
+        versionNumber: 3,
+      }),
     );
-    expect(name).toBe('Liquidacion_Kora-Accesorios_2026-06-01_v3');
+    expect(name).toBe('Liquidacion_Kora-Accesorios_2026-06-01_v3.pdf');
   });
 
   it('builds a combined version tag label from version number and current flag', () => {

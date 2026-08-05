@@ -79,6 +79,13 @@ export interface MarkBrandSettlementPaidRequest {
   notes?: string | null;
 }
 
+export interface BrandSettlementEmailResponse {
+  settlementId: string;
+  recipientEmail: string;
+  sentAtUtc: string;
+  fileName: string;
+}
+
 export interface BrandSettlementRequest {
   from: string;
   to: string;
